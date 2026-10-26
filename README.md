@@ -50,7 +50,7 @@ project, there is no telemetry, and the keys and services are the company's own.
 | `workflows` | the workflow registry, the one start path, `fanOut()`, webhooks, schedules, `revbound run` |
 | `ai` | `agent()`: every AI call, metered and capped |
 | `context` | the company's context and skills, the console's home |
-| `connections` | which keys are set, and `revbound connections set` for local ones |
+| `connections` | which keys are set; add, edit and delete them in the console, locally and in production |
 | `console` | the console's frame, for every plugin's pages |
 | `agent` | the project's chat agent: the console's Chat page, and Slack or Teams with `npx revbound agent add slack` |
 

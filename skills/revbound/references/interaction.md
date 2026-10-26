@@ -41,8 +41,9 @@ when the host has no question tool.
    restoration (git history). Name GitHub, repositories, folders or commands only when an action or problem requires
    them.
 
-Secret values are never asked for or pasted in chat: hand the person `npx revbound connections set <NAME>` (a hidden
-prompt) for a local key, and `vercel env add <NAME> production --sensitive` for a live one (docs: connections).
+Secret values are never asked for or pasted in chat: send the person to the console's Connections page (Add
+connection, or Add on a missing row), locally or on the production domain, or hand them
+`npx revbound connections set <NAME>` (a hidden prompt) for a local key (docs: connections).
 
 A risky or costly run's yes rests on a preview: run it with `--preview`, show its sample and cost, ask Yes/No, and
 only after Yes run it with `--approve --max-usd <the cap you quoted>`. The agent can technically approve on its own;

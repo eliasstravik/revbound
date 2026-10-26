@@ -25,7 +25,8 @@ skill, and this skill is never installed into it.
 
 - The coding agent edits the repo, runs the `revbound` CLI and does account steps with the vendors' own CLIs.
 - The person decides what gets added, gives every yes in chat, and enters every secret value themselves
-  (`npx revbound connections set <NAME>`, or `vercel env add` for live keys); never ask for a value in chat.
+  (the console's Connections page, locally and on the production domain, or `npx revbound connections set <NAME>`);
+  never ask for a value in chat.
 
 ## Procedure
 

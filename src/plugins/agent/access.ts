@@ -5,7 +5,7 @@
  * (the chat runs on this computer's own AI login, so an allowed host alone is not enough, as for `tailnet` routes).
  * Writes must come from the console's own page. No Vercel OIDC token, bypass secret or eve dev login opens it.
  */
-import { allowedHosts, carriesBypass, isHosted, jwtClaims, LOOPBACK_HOSTS, loopback, pageAccess, tailnetLogin, vercelJwts, type Env } from "revbound/kit";
+import { allowedHosts, carriesBypass, isHosted, jwtClaims, LOOPBACK_HOSTS, loopback, pageAccess, sameOrigin, tailnetLogin, vercelJwts, type Env } from "revbound/kit";
 
 export type Caller = { ok: true; principalId: string; attributes: Record<string, string> } | { ok: false; status: number; error: string };
 
@@ -21,14 +21,6 @@ function asBrowserSaw(req: Request): Request {
   const headers = new Headers(req.headers);
   headers.set("host", forwarded);
   return new Request(req.url, { method: req.method, headers });
-}
-
-/** A write from anything but the console's own page (another site, a form post elsewhere) is refused. */
-function sameOrigin(req: Request, host: string): boolean {
-  if (req.method === "GET" || req.method === "HEAD") return true;
-  const site = req.headers.get("sec-fetch-site"), origin = req.headers.get("origin");
-  if (site === "cross-site" || site === "same-site") return false;
-  return origin === null || (URL.canParse(origin) && new URL(origin).host.toLowerCase() === host);
 }
 
 /** The Vercel login behind a hosted request: the `_vercel_jwt` session cookie's user, which Vercel's edge has checked. */

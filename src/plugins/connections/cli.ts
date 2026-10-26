@@ -2,52 +2,12 @@
  * `revbound connections list | set <NAME> | delete <NAME>`: local keys in .env.local (mode 0600). A value is read from a
  * no-echo prompt or stdin, never argv, and never printed.
  */
-import { randomUUID } from "node:crypto";
-import { chmodSync, existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { type CliCtx, loadEnv } from "revbound/cli";
 import { value } from "revbound/kit";
-import { ENTRY, envLocalNames, exampleConnections } from "revbound/kit/dotenv";
+import { envLocalNames, exampleConnections } from "revbound/kit/dotenv";
+import { checkValue, KEY, refusedName, writeEnvLocal } from "./files.js";
 
 const USAGE = "Usage: revbound connections list | set <NAME> | delete <NAME> (set reads the value from a hidden prompt or stdin)";
-
-/** Names Revbound, Vercel or an integration set; `set` refuses them. */
-export function refusedName(name: string): boolean {
-  return /^(DATABASE_URL|POSTGRES_|PG|REVBOUND_|VERCEL_|NEON_)|^CRON_SECRET$/.test(name.toUpperCase());
-}
-
-/** The value rules: one line, at most 32 KB, not both ' and `, no trailing backslash (so @next/env reads it back as is). */
-export function checkValue(v: string): string | undefined {
-  if (!v.length || v.length > 32_768) return "The value is empty or too long.";
-  if (/[\r\n\0]/.test(v)) return "The value must be one line.";
-  if (v.includes("'") && v.includes("`")) return "The value cannot contain both ' and `.";
-  if (v.endsWith("\\")) return "The value cannot end in \\.";
-  return undefined;
-}
-
-/** Written beside the file and renamed over it (a crash never leaves half a file); the temp name is gitignored (.env*.local). */
-function writeAtomic(dir: string, text: string): void {
-  const temp = join(dir, `.env.revbound-${randomUUID()}.local`), file = join(dir, ".env.local");
-  writeFileSync(temp, text, { mode: 0o600, flag: "wx" });
-  try { renameSync(temp, file); chmodSync(file, 0o600); } catch (error) { rmSync(temp, { force: true }); throw error; }
-}
-
-/**
- * NAME='value' (backticks when it contains ') in .env.local, `$` escaped so @next/env reads it back as is; null removes
- * it. Every NAME entry goes whole, from its key to the end of its value as @next/env reads it, so no part of an old value
- * stays and no other entry is touched; the new one takes the first one's place.
- */
-export function writeEnvLocal(dir: string, name: string, v: string | null): void {
-  const path = join(dir, ".env.local");
-  const text = (existsSync(path) ? readFileSync(path, "utf8") : "").replace(/\r\n?/g, "\n"), lines = text.split("\n");
-  const lineOf = (offset: number) => text.slice(0, offset).split("\n").length - 1;
-  const spans = [...text.matchAll(ENTRY)].filter((m) => m[1] === name).map((m) => [lineOf(m.indices![1][0]), lineOf((m.indices![2] ?? m.indices![1])[1])]);
-  if (v === null && !spans.length) return;
-  const q = v?.includes("'") ? "`" : "'", entry = v === null ? [] : [`${name}=${q}${v.replaceAll("$", "\\$")}${q}`];
-  const next = !spans.length ? [...lines.slice(0, lines.at(-1) === "" ? -1 : undefined), ...entry, ""]
-    : lines.flatMap((l, i) => (!spans.some(([from, to]) => i >= from && i <= to) ? [l] : i === spans[0][0] ? entry : []));
-  writeAtomic(dir, next.join("\n"));
-}
 
 /** The value from a hidden prompt on a terminal, else all of stdin (one trailing newline dropped). */
 async function readSecret(name: string): Promise<string> {
@@ -87,7 +47,7 @@ export default async function connections(args: string[], ctx: CliCtx): Promise<
     for (const [n, label] of names) console.log(`${(value(n) !== undefined || local.includes(n) ? "set    " : "missing")}  ${n}${label ? `  (${label})` : ""}`);
     return;
   }
-  if (!/^[A-Za-z_][A-Za-z0-9_]{0,255}$/.test(name)) throw new Error("A key takes letters, digits and _ and cannot start with a digit.");
+  if (!KEY.test(name)) throw new Error("A key takes letters, digits and _ and cannot start with a digit.");
   if (refusedName(name)) throw new Error(`${name} is set by Revbound, Vercel or an integration, not here.`);
   if (action === "delete") {
     if (!envLocalNames(ctx.dir).includes(name)) throw new Error(`${name} is not in .env.local.`);

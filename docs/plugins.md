@@ -99,6 +99,7 @@ get `{ workflow, manifest }`. Shared pieces come from `revbound/ui` (`useApi`, `
 | Mode | Hosted | Local |
 | --- | --- | --- |
 | `session` (GET only) | Vercel Authentication; any bypass credential is refused | loopback or a `REVBOUND_ALLOWED_HOSTS` host |
+| `console` | reads: as `session`; writes: Vercel Authentication, no bypass credential, from the console's own page (same origin) | reads: as `session`; writes: same-origin, from loopback or a Tailscale login on an allowed host (as `tailnet`) |
 | `automation` | the automation bypass secret, in the header | loopback, same-origin |
 | `cron` | `Authorization: Bearer $CRON_SECRET`; refused when unset | the same |
 | `signature` | the sender's own bypass secret (`secret`: its variable, e.g. `REVBOUND_HOOK_{name}_BYPASS`), never the automation one; the handler is built with `webhook()` | loopback |

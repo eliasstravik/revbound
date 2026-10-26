@@ -6,7 +6,7 @@
 /** A module specifier whose default export is the value; `<specifier>#<name>` names another export. */
 export type Code = string;
 
-export type Access = "session" | "automation" | "cron" | "signature" | "local" | "tailnet";
+export type Access = "session" | "console" | "automation" | "cron" | "signature" | "local" | "tailnet";
 export type Method = "GET" | "POST";
 export type Capability = "spends" | "sends" | "writesPeople";
 

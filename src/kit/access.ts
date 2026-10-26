@@ -43,6 +43,14 @@ export function tailnetLogin(req: Request, env: Env = process.env): string | und
   return localHost(req, env).ok ? login : undefined;
 }
 
+/** A write from anything but the console's own page (another site, a form post elsewhere) is refused. */
+export function sameOrigin(req: Request, host = requestHost(req)): boolean {
+  if (req.method === "GET" || req.method === "HEAD") return true;
+  const site = req.headers.get("sec-fetch-site"), origin = req.headers.get("origin");
+  if (site === "cross-site" || site === "same-site") return false;
+  return origin === null || (URL.canParse(origin) && new URL(origin).host.toLowerCase() === host);
+}
+
 /** Pages and `session` routes: hosted, Vercel Authentication in front and no bypass credential of any kind. */
 export function pageAccess(req: Request, env: Env = process.env): Verdict {
   if (!isHosted(env)) return localHost(req, env);
@@ -68,6 +76,11 @@ export function routeAccess(access: Access, req: Request, secret?: string, env: 
     case "session":
       if (req.method !== "GET" && req.method !== "HEAD") return no(405, "The console is read-only.");
       return pageAccess(req, env);
+    case "console":
+      if (req.method === "GET" || req.method === "HEAD") return pageAccess(req, env);
+      if (hosted) return bypass ? no(403, "Requests carrying a protection bypass cannot open the console.") : sameOrigin(req) ? OK : no(403, "Cross-site requests are refused.");
+      if (!localHost(req, env).ok) return localHost(req, env);
+      return loopback(req) || tailnetLogin(req, env) ? OK : no(403, "Changes answer only on the computer running revbound dev, or to a Tailscale login on its name.");
     case "automation":
       if (!hosted) return loopback(req) ? OK : no(403, "This answers only on 127.0.0.1 or localhost (revbound run).");
       return bypass && !bypass.cookie && !bypass.query.length && safeEqual(bypass.header, automation) ? OK

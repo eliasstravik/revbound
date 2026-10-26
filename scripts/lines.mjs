@@ -3,7 +3,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-const BUDGETS = { database: 1350, ledger: 750, workflows: 900, ai: 900, context: 280, connections: 300, console: 500, mdm: 850, agent: 1400, core: 1900 };
+const BUDGETS = { database: 1350, ledger: 750, workflows: 900, ai: 900, context: 280, connections: 750, console: 500, mdm: 850, agent: 1400, core: 1900 };
 const count = (dir) => (existsSync(dir) ? readdirSync(dir, { recursive: true }) : [])
   .filter((f) => /\.tsx?$/.test(f) && statSync(join(dir, f)).isFile()).reduce((n, f) => n + readFileSync(join(dir, f), "utf8").split("\n").length, 0);
 const rows = Object.keys(BUDGETS).map((name) => {
