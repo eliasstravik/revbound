@@ -1,17 +1,17 @@
 /**
- * `gtm connections list | set <NAME> | delete <NAME>`: local keys in .env.local (mode 0600). A value is read from a
+ * `revbound connections list | set <NAME> | delete <NAME>`: local keys in .env.local (mode 0600). A value is read from a
  * no-echo prompt or stdin, never argv, and never printed.
  */
 import { randomUUID } from "node:crypto";
 import { chmodSync, existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { type CliCtx, loadEnv } from "@eliasstravik/gtm/cli";
-import { value } from "@eliasstravik/gtm/kit";
-import { ENTRY, envLocalNames, exampleConnections } from "@eliasstravik/gtm/kit/dotenv";
+import { type CliCtx, loadEnv } from "revbound/cli";
+import { value } from "revbound/kit";
+import { ENTRY, envLocalNames, exampleConnections } from "revbound/kit/dotenv";
 
-const USAGE = "Usage: gtm connections list | set <NAME> | delete <NAME> (set reads the value from a hidden prompt or stdin)";
+const USAGE = "Usage: revbound connections list | set <NAME> | delete <NAME> (set reads the value from a hidden prompt or stdin)";
 
-/** Names gtm, Vercel or an integration set; `set` refuses them. */
+/** Names Revbound, Vercel or an integration set; `set` refuses them. */
 export function refusedName(name: string): boolean {
   return /^(DATABASE_URL|POSTGRES_|PG|GTM_|VERCEL_|NEON_)|^CRON_SECRET$/.test(name.toUpperCase());
 }
@@ -88,7 +88,7 @@ export default async function connections(args: string[], ctx: CliCtx): Promise<
     return;
   }
   if (!/^[A-Za-z_][A-Za-z0-9_]{0,255}$/.test(name)) throw new Error("A key takes letters, digits and _ and cannot start with a digit.");
-  if (refusedName(name)) throw new Error(`${name} is set by gtm, Vercel or an integration, not here.`);
+  if (refusedName(name)) throw new Error(`${name} is set by Revbound, Vercel or an integration, not here.`);
   if (action === "delete") {
     if (!envLocalNames(ctx.dir).includes(name)) throw new Error(`${name} is not in .env.local.`);
     writeEnvLocal(ctx.dir, name, null);
@@ -99,7 +99,7 @@ export default async function connections(args: string[], ctx: CliCtx): Promise<
   if (bad) throw new Error(bad);
   writeEnvLocal(ctx.dir, name, v);
   const shell = process.env[name] !== undefined && !envLocalNames(ctx.dir).includes(name);
-  console.log(`Saved ${name} to .env.local.${shell ? ` Your shell sets ${name} too, and that value wins while gtm dev runs.` : ""}`);
+  console.log(`Saved ${name} to .env.local.${shell ? ` Your shell sets ${name} too, and that value wins while revbound dev runs.` : ""}`);
   if (!exampleConnections(ctx.dir).some((c) => c.name === name) && !ctx.config.plugins.some((p) => p.connections?.some((c) => c.name === name)))
     console.log(`List it in .env.example (a "# label" line, then ${name}=) so teammates and the console know it.`);
 }

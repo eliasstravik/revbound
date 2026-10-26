@@ -1,4 +1,4 @@
-import { withGtm } from "@eliasstravik/gtm/next";
+import { withGtm } from "revbound/next";
 import manifest from "./gtm/manifest";
 import transforms, { trace } from "./gtm/next";
 

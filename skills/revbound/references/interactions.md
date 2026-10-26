@@ -1,4 +1,4 @@
-# Interactions: gtm
+# Interactions: Revbound
 
 Contents: [Set up](#set-up) · [Add context when asked](#add-context-when-asked) · [Risky run](#risky-run)
 
@@ -6,7 +6,7 @@ The numbered choices stand for the host's native question tool.
 
 ## Set up
 
-**Setup:** No gtm project in this folder.
+**Setup:** No Revbound project in this folder.
 
 **Human:** Set up GTM for Acme. We sell product analytics to SaaS teams, acme.example.
 
@@ -44,7 +44,7 @@ Created B2B SaaS. What next?
 3. Nothing for now
 
 **Files:**
-- created `context/icps/b2b-saas.md` (shape from `gtm docs context`)
+- created `context/icps/b2b-saas.md` (shape from `revbound docs context`)
 
 ## Risky run
 
@@ -67,5 +67,5 @@ Options: Yes; No.
 Done. 512 of 800 fit, for $11.40; the Data view's qualified_companies table has every verdict.
 
 **Commands:**
-- `npx gtm run score-inbound --input '{"month":"2026-09"}' --preview`
-- after the Yes: `npx gtm run score-inbound --input '{"month":"2026-09"}' --approve --max-usd 15 --note "Yes in chat"`
+- `npx revbound run score-inbound --input '{"month":"2026-09"}' --preview`
+- after the Yes: `npx revbound run score-inbound --input '{"month":"2026-09"}' --approve --max-usd 15 --note "Yes in chat"`

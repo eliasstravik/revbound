@@ -3,8 +3,8 @@ import { join } from "node:path";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate as drizzleMigrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
-import type { MigrationPlan } from "@eliasstravik/gtm";
-import { PRODUCTION_DATABASE, assertNotProduction, databaseIdentity, environment, isHosted } from "@eliasstravik/gtm/kit";
+import type { MigrationPlan } from "revbound";
+import { PRODUCTION_DATABASE, assertNotProduction, databaseIdentity, environment, isHosted } from "revbound/kit";
 
 // Matched after removing comments and `ON DELETE` (a foreign-key clause, not a delete).
 const DESTRUCTIVE = /\b(DROP|RENAME|TRUNCATE|DELETE)\b|\bALTER\s+(TYPE|COLUMN\s+("[^"]*"|\w+)\s+(SET\s+DATA\s+)?TYPE)\b/i;
@@ -22,8 +22,8 @@ const risky = (sql: string) => DESTRUCTIVE.test(sql.replace(/--.*$/gm, "").repla
 function refuseDestructive(pending: { id: string; sql: string }[], acknowledged: string[]): void {
   const bad = pending.filter((m) => risky(m.sql) && !acknowledged.includes(m.id)).map((m) => m.id);
   if (!bad.length) return;
-  throw new Error(`gtm migrate refused on production: ${bad.join(", ")} may lose data (DROP, RENAME, TRUNCATE, ALTER … TYPE or DELETE). ` +
-    `After a yes in chat and a Neon backup branch, add ${bad.map((b) => `"${b}"`).join(", ")} to acknowledge.destructive in gtm.config.ts (\`npx gtm docs data\`).`);
+  throw new Error(`revbound migrate refused on production: ${bad.join(", ")} may lose data (DROP, RENAME, TRUNCATE, ALTER … TYPE or DELETE). ` +
+    `After a yes in chat and a Neon backup branch, add ${bad.map((b) => `"${b}"`).join(", ")} to acknowledge.destructive in gtm.config.ts (\`npx revbound docs data\`).`);
 }
 
 /**
@@ -67,7 +67,7 @@ export async function applyPlan(plan: MigrationPlan, url: string): Promise<numbe
   return applied;
 }
 
-/** Marks the database as production's: db() and gtm migrate refuse it anywhere else. */
+/** Marks the database as production's: db() and revbound migrate refuse it anywhere else. */
 export async function stamp(url: string): Promise<void> {
   const client = new pg.Client({ connectionString: url });
   await client.connect();

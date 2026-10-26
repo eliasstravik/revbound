@@ -35,7 +35,7 @@ function localHost(req: Request, env: Env): Verdict {
 
 /**
  * The Tailscale login Serve put on a same-origin request to an allowed (non-loopback) host, never a Funnel one; undefined
- * otherwise and whenever hosted. Serve sets the header itself, and gtm dev listens on 127.0.0.1 only.
+ * otherwise and whenever hosted. Serve sets the header itself, and revbound dev listens on 127.0.0.1 only.
  */
 export function tailnetLogin(req: Request, env: Env = process.env): string | undefined {
   const login = req.headers.get("tailscale-user-login")?.trim().toLowerCase();
@@ -69,9 +69,9 @@ export function routeAccess(access: Access, req: Request, secret?: string, env: 
       if (req.method !== "GET" && req.method !== "HEAD") return no(405, "The console is read-only.");
       return pageAccess(req, env);
     case "automation":
-      if (!hosted) return loopback(req) ? OK : no(403, "This answers only on 127.0.0.1 or localhost (gtm run).");
+      if (!hosted) return loopback(req) ? OK : no(403, "This answers only on 127.0.0.1 or localhost (revbound run).");
       return bypass && !bypass.cookie && !bypass.query.length && safeEqual(bypass.header, automation) ? OK
-        : no(403, "This needs the x-vercel-protection-bypass header set to the automation bypass secret (gtm run --prod).");
+        : no(403, "This needs the x-vercel-protection-bypass header set to the automation bypass secret (revbound run --prod).");
     case "cron": {
       if (hosted && bypass) return no(403, "Cron routes take no protection bypass.");
       const cron = value("CRON_SECRET", env);
@@ -86,10 +86,10 @@ export function routeAccess(access: Access, req: Request, secret?: string, env: 
     }
     case "local":
       if (hosted) return no(404, "Not found.");
-      return loopback(req) ? OK : no(403, "This answers only on 127.0.0.1 or localhost, on the computer running gtm dev.");
+      return loopback(req) ? OK : no(403, "This answers only on 127.0.0.1 or localhost, on the computer running revbound dev.");
     case "tailnet":
       if (hosted) return no(404, "Not found.");
-      return loopback(req) || tailnetLogin(req, env) ? OK : no(403, "This answers only on the computer running gtm dev, or to a Tailscale login on its name.");
+      return loopback(req) || tailnetLogin(req, env) ? OK : no(403, "This answers only on the computer running revbound dev, or to a Tailscale login on its name.");
     default:
       return no(500, "Unknown access mode.");
   }

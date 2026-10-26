@@ -39,7 +39,7 @@ export async function suite({ url, concurrent }) {
   let n = 0;
   /** A fresh workflow name, registered with `info`. */
   const wf = (info = {}) => { const name = `w${Date.now().toString(36)}${(n += 1)}`; registry[name] = info; return name; };
-  /** Admits and "starts" a run: an SDK run with gtm's attributes, linked. */
+  /** Admits and "starts" a run: an SDK run with Revbound's attributes, linked. */
   const begin = async (request, { status = "running", attrs = true } = {}) => {
     const a = await ledger.admit(request);
     assert.ok(a.ok, `admit refused: ${a.reason}`);

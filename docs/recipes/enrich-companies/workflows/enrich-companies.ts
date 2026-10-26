@@ -31,7 +31,7 @@ async function saveProfile(domain: string, profile: Profile, costUsd: number) {
 
 /**
  * Reads each saved company's website into a short profile. `limit` caps the companies per run (keep it near 20; docs:
- * workflows, run size). A preview (`gtm run enrich-companies --preview`) reads one company, so its result carries a
+ * workflows, run size). A preview (`revbound run enrich-companies --preview`) reads one company, so its result carries a
  * sample and its cost.
  */
 export async function enrichCompanies(input?: { limit?: number; freshDays?: number }) {

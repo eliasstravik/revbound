@@ -1,8 +1,8 @@
 # Layout
 
-A gtm project is one Next.js app in one repo and one Vercel project per company, all three named `gtm-<company>`
-(`gtm-acme`). `npx @eliasstravik/gtm init --company Acme` creates `./gtm-acme` in the current folder, writes
-`gtm.config.ts` with the seven default plugins, installs, and runs `gtm sync`. Inside a gtm project, `init` with no
+A Revbound project is one Next.js app in one repo and one Vercel project per company, all three named `gtm-<company>`
+(`gtm-acme`). `npx revbound init --company Acme` creates `./gtm-acme` in the current folder, writes
+`gtm.config.ts` with the seven default plugins, installs, and runs `revbound sync`. Inside a Revbound project, `init` with no
 folder repairs it. `init` writes the base files only: no workflows, tables or context beyond `company.md`. For demos
 and tests, `init --example` also adds one small example (the `example-import` workflow, its `example_companies` table
 and migration, and `context/example-icp.md`), each marked as an example.
@@ -10,7 +10,7 @@ and migration, and `context/example-icp.md`), each marked as an example.
 | Path | Holds | Whose |
 | --- | --- | --- |
 | `gtm.config.ts` | the plugin list (`defineGtm({ company, plugins })`); read only by the CLI | company |
-| `gtm/` | what `gtm sync` generates from it: `manifest.ts`, `routes.ts`, `views.tsx`, `next.ts`, `slots/<plugin>.ts`, `<plugin>.ts` binding files | sync |
+| `gtm/` | what `revbound sync` generates from it: `manifest.ts`, `routes.ts`, `views.tsx`, `next.ts`, `slots/<plugin>.ts`, `<plugin>.ts` binding files | sync |
 | `proxy.ts`, `app/layout.tsx`, `app/[[...path]]/page.tsx`, `app/api/gtm/[...path]/route.ts` | shims that import only `gtm/` | sync |
 | `AGENTS.md` | the company's instructions, plus the managed block (`<!-- BEGIN:gtm -->` … `<!-- END:gtm -->`) | company + sync |
 | `CLAUDE.md` | `@AGENTS.md` | company |
@@ -34,8 +34,8 @@ Gitignored: `.env*.local`, `.gtm/` (local database), `.workflow-data/`, `.vercel
 
 - Company code imports plugins only through `#gtm/<plugin>`: `import { db } from "#gtm/database"`,
   `import { agent } from "#gtm/ai"`, `import { fanOut, webhook, currentRun } from "#gtm/workflows"`,
-  `import { action } from "#gtm/ledger"`. Never `@eliasstravik/gtm/<plugin>` (type-only imports are fine), so a swap or an
-  eject reaches every file. `gtm check` enforces it.
+  `import { action } from "#gtm/ledger"`. Never `revbound/<plugin>` (type-only imports are fine), so a swap or an
+  eject reaches every file. `revbound check` enforces it.
 - Pages and API routes come only from plugins: add a local plugin in `plugins/<name>/` with `views` and `routes`
   (docs: plugins). Next file routes of the company's own (`app/api/...`, `app/<page>`) are not supported.
 - A company skill is one folder, `.agents/skills/<name>/SKILL.md`, whose front matter has `name` (the folder's name)
@@ -58,8 +58,8 @@ Gitignored: `.env*.local`, `.gtm/` (local database), `.workflow-data/`, `.vercel
 
 ## Keeping the layout
 
-`npx gtm check` reports what is off, each with its fix: stale generated files (`npx gtm sync`), a changed shim, a
+`npx revbound check` reports what is off, each with its fix: stale generated files (`npx revbound sync`), a changed shim, a
 broken registry, plugins that need a missing slot. It is read-only and runs first in every build
-(`gtm check --build && gtm migrate && next build`), so a stale `gtm/` fails the build. Re-running `npx gtm init`
+(`revbound check --build && revbound migrate && next build`), so a stale `gtm/` fails the build. Re-running `npx revbound init`
 restores missing wiring (`public/_gtm/probe.txt`, `.gitignore`, the skills link, the registries) and syncs; it never
 recreates deleted context or other files.

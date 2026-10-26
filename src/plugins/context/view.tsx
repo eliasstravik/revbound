@@ -1,6 +1,6 @@
 "use client";
 import type { CSSProperties, MouseEvent } from "react";
-import { Link, Markdown, Status, useApi, useQuery } from "@eliasstravik/gtm/ui";
+import { Link, Markdown, Status, useApi, useQuery } from "revbound/ui";
 import "./context.css";
 
 type File = { path: string; title: string; description?: string };

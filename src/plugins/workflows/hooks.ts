@@ -1,7 +1,7 @@
-/** The inbound webhook route, kept apart so `gtm check` can load it to see its brand. */
+/** The inbound webhook route, kept apart so `revbound check` can load it to see its brand. */
 import { sql } from "drizzle-orm";
-import type { RouteCtx } from "@eliasstravik/gtm";
-import { brand, HttpError, isBranded, json } from "@eliasstravik/gtm/kit";
+import type { RouteCtx } from "revbound";
+import { brand, HttpError, isBranded, json } from "revbound/kit";
 import type { Webhook, Webhooks } from "./runtime.js";
 
 /**
@@ -38,7 +38,7 @@ const hooks = brand(async (req: Request, ctx: RouteCtx): Promise<Response> => {
   } catch (error) {
     await db.execute(sql`delete from gtm_workflows.webhook_events where hook = ${name} and dedupe_key = ${key} and outcome = 'claimed'`).catch(() => {});
     if (error instanceof HttpError) throw error;
-    console.error(`[gtm] webhook ${name} failed`, error);
+    console.error(`[revbound] webhook ${name} failed`, error);
     throw new HttpError(500, "The webhook failed; the sender may retry.");
   }
 });

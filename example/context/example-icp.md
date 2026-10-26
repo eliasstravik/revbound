@@ -1,6 +1,6 @@
 # Example ICP: Lean B2B SaaS
 
-> An example from `gtm init --example`, in the suggested shape (`npx @eliasstravik/gtm docs context`). Delete it
+> An example from `revbound init --example`, in the suggested shape (`npx revbound docs context`). Delete it
 > with the rest of the example: see the top of `workflows/example-import.ts`.
 
 ## Company data

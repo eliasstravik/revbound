@@ -8,15 +8,15 @@ it came from and when.
 It is optional. Add it to a project:
 
 ```sh
-npx gtm add mdm          # prints the two lines below; nothing to install, it ships with the package
+npx revbound add mdm          # prints the two lines below; nothing to install, it ships with the package
 ```
 
 ```ts
-import { mdm } from "@eliasstravik/gtm/mdm";   // in gtm.config.ts
+import { mdm } from "revbound/mdm";   // in gtm.config.ts
     mdm(),                                     // in plugins: [...]
 ```
 
-Then `npx gtm sync` and `npx gtm migrate` (or restart `npm run dev`). It needs `database` and the ledger, and uses
+Then `npx revbound sync` and `npx revbound migrate` (or restart `npm run dev`). It needs `database` and the ledger, and uses
 `workflows` to stamp each write with its run. The console gets People, Companies and Signals.
 
 ## Records and their keys
@@ -116,7 +116,7 @@ its signals, and a company's people.
 A CRM, a sequencer or a vendor plugin reads and links to these records through the `mdm` slot:
 
 ```ts
-import type { MdmSlotV1 } from "@eliasstravik/gtm/mdm";
+import type { MdmSlotV1 } from "revbound/mdm";
 // in definePlugin: uses: ["mdm"] (or needs: ["mdm"]); then in a route or step:
 const mdm = ctx.get<MdmSlotV1>("mdm");
 const person = await mdm.findPerson({ email });

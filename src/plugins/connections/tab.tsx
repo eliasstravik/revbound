@@ -1,5 +1,5 @@
 "use client";
-import type { TabProps } from "@eliasstravik/gtm/ui";
+import type { TabProps } from "revbound/ui";
 import { ConnectionsView } from "./view.js";
 
 /** A workflow's Connections tab: the keys its registry entry lists. */

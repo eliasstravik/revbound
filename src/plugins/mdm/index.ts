@@ -1,15 +1,15 @@
-import { definePlugin } from "@eliasstravik/gtm";
+import { definePlugin } from "revbound";
 
 export type * from "./types.js";
 export type { WriteOptions } from "./runtime.js";
 
-const P = "@eliasstravik/gtm/mdm";
-const SRC = "@eliasstravik/gtm/src/plugins/mdm";
+const P = "revbound/mdm";
+const SRC = "revbound/src/plugins/mdm";
 
 /**
  * The `mdm` slot (master data): one de-duplicated set of people, companies and signals in the company's Postgres, each
  * field with where it came from and when, so every workflow matches what it finds to one record and enriches it once.
- * Optional: a company adds it with `gtm add mdm`.
+ * Optional: a company adds it with `revbound add mdm`.
  */
 export function mdm() {
   return definePlugin({

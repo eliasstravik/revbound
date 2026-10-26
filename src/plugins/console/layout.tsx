@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Manifest } from "@eliasstravik/gtm";
+import type { Manifest } from "revbound";
 import { Shell } from "./shell.js";
 
 /** app/layout.tsx's body: the page with the console's frame around it. */

@@ -1,5 +1,5 @@
 "use client";
-import { useApi, type ViewProps } from "@eliasstravik/gtm/ui";
+import { useApi, type ViewProps } from "revbound/ui";
 
 export default function FixtureView(_: ViewProps) {
   const data = useApi<{ hello: string; notes: number }>("fixture/hello").data;

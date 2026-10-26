@@ -1,6 +1,6 @@
 "use client";
 import { Fragment } from "react";
-import { Icon, Link, Status, useApi, vercelUrl } from "@eliasstravik/gtm/ui";
+import { Icon, Link, Status, useApi, vercelUrl } from "revbound/ui";
 import "./connections.css";
 
 type State = "set" | "missing" | "provided";
@@ -32,7 +32,7 @@ export function ConnectionsView({ only }: { only?: string[] | null }) {
     : `Every key ${only ? "this workflow uses " : ""}is set ${where}.`;
   const settings = local ? null : vercelUrl("/settings/environment-variables", "Environment Variables");
   const vercel = settings && <a className="button" href={settings} target="_blank" rel="noreferrer">Open in Vercel ↗</a>;
-  const how = (c: Connection) => local ? <>Set it with <code>npx gtm connections set {c.name}</code></>
+  const how = (c: Connection) => local ? <>Set it with <code>npx revbound connections set {c.name}</code></>
     : <>Add it in Vercel: <code>vercel env add {c.name} production</code>, then redeploy</>;
   return (
     <div className="connections-view">

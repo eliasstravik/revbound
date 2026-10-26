@@ -1,5 +1,5 @@
 import { FatalError } from "workflow";
-import { isHosted } from "@eliasstravik/gtm/kit";
+import { isHosted } from "revbound/kit";
 import { cliModel, type CliBackend } from "./models.js";
 import { mcpAuth, type McpServer } from "./tools.js";
 
@@ -142,11 +142,11 @@ export async function runAgentCli(o: CliAgentOptions): Promise<CliAgentResult> {
   const [fs, os, path] = await Promise.all([import("node:fs"), import("node:os"), import("node:path")]);
   const onPath = (name: string) => (process.env.PATH ?? "").split(path.delimiter).some((d) => d && fs.existsSync(path.join(d, name)));
   const backend = o.backend ?? (onPath("claude") ? "claude" : onPath("codex") ? "codex" : undefined);
-  if (!backend) throw new FatalError("agent() found no AI backend: set AI_GATEWAY_API_KEY, ANTHROPIC_API_KEY or OPENAI_API_KEY (npx gtm connections set), run `vercel env pull`, or sign in to `claude` or `codex` on this computer");
+  if (!backend) throw new FatalError("agent() found no AI backend: set AI_GATEWAY_API_KEY, ANTHROPIC_API_KEY or OPENAI_API_KEY (npx revbound connections set), run `vercel env pull`, or sign in to `claude` or `codex` on this computer");
   const g = globalThis as { [NOTICE]?: boolean };
   if (!g[NOTICE]) {
     g[NOTICE] = true;
-    console.warn(`[gtm] agent() stages run on your own signed-in ${backend}. Big runs may hit your plan's limits` +
+    console.warn(`[revbound] agent() stages run on your own signed-in ${backend}. Big runs may hit your plan's limits` +
       `${backend === "claude" ? ` (Anthropic: plan limits "assume ordinary, individual usage of Claude Code and the Agent SDK")` : ""}.` +
       " Setting AI_GATEWAY_API_KEY, ANTHROPIC_API_KEY or OPENAI_API_KEY moves them to an API.");
   }

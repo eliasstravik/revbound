@@ -2,8 +2,8 @@
  * The Connections view's routes (session GET), read-only: every declared connection name with its state here, never a
  * value. Locally the state comes from .env.local and the shell; hosted from this deployment's own environment.
  */
-import type { About, RegistryInfo, RouteCtx } from "@eliasstravik/gtm";
-import { environment, isHosted, json, value } from "@eliasstravik/gtm/kit";
+import type { About, RegistryInfo, RouteCtx } from "revbound";
+import { environment, isHosted, json, value } from "revbound/kit";
 
 type State = "set" | "missing" | "provided";
 type Info = Record<string, About & RegistryInfo>;
@@ -13,7 +13,7 @@ const registryOf = async (ctx: RouteCtx): Promise<Info> => (ctx.has("workflows")
 
 /** Names .env.example lists and plugins or workflows declare, with their state here. */
 async function rows(ctx: RouteCtx) {
-  const hosted = isHosted(), local = hosted ? [] : (await import("@eliasstravik/gtm/kit/dotenv")).envLocalNames();
+  const hosted = isHosted(), local = hosted ? [] : (await import("revbound/kit/dotenv")).envLocalNames();
   const registry = await registryOf(ctx);
   const declared = new Map(ctx.manifest.connections.map((c) => [c.name, c]));
   for (const [, w] of Object.entries(registry)) for (const n of w.connections ?? []) if (!declared.has(n)) declared.set(n, { name: n, label: "", plugins: [] });

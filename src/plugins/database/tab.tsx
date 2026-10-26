@@ -1,5 +1,5 @@
 "use client";
-import type { TabProps } from "@eliasstravik/gtm/ui";
+import type { TabProps } from "revbound/ui";
 import { DataView } from "./view.js";
 
 /** A workflow's Data tab: the tables its registry entry lists. */

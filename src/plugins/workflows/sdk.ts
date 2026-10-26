@@ -4,9 +4,9 @@ import { join } from "node:path";
 import { getRun } from "workflow/api";
 import { parseWorkflowName } from "workflow/observability";
 import { getWorld } from "workflow/runtime";
-import type { About, Registry, RegistryEntry, RegistryInfo, SdkRun } from "@eliasstravik/gtm";
-import { isHosted, value } from "@eliasstravik/gtm/kit";
-import { cronSchedules } from "@eliasstravik/gtm/kit/scan";
+import type { About, Registry, RegistryEntry, RegistryInfo, SdkRun } from "revbound";
+import { isHosted, value } from "revbound/kit";
+import { cronSchedules } from "revbound/kit/scan";
 
 type WorkflowFn = (...args: any[]) => Promise<unknown>;
 export const runOf = (e: RegistryEntry | undefined) => (typeof e === "function" ? e : e?.run) as WorkflowFn | undefined;

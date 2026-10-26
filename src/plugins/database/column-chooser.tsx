@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useId, useRef, useState } from "react";
-import { place } from "@eliasstravik/gtm/ui";
+import { place } from "revbound/ui";
 
 /** The Columns button and its popover: a draft of checked columns (at least one) applied at once, or Reset to all. */
 export function ColumnChooser({ fields, visible, onChange }: { fields: string[]; visible: string[]; onChange: (columns: string[] | undefined) => void }) {

@@ -25,7 +25,7 @@ export function gtmRoutes(manifest: Manifest, handlers: Handlers): { GET: NextHa
       const verdict = routeAccess(hit.item.access, req, secretName(hit.item.secret, hit.params));
       if (!verdict.ok) throw new HttpError(verdict.status, verdict.error);
       const entry = handlers[hit.item.key];
-      if (!entry) throw new HttpError(500, `The route ${hit.item.key} has no handler; run gtm sync.`);
+      if (!entry) throw new HttpError(500, `The route ${hit.item.key} has no handler; run revbound sync.`);
       const [{ default: handler }, { default: map }] = await Promise.all([loadFresh(entry.load), loadFresh(entry.map)]);
       if (hit.item.access === "signature" && !isBranded(handler)) {
         throw new HttpError(500, `The webhook route ${hit.item.key} is not built with webhook(), so it is refused.`);
@@ -35,7 +35,7 @@ export function gtmRoutes(manifest: Manifest, handlers: Handlers): { GET: NextHa
       return res;
     } catch (error) {
       if (error instanceof HttpError) return json({ error: error.message }, error.status);
-      console.error("[gtm] API error", error);
+      console.error("[revbound] API error", error);
       return json({ error: error instanceof Error ? error.message : String(error) }, 500);
     }
   };

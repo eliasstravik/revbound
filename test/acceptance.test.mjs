@@ -1,11 +1,11 @@
 /**
- * The acceptance suite, against an `npm pack` tarball of this package: a project made by `gtm init`, its build, gtm dev,
+ * The acceptance suite, against an `npm pack` tarball of this package: a project made by `revbound init`, its build, revbound dev,
  * workflows through the ledger (previews, approvals, limits, fanOut, webhooks), the console, the guards, the fixture
  * plugin, a packed third-party plugin with add/remove/eject/diff, and the bundles.
  *
  * Usage:
  *   npm test                                   # packs a copy of this repo first (needs `npm ci` done here)
- *   GTM_TEST_TARBALL=/abs/eliasstravik-gtm-0.0.5.tgz node --test test/acceptance.test.mjs
+ *   GTM_TEST_TARBALL=/abs/revbound-<version>.tgz node --test test/acceptance.test.mjs
  * Optional env: GTM_TEST_TARBALL · GTM_TEST_DIR (parent of the temp work folder) · GTM_TEST_LOGS · GTM_TEST_PORT (first
  * of four consecutive ports; default 4710) · GTM_TEST_KEEP=1 (keep the projects).
  * Needs Linux (`ss`, /proc), tar, openssl and the npm registry. AI steps run on test/fixtures/bin/claude, a stand-in for
@@ -21,11 +21,12 @@ import {
   request, run, setLogDir, snapshot, diffSnapshots, sql, startProcess, stopAll, tail, waitForHttp,
 } from "./helpers.mjs";
 
-const PORT = Number(process.env.GTM_TEST_PORT ?? 4710); // gtm dev
+const PORT = Number(process.env.GTM_TEST_PORT ?? 4710); // revbound dev
 const START_PORT = PORT + 1; // hosted-mode `next start`
 const PROBE_PORT = PORT + 2; // HTTPS stand-in for Vercel's login wall
 const BOX = "box.tail1234.ts.net";
 const FAKE_BIN = path.join(REPO, "test", "fixtures", "bin");
+const VERSION = JSON.parse(fs.readFileSync(path.join(REPO, "package.json"), "utf8")).version;
 const NEEDS_YES = "This workflow needs a person's yes. Run a preview, show the person the sample and the cost, and ask Yes/No in chat. Only after a yes, run it again with `--approve --max-usd`.";
 
 const s = { work: "", tarball: "", cli: "", dir: "", dev: null, dbUrl: "" };
@@ -35,8 +36,8 @@ const write = (rel, text, dir = s.dir) => { fs.mkdirSync(path.dirname(file(rel, 
 const exists = (rel, dir = s.dir) => fs.existsSync(file(rel, dir));
 /** The environment AI steps get: the stand-in claude first on PATH. */
 const withClaude = (env = {}) => ({ PATH: `${FAKE_BIN}${path.delimiter}${process.env.PATH}`, ...env });
-const gtm = (args, { env = {}, timeout = 10 * MIN, dir = s.dir, input } = {}) =>
-  run(file("node_modules/.bin/gtm", dir), args, { cwd: dir, env: cleanEnv(env), timeout, name: `gtm-${args[0]}`, input });
+const revbound = (args, { env = {}, timeout = 10 * MIN, dir = s.dir, input } = {}) =>
+  run(file("node_modules/.bin/revbound", dir), args, { cwd: dir, env: cleanEnv(env), timeout, name: `gtm-${args[0]}`, input });
 const npm = (args, { env = {}, timeout = 20 * MIN, dir = s.dir } = {}) => run("npm", args, { cwd: dir, env: cleanEnv(env), timeout, name: `npm-${args.at(-1)}` });
 const init = (args, cwd = s.work, env = {}) => run("node", [s.cli, "init", ...args], {
   cwd, env: cleanEnv({ GTM_PACKAGE_SPEC: `file:${s.tarball}`, ...env }), timeout: 20 * MIN, name: `gtm-init${args.join("")}`,
@@ -55,7 +56,7 @@ function refused(r, what) {
 async function startDev(dir = s.dir, env = {}) {
   await stopDev(); // a failed test may have left one running
   assert.ok(await poll(async () => !(await portOpen(PORT)), { timeout: 30_000 }), `port ${PORT} is still in use`);
-  const proc = startProcess(file("node_modules/.bin/gtm", dir), ["dev"], { cwd: dir, env: cleanEnv(withClaude({ GTM_PORT: String(PORT), ...env })), name: "gtm-dev" });
+  const proc = startProcess(file("node_modules/.bin/revbound", dir), ["dev"], { cwd: dir, env: cleanEnv(withClaude({ GTM_PORT: String(PORT), ...env })), name: "gtm-dev" });
   s.dev = proc;
   await waitForHttp(PORT, "/api/gtm/shell", proc);
   s.dbUrl = `postgres://postgres:postgres@127.0.0.1:${JSON.parse(read(".gtm/db.lock", dir)).port}/postgres?sslmode=disable`;
@@ -67,9 +68,9 @@ async function stopDev() {
   s.dev = null;
   await poll(async () => !(await portOpen(PORT)), { timeout: 30_000 });
 }
-/** `gtm run …` against the dev server, its printed JSON parsed (null when it printed none). */
+/** `revbound run …` against the dev server, its printed JSON parsed (null when it printed none). */
 async function gtmRun(args, env = {}) {
-  const r = await gtm(["run", ...args], { env: withClaude({ GTM_PORT: String(PORT), ...env }), timeout: 5 * MIN });
+  const r = await revbound(["run", ...args], { env: withClaude({ GTM_PORT: String(PORT), ...env }), timeout: 5 * MIN });
   const at = r.stdout.indexOf("{");
   let out = null;
   try { out = at >= 0 ? JSON.parse(r.stdout.slice(at)) : null; } catch {}
@@ -107,20 +108,20 @@ after(async () => {
   for (const name of fs.readdirSync(s.work)) if (name !== "logs") fs.rmSync(path.join(s.work, name), { recursive: true, force: true });
 });
 
-test("init --company Acme makes ./gtm-acme with the seven defaults; the build runs gtm check first and passes; gtm check passes with no env", { timeout: 40 * MIN }, async () => {
-  assertOk(await init(["--company", "Acme"]), "gtm init --company Acme");
+test("init --company Acme makes ./gtm-acme with the seven defaults; the build runs revbound check first and passes; revbound check passes with no env", { timeout: 40 * MIN }, async () => {
+  assertOk(await init(["--company", "Acme"]), "revbound init --company Acme");
   s.dir = path.join(s.work, "gtm-acme");
   const config = read("gtm.config.ts");
   for (const p of ["database()", "ledger({", "workflows({", "ai()", "context()", "connections()", "console()"]) assert.ok(config.includes(p), `gtm.config.ts lists ${p}`);
   assert.match(config, /company: "Acme"/);
   assert.deepEqual(JSON.parse(read("vercel.json")).crons, [{ path: "/api/gtm/ledger/reconcile", schedule: "0 * * * *" }]);
   for (const f of ["gtm/manifest.ts", "gtm/routes.ts", "gtm/views.tsx", "gtm/next.ts", "gtm/database.ts", "gtm/ai.ts", "gtm/slots/ai.ts", "proxy.ts", "app/layout.tsx"]) assert.ok(exists(f), f);
-  assert.equal(JSON.parse(read("package.json")).scripts.build, "gtm check --build && gtm migrate && next build");
+  assert.equal(JSON.parse(read("package.json")).scripts.build, "revbound check --build && revbound migrate && next build");
   assert.equal(JSON.parse(read("package.json")).imports["#gtm/database"], "./gtm/database.ts");
   assert.equal(fs.readlinkSync(file(".claude/skills")), "../.agents/skills");
   const build = assertOk(await npm(["run", "build"]), "npm run build");
-  assert.ok(build.output.indexOf("gtm check --build") < build.output.indexOf("Next.js"), "gtm check runs before next build");
-  assertOk(await gtm(["check"]), "gtm check");
+  assert.ok(build.output.indexOf("revbound check --build") < build.output.indexOf("Next.js"), "revbound check runs before next build");
+  assertOk(await revbound(["check"]), "revbound check");
 });
 
 test("bundles: the workflow and proxy bundles hold no pg, React or CSS, and the proxy no route handler code", { timeout: 10 * MIN }, async (t) => {
@@ -132,7 +133,7 @@ test("bundles: the workflow and proxy bundles hold no pg, React or CSS, and the 
   for (const chunk of loaded) assert.deepEqual(forbidden(read(path.join(".next", chunk))), [], chunk);
 });
 
-test("gtm dev: 127.0.0.1 only; every console view and its API answers; build, migrate and check alongside", { timeout: 30 * MIN }, async (t) => {
+test("revbound dev: 127.0.0.1 only; every console view and its API answers; build, migrate and check alongside", { timeout: 30 * MIN }, async (t) => {
   if (!s.dir) return t.skip("no project");
   await startDev();
   const sockets = listeningSockets(processTree(s.dev.pid, s.dir));
@@ -146,11 +147,11 @@ test("gtm dev: 127.0.0.1 only; every console view and its API answers; build, mi
   assert.ok((await json("/api/gtm/data")).tables.some((x) => x.name === "gtm_ledger.runs"));
   assert.equal((await json("/api/gtm/connections/missing")).count, 0);
   assert.equal((await get("/api/gtm/nothing")).status, 404, "an undeclared /api path");
-  assertOk(await gtm(["migrate"]), "gtm migrate while dev runs");
-  assertOk(await gtm(["check"]), "gtm check while dev runs");
+  assertOk(await revbound(["migrate"]), "revbound migrate while dev runs");
+  assertOk(await revbound(["check"]), "revbound check while dev runs");
 });
 
-test("a workflow that writes a row: db:generate, gtm migrate, gtm run; Runs from the ledger, Data, CSV, the inspector", { timeout: 30 * MIN }, async (t) => {
+test("a workflow that writes a row: db:generate, revbound migrate, revbound run; Runs from the ledger, Data, CSV, the inspector", { timeout: 30 * MIN }, async (t) => {
   if (!s.dev) return t.skip("no dev server");
   fs.appendFileSync(file("db/schema.ts"), `
 import * as acceptancePg from "drizzle-orm/pg-core";
@@ -176,9 +177,9 @@ export async function record(input: { name: string }) {
 `);
   register(`import { record } from "./record";`, { record: `{ run: record, description: "Writes one row.", tables: ["records"], connections: ["ACME_API_KEY"] }` });
   assertOk(await npm(["run", "db:generate"]), "npm run db:generate");
-  assertOk(await gtm(["migrate"]), "gtm migrate");
+  assertOk(await revbound(["migrate"]), "revbound migrate");
   const r = await gtmRun(["record", "--input", JSON.stringify({ name: "=HYPERLINK(1)" })]);
-  assertOk(r, "gtm run record");
+  assertOk(r, "revbound run record");
   assert.equal(r.out.status, "completed");
   assert.deepEqual(r.out.returnValue.inserted.name, "=HYPERLINK(1)");
   const runs = (await json("/api/gtm/ledger/runs")).data;
@@ -287,7 +288,7 @@ export async function twinActions() {
     "plain-parent": "plainParent",
     "needs-yes": "{ run: needsYes, approval: { required: true } }",
   });
-  assertOk(await gtm(["check", "--build"]), "gtm check --build");
+  assertOk(await revbound(["check", "--build"]), "revbound check --build");
   const input = JSON.stringify({ companies: ["acme.example", "globex.example", "initech.example"] });
   const no = await gtmRun(["score-list", "--input", input]);
   assert.notEqual(no.code, 0);
@@ -368,18 +369,18 @@ export const webhooks = {
 test("connections: set reads a hidden value from stdin into .env.local (0600), list shows it, argv values and owned names are refused", { timeout: 10 * MIN }, async (t) => {
   if (!s.dir) return t.skip("no project");
   write(".env.example", `${read(".env.example")}# Acme's API\nACME_API_KEY=\n`);
-  const set = await gtm(["connections", "set", "ACME_API_KEY"], { input: "sk-test-$value\"quoted\n" });
-  assertOk(set, "gtm connections set");
+  const set = await revbound(["connections", "set", "ACME_API_KEY"], { input: "sk-test-$value\"quoted\n" });
+  assertOk(set, "revbound connections set");
   assert.ok(!set.output.includes("sk-test"), "the value is never printed");
   assert.equal(fs.statSync(file(".env.local")).mode & 0o777, 0o600);
   assert.match(read(".env.local"), /^ACME_API_KEY='sk-test-\\\$value"quoted'$/m);
-  assert.match((await gtm(["connections", "list"])).stdout, /^set\s+ACME_API_KEY\s+\(Acme's API\)$/m);
-  assert.notEqual((await gtm(["connections", "set", "ACME_API_KEY", "inline-value"])).code, 0, "a value in argv");
-  assert.match((await gtm(["connections", "set", "DATABASE_URL"], { input: "x" })).output, /set by gtm, Vercel or an integration/);
+  assert.match((await revbound(["connections", "list"])).stdout, /^set\s+ACME_API_KEY\s+\(Acme's API\)$/m);
+  assert.notEqual((await revbound(["connections", "set", "ACME_API_KEY", "inline-value"])).code, 0, "a value in argv");
+  assert.match((await revbound(["connections", "set", "DATABASE_URL"], { input: "x" })).output, /set by Revbound, Vercel or an integration/);
   if (s.dev) {
     await poll(async () => (await json("/api/gtm/connections")).connections.find((c) => c.name === "ACME_API_KEY")?.state === "set", { timeout: 60_000 });
   }
-  assertOk(await gtm(["connections", "delete", "ACME_API_KEY"]), "gtm connections delete");
+  assertOk(await revbound(["connections", "delete", "ACME_API_KEY"]), "revbound connections delete");
   assert.doesNotMatch(read(".env.local"), /ACME_API_KEY/);
 });
 
@@ -448,28 +449,28 @@ test("migrations: hosted production refuses an unacknowledged destructive migrat
   const migration = fs.readdirSync(file("db/migrations")).filter((f) => f.endsWith(".sql")).sort().at(-1);
   assert.match(read(`db/migrations/${migration}`), /DROP TABLE "records"/);
   const prod = { VERCEL_ENV: "production", VERCEL_DEPLOYMENT_ID: "dpl_test", DATABASE_URL: s.dbUrl };
-  const refusedRun = await gtm(["migrate"], { env: prod });
+  const refusedRun = await revbound(["migrate"], { env: prod });
   assert.notEqual(refusedRun.code, 0);
   assert.match(refusedRun.output, new RegExp(`company:${migration.slice(0, 4)} may lose data`));
-  write("gtm.config.ts", read("gtm.config.ts").replace("// acknowledge: { customLedger: true, destructive: [\"company:0012\"] },  // only when needed (`npx gtm docs ledger`)",
+  write("gtm.config.ts", read("gtm.config.ts").replace("// acknowledge: { customLedger: true, destructive: [\"company:0012\"] },  // only when needed (`npx revbound docs ledger`)",
     `acknowledge: { destructive: ["company:${migration.slice(0, 4)}"] },`));
-  assertOk(await gtm(["sync"]), "gtm sync");
-  assertOk(await gtm(["migrate"], { env: prod }), "gtm migrate (acknowledged)");
-  const local = await gtm(["migrate"]);
+  assertOk(await revbound(["sync"]), "revbound sync");
+  assertOk(await revbound(["migrate"], { env: prod }), "revbound migrate (acknowledged)");
+  const local = await revbound(["migrate"]);
   assert.notEqual(local.code, 0);
   assert.match(local.output, /production's database/);
   await sql(s.dir, s.dbUrl, "delete from gtm.meta where key = 'production'");
 });
 
-test("gtm init again changes nothing but restores missing wiring; sync rewrites a deleted shim", { timeout: 10 * MIN }, async (t) => {
+test("revbound init again changes nothing but restores missing wiring; sync rewrites a deleted shim", { timeout: 10 * MIN }, async (t) => {
   if (!s.dir) return t.skip("no project");
   await stopDev();
   const before = snapshot(s.dir);
-  assertOk(await init([], s.dir), "gtm init (re-run)");
+  assertOk(await init([], s.dir), "revbound init (re-run)");
   assert.deepEqual(diffSnapshots(before, snapshot(s.dir)), { added: [], removed: [], changed: [] });
   fs.rmSync(file("proxy.ts"));
   fs.rmSync(file("public/_gtm/probe.txt"));
-  assertOk(await init([], s.dir), "gtm init (repair)");
+  assertOk(await init([], s.dir), "revbound init (repair)");
   assert.ok(exists("proxy.ts") && exists("public/_gtm/probe.txt"));
   assert.equal(diffSnapshots(before, snapshot(s.dir)).changed.length, 0);
 });
@@ -490,22 +491,22 @@ test("init picks the local AI backend: claude under Claude Code, codex under Cod
 });
 
 test("plugins: the fixture plugin adds a table, view, nav item, tab, route, CLI command, docs, AGENTS.md line, skill, check and runtime export", { timeout: 40 * MIN }, async (t) => {
-  assertOk(await init(["--company", "Plugins", "--example"]), "gtm init --example");
+  assertOk(await init(["--company", "Plugins", "--example"]), "revbound init --example");
   const dir = path.join(s.work, "gtm-plugins");
   fs.cpSync(path.join(REPO, "test", "fixtures", "plugin-fixture"), file("plugins/fixture", dir), { recursive: true });
-  write("gtm.config.ts", read("gtm.config.ts", dir).replace('import { console } from "@eliasstravik/gtm/console";', (m) => `${m}\nimport { fixture } from "./plugins/fixture";`)
+  write("gtm.config.ts", read("gtm.config.ts", dir).replace('import { console } from "revbound/console";', (m) => `${m}\nimport { fixture } from "./plugins/fixture";`)
     .replace("    console(),\n", "    console(),\n    fixture(),\n"), dir);
   write("workflows/greet.ts", `import { greet } from "#gtm/fixture";\n\nexport async function greeting() {\n  "use workflow";\n  return greet("Acme");\n}\n`, dir);
   write("workflows/index.ts", read("workflows/index.ts", dir).replace('import { exampleImport } from "./example-import";', 'import { exampleImport } from "./example-import";\nimport { greeting } from "./greet";')
     .replace("export const workflows = {", "export const workflows = {\n  greeting,"), dir);
-  assertOk(await gtm(["sync"], { dir }), "gtm sync");
-  const check = assertOk(await gtm(["check"], { dir }), "gtm check");
+  assertOk(await revbound(["sync"], { dir }), "revbound sync");
+  const check = assertOk(await revbound(["check"], { dir }), "revbound check");
   assert.match(check.output, /Fixture: its check ran\./);
   assert.match(read("AGENTS.md", dir), /- Fixture plugin: its line in the managed block\./);
   assert.match(read(".agents/skills/fixture-hello/SKILL.md", dir), /name: fixture-hello/);
-  assert.match((await gtm(["fixture", "a", "b"], { dir })).stdout, /fixture says hello \(fixture, a b\)/);
-  assert.match((await gtm(["docs", "fixture"], { dir })).stdout, /The fixture plugin's docs topic/);
-  assert.match((await gtm(["docs"], { dir })).stdout, /npx gtm docs fixture/);
+  assert.match((await revbound(["fixture", "a", "b"], { dir })).stdout, /fixture says hello \(fixture, a b\)/);
+  assert.match((await revbound(["docs", "fixture"], { dir })).stdout, /The fixture plugin's docs topic/);
+  assert.match((await revbound(["docs"], { dir })).stdout, /npx revbound docs fixture/);
   const manifest = read("gtm/manifest.ts", dir);
   for (const needle of ['"key": "fixture:fixture/hello"', '"path": "fixture"', '"id": "fixture"', '"name": "FIXTURE_API_KEY"', '"schema": "gtm_fixture"']) assert.ok(manifest.includes(needle), needle);
   s.dir = dir;
@@ -527,35 +528,35 @@ test("a packed plugin: add, swap the database, remove; eject ai and ledger into 
   const dir = s.dir;
   const pack = assertOk(await run("npm", ["pack", "--pack-destination", s.work], { cwd: path.join(REPO, "test", "fixtures", "gtm-plugin-fixture"), name: "pack-fixture" }));
   const tgz = path.join(s.work, pack.stdout.trim().split("\n").at(-1));
-  const added = assertOk(await gtm(["add", tgz], { dir }), "gtm add");
+  const added = assertOk(await revbound(["add", tgz], { dir }), "revbound add");
   assert.match(added.stdout, /import \{ packaged \} from "gtm-plugin-fixture";/);
   assert.equal(JSON.parse(read("package.json", dir)).dependencies["gtm-plugin-fixture"], `file:${path.relative(dir, tgz)}`.replace(/^file:(?!\.)/, "file:"));
   const config = read("gtm.config.ts", dir);
   write("gtm.config.ts", config.replace("import { fixture }", 'import { packaged, swappedDatabase } from "gtm-plugin-fixture";\nimport { fixture }')
     .replace("    database(),\n", "    swappedDatabase(),\n").replace("    fixture(),\n", "    fixture(),\n    packaged(),\n"), dir);
-  assertOk(await gtm(["sync"], { dir }), "gtm sync");
-  assertOk(await gtm(["check", "--build"], { dir }), "gtm check with the swapped database");
+  assertOk(await revbound(["sync"], { dir }), "revbound sync");
+  assertOk(await revbound(["check", "--build"], { dir }), "revbound check with the swapped database");
   assert.match(read("gtm/slots/ledger.ts", dir), /import provide\d from "gtm-plugin-fixture\/database";/);
-  write("types-test.ts", `import type { Ctx, DatabaseSlotV1 } from "@eliasstravik/gtm";\nimport swapped from "gtm-plugin-fixture/database";\nexport const slot: (ctx: Ctx) => DatabaseSlotV1 = swapped;\n`, dir);
+  write("types-test.ts", `import type { Ctx, DatabaseSlotV1 } from "revbound";\nimport swapped from "gtm-plugin-fixture/database";\nexport const slot: (ctx: Ctx) => DatabaseSlotV1 = swapped;\n`, dir);
   assertOk(await run(file("node_modules/.bin/tsc", dir), ["--noEmit", "-p", "."], { cwd: dir, name: "tsc-types" }), "the swapped provider passes DatabaseSlotV1");
   fs.rmSync(file("types-test.ts", dir));
-  const removed = assertOk(await gtm(["remove", "packaged"], { dir }), "gtm remove");
+  const removed = assertOk(await revbound(["remove", "packaged"], { dir }), "revbound remove");
   assert.match(removed.stdout, /gtm\.config\.ts:\d+ {2}packaged\(\),/);
 
-  assertOk(await gtm(["eject", "ai"], { dir }), "gtm eject ai");
+  assertOk(await revbound(["eject", "ai"], { dir }), "revbound eject ai");
   assert.match(read("gtm.config.ts", dir), /import \{ ai \} from "\.\/plugins\/ai";/);
   assert.match(read("gtm/ai.ts", dir), /from "\.\.\/plugins\/ai\/runtime"/);
   assert.match(read("plugins/ai/index.ts", dir), /const P = "\.\/plugins\/ai";/);
   assert.ok(exists("plugins/ai/.gtm-eject/src/index.ts", dir) && exists("plugins/ai/.gtm-eject/version", dir));
-  assertOk(await gtm(["check", "--build"], { dir }), "gtm check after ejecting ai");
-  assert.match((await gtm(["diff", "ai"], { dir })).stdout, /No upstream changes to ai between 0\.0\.5 and 0\.0\.5/);
-  assertOk(await gtm(["eject", "ledger"], { dir }), "gtm eject ledger");
-  const guard = await gtm(["check", "--build"], { dir });
+  assertOk(await revbound(["check", "--build"], { dir }), "revbound check after ejecting ai");
+  assert.match((await revbound(["diff", "ai"], { dir })).stdout, new RegExp(`No upstream changes to ai between ${VERSION} and ${VERSION}`));
+  assertOk(await revbound(["eject", "ledger"], { dir }), "revbound eject ledger");
+  const guard = await revbound(["check", "--build"], { dir });
   assert.notEqual(guard.code, 0);
   assert.match(guard.output, /The ledger slot is not the package's own ledger\(\)/);
   write("gtm.config.ts", read("gtm.config.ts", dir).replace("  plugins: [", "  acknowledge: { customLedger: true },\n  plugins: ["), dir);
-  assertOk(await gtm(["sync"], { dir }), "gtm sync");
-  assertOk(await gtm(["check", "--build"], { dir }), "gtm check with the acknowledged ledger");
+  assertOk(await revbound(["sync"], { dir }), "revbound sync");
+  assertOk(await revbound(["check", "--build"], { dir }), "revbound check with the acknowledged ledger");
   write("workflows/ask.ts", `import { agent } from "#gtm/ai";\n\nexport async function ask() {\n  "use workflow";\n  return (await agent({ name: "ask", instructions: "Answer.", prompt: "ejected" })).value;\n}\n`, dir);
   write("workflows/index.ts", read("workflows/index.ts", dir).replace('import { greeting } from "./greet";', 'import { greeting } from "./greet";\nimport { ask } from "./ask";')
     .replace("export const workflows = {", "export const workflows = {\n  ask,"), dir);
@@ -583,7 +584,7 @@ ${read("workflows/index.ts", dir)}`.replace("export const workflows = {", `expor
   "weekly-new-companies": weeklyNewCompaniesCount,
   "enrich-companies": { run: enrichCompanies, approval: { required: true }, budget: { perRunUsd: 5, perMonthUsd: 50 } },`), dir);
   assertOk(await npm(["run", "db:generate"], { dir }), "db:generate");
-  assertOk(await gtm(["check", "--build"], { dir }), "gtm check");
+  assertOk(await revbound(["check", "--build"], { dir }), "revbound check");
   await startDev(dir);
   const imported = await gtmRun(["import-list", "--input", JSON.stringify({ companies: [{ name: "Acme", domain: "acme.example" }] })]);
   assert.equal(imported.out?.status, "completed", tail(imported.output));
@@ -595,19 +596,19 @@ ${read("workflows/index.ts", dir)}`.replace("export const workflows = {", `expor
   assertOk(await npm(["run", "build"], { dir }), "npm run build with the recipes");
 });
 
-test("mdm: gtm add mdm in a fresh project; two workflows with overlapping people and companies make one record each, and the second skips the first's enrichment", { timeout: 40 * MIN }, async () => {
-  assertOk(await init(["--company", "Mdm"]), "gtm init --company Mdm");
+test("mdm: revbound add mdm in a fresh project; two workflows with overlapping people and companies make one record each, and the second skips the first's enrichment", { timeout: 40 * MIN }, async () => {
+  assertOk(await init(["--company", "Mdm"]), "revbound init --company Mdm");
   const dir = path.join(s.work, "gtm-mdm");
   s.dir = dir;
-  const added = assertOk(await gtm(["add", "mdm"], { dir }), "gtm add mdm");
-  const [, importLine] = added.stdout.match(/^ {2}(import \{ mdm \} from "@eliasstravik\/gtm\/mdm";)$/m) ?? [];
+  const added = assertOk(await revbound(["add", "mdm"], { dir }), "revbound add mdm");
+  const [, importLine] = added.stdout.match(/^ {2}(import \{ mdm \} from "revbound\/mdm";)$/m) ?? [];
   assert.ok(importLine && /^ {2}mdm\(\), {3}\/\/ in plugins: \[\.\.\.\]$/m.test(added.stdout), added.stdout);
   assert.ok(!JSON.parse(read("package.json", dir)).dependencies.mdm, "nothing installed");
-  write("gtm.config.ts", read("gtm.config.ts", dir).replace('import { console } from "@eliasstravik/gtm/console";', (m) => `${m}\n${importLine}`)
+  write("gtm.config.ts", read("gtm.config.ts", dir).replace('import { console } from "revbound/console";', (m) => `${m}\n${importLine}`)
     .replace("    console(),\n", "    console(),\n    mdm(),\n"), dir);
-  assert.match((await gtm(["add", "mdm"], { dir })).stdout, /mdm is already in gtm\.config\.ts/);
-  assertOk(await gtm(["sync"], { dir }), "gtm sync");
-  assert.match((await gtm(["docs", "mdm"], { dir })).stdout, /^# MDM: people, companies and signals/);
+  assert.match((await revbound(["add", "mdm"], { dir })).stdout, /mdm is already in gtm\.config\.ts/);
+  assertOk(await revbound(["sync"], { dir }), "revbound sync");
+  assert.match((await revbound(["docs", "mdm"], { dir })).stdout, /^# MDM: people, companies and signals/);
 
   write("workflows/leads.ts", `import { stale, upsertCompany, upsertPerson, upsertSignal } from "#gtm/mdm";
 
@@ -648,7 +649,7 @@ export async function eventAttendees(input: { leads: Lead[] }) {
 `, dir);
   write("workflows/index.ts", `import { eventAttendees, findLeads } from "./leads";\n${read("workflows/index.ts", dir)}`
     .replace("export const workflows = {", 'export const workflows = {\n  "find-leads": findLeads,\n  "event-attendees": eventAttendees,'), dir);
-  assertOk(await gtm(["check"], { dir }), "gtm check with mdm");
+  assertOk(await revbound(["check"], { dir }), "revbound check with mdm");
 
   await startDev(dir);
   for (const p of ["/people", "/companies", "/signals"]) assert.equal((await get(p)).status, 200, p);
@@ -690,7 +691,7 @@ export async function eventAttendees(input: { leads: Lead[] }) {
   assert.deepEqual(janePage.keys.map((k) => [k.key, k.value, k.source]), [["email", "jane@acme.example", "lead-list"], ["linkedin", "linkedin.com/in/jane-doe", "event-list"]]);
   for (const p of [`/people/${jane.id}`, `/companies/${acme.id}`, "/signals?type=hiring"]) assert.equal((await get(p)).status, 200, p);
   assert.equal((await get("/api/gtm/mdm/people/00000000-0000-0000-0000-000000000000")).status, 404);
-  assertOk(await gtm(["check"], { dir }), "gtm check while dev runs");
+  assertOk(await revbound(["check"], { dir }), "revbound check while dev runs");
   await stopDev();
   assertOk(await npm(["run", "build"], { dir }), "npm run build with mdm");
 });

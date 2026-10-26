@@ -1,9 +1,9 @@
 "use client";
 import { notFound } from "next/navigation.js";
 import { Suspense, type ComponentType } from "react";
-import type { Manifest } from "@eliasstravik/gtm";
-import { find } from "@eliasstravik/gtm/kit";
-import type { TabProps, ViewProps } from "@eliasstravik/gtm/ui";
+import type { Manifest } from "revbound";
+import { find } from "revbound/kit";
+import type { TabProps, ViewProps } from "revbound/ui";
 import { home } from "./shell.js";
 
 /**

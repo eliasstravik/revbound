@@ -1,13 +1,13 @@
 # Workflows
 
 Ready-made workflows (import a list, enrich companies, a weekly scheduled job) are recipes to copy when a person
-asks for one: `npx gtm docs recipes`.
+asks for one: `npx revbound docs recipes`.
 
 ## The registry
 
 `workflows/index.ts` exports `workflows = { <name>: workflowFn }` (typed `satisfies Registry`, from
-`@eliasstravik/gtm`). The key is the workflow's name everywhere: `npx gtm run <name>`, `/api/gtm/start/<name>`,
-`/api/gtm/cron/<name>`, `fanOut()` and the console. gtm starts only registered workflows; `npx gtm check` reports a
+`revbound`). The key is the workflow's name everywhere: `npx revbound run <name>`, `/api/gtm/start/<name>`,
+`/api/gtm/cron/<name>`, `fanOut()` and the console. Revbound starts only registered workflows; `npx revbound check` reports a
 broken registry. An entry can also be an object:
 
 ```ts
@@ -48,7 +48,7 @@ The console's workflow page has a tab per plugin: Diagram, Runs (from the ledger
   inspector: **Open in Workflow** locally, **Open in Vercel** hosted.
 - Schedules: `vercel.json` crons whose path is `/api/gtm/cron/<name>`. Vercel Cron runs them in production only, with
   `CRON_SECRET`. A cron run gets no input. A schedule of an approval-required workflow also needs its approval
-  committed in the registry (docs: ledger). Locally nothing fires on its own; start it with `npx gtm run <name>`.
+  committed in the registry (docs: ledger). Locally nothing fires on its own; start it with `npx revbound run <name>`.
 
 ## Helpers from `#gtm/workflows`
 
@@ -56,7 +56,7 @@ The console's workflow page has a tab per plugin: Diagram, Runs (from the ledger
   per batch, and returns the child run ids without waiting. Children write their results to the company's tables. A
   retried batch skips children already started. In a preview it first cuts `items` to the workflow's
   `approval.previewItems` (default 3).
-- `currentRun()` (workflow scope or a step) returns this run as gtm knows it: `{ id, rootId, trigger, preview,
+- `currentRun()` (workflow scope or a step) returns this run as Revbound knows it: `{ id, rootId, trigger, preview,
   approved, workflow, previewItems }`. Size previews with it: process only the first few rows when `preview` is true.
 - `webhook({ verify, dedupe, onEvent })` builds an inbound webhook for `webhooks/index.ts` (docs: webhooks).
 - Company code never imports `start` from `workflow/api`: every start goes through the ledger.
@@ -65,22 +65,22 @@ The console's workflow page has a tab per plugin: Diagram, Runs (from the ledger
 
 Runs never pause for people, and the console has no start or approve buttons. For a risky or costly run:
 
-1. Preview: `npx gtm run <workflow> --input '<json>' --preview`. It needs no approval; its limits apply tree-wide
+1. Preview: `npx revbound run <workflow> --input '<json>' --preview`. It needs no approval; its limits apply tree-wide
    (`previewItems` children, `previewCalls` calls, `previewMaxUsd` dollars). It waits for the whole tree, then prints
    the root's return value, each child's return value and the tree's total cost.
 2. Show the sample and the cost in this chat and ask Yes/No with the question tool, naming the workflow, the input
    and the cost cap.
-3. Only after a yes: `npx gtm run <workflow> --input '<json>' --approve --max-usd <n> [--note "<what was approved>"]`.
+3. Only after a yes: `npx revbound run <workflow> --input '<json>' --approve --max-usd <n> [--note "<what was approved>"]`.
    It is accepted only when a completed preview of the same input exists from the last `previewWithinHours` (24).
 
 Cost quotes: a local preview on `claude`/`codex` measures plan usage, not dollars ("plan usage, not metered"). Quote a
 hosted run as the hosted model's price × the preview's usage, or run a small preview with `--prod`. A schedule's yes
 quotes cost per run × runs per month.
 
-## `gtm run`
+## `revbound run`
 
 ```sh
-npx gtm run <workflow> [--input '<json>'] [--preview] [--approve --max-usd <n> [--note <text>]] [--prod] [--no-wait]
+npx revbound run <workflow> [--input '<json>'] [--preview] [--approve --max-usd <n> [--note <text>]] [--prod] [--no-wait]
 ```
 
 - Default: `POST http://127.0.0.1:$GTM_PORT/api/gtm/start/<workflow>`, so `npm run dev` must be running.

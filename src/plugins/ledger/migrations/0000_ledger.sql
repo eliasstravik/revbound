@@ -1,6 +1,6 @@
--- The ledger: every run gtm admits or refuses, every metered action, and the reconcile bookkeeping.
+-- The ledger: every run Revbound admits or refuses, every metered action, and the reconcile bookkeeping.
 create table gtm_ledger.runs (
-  id uuid primary key,                 -- gtm's own run id, created at admit
+  id uuid primary key,                 -- Revbound's own run id, created at admit
   sdk_run_id text unique,              -- Workflow SDK run id, set by started() or reconcile
   workflow text not null,
   trigger text not null check (trigger in ('cli','http','cron','webhook','child','external')),

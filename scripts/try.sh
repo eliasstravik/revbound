@@ -5,4 +5,4 @@ repo=$(cd "$(dirname "$0")/.." && pwd)
 out=${TMPDIR:-/tmp}/gtm-pack
 mkdir -p "$out" && rm -f "$out"/*.tgz
 (cd "$repo" && npm run build >/dev/null && npm pack --silent --pack-destination "$out" >/dev/null 2>&1)
-cd "$1" && npm install --no-audit --no-fund "$out"/eliasstravik-gtm-*.tgz >/dev/null 2>&1 && npx gtm sync
+cd "$1" && npm install --no-audit --no-fund "$out"/revbound-*.tgz >/dev/null 2>&1 && npx revbound sync

@@ -3,16 +3,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "gtm dev",
-    "build": "gtm check --build && gtm migrate && next build",
+    "dev": "revbound dev",
+    "build": "revbound check --build && revbound migrate && next build",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "gtm migrate",
-    "sync": "gtm sync",
-    "check": "gtm check"
+    "db:migrate": "revbound migrate",
+    "sync": "revbound sync",
+    "check": "revbound check"
   },
   "dependencies": {
     "@ai-sdk/workflow": "2.0.75",
-    "@eliasstravik/gtm": "^0.0.5",
+    "revbound": "^0.0.6",
     "ai": "7.0.143",
     "drizzle-orm": "0.45.4",
     "next": "16.4.2",

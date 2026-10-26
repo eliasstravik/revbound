@@ -1,5 +1,5 @@
 // A third-party plugin package: one session route and a docs topic, plus a swap for the default database plugin.
-import { database } from "@eliasstravik/gtm/database";
+import { database } from "revbound/database";
 
 export function packaged() {
   return {

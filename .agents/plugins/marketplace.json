@@ -5,7 +5,7 @@
   },
   "plugins": [
     {
-      "name": "gtm",
+      "name": "revbound",
       "source": {
         "source": "local",
         "path": "./"

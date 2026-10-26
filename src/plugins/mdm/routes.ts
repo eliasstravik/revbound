@@ -1,7 +1,7 @@
 /** The People, Companies and Signals views' routes (session GET), read-only: 50 records a page, newest first. */
 import { sql, type SQL } from "drizzle-orm";
-import type { RouteCtx } from "@eliasstravik/gtm";
-import { HttpError, json } from "@eliasstravik/gtm/kit";
+import type { RouteCtx } from "revbound";
+import { HttpError, json } from "revbound/kit";
 
 type Row = Record<string, any>;
 const PAGE = 50;

@@ -1,6 +1,6 @@
 # Interaction rules
 
-Every reply about a gtm project follows these rules, in Claude Code, Codex or Cursor. Structured
+Every reply about a Revbound project follows these rules, in Claude Code, Codex or Cursor. Structured
 choices use the host's native question tool, such as AskUserQuestion, request_user_input or eve's ask_question. Open
 text and file requests appear directly in the conversation and wait for a normal reply or attachment. Never put a
 Type your answer, Upload file or similar button between the request and the reply. Use a typed choice list only
@@ -41,7 +41,7 @@ when the host has no question tool.
    restoration (git history). Name GitHub, repositories, folders or commands only when an action or problem requires
    them.
 
-Secret values are never asked for or pasted in chat: hand the person `npx gtm connections set <NAME>` (a hidden
+Secret values are never asked for or pasted in chat: hand the person `npx revbound connections set <NAME>` (a hidden
 prompt) for a local key, and `vercel env add <NAME> production --sensitive` for a live one (docs: connections).
 
 A risky or costly run's yes rests on a preview: run it with `--preview`, show its sample and cost, ask Yes/No, and

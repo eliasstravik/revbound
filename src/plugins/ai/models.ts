@@ -1,4 +1,4 @@
-import { isHosted, jwtClaims, value } from "@eliasstravik/gtm/kit";
+import { isHosted, jwtClaims, value } from "revbound/kit";
 
 /**
  * The one place that names models. The default follows the family the person runs locally (GTM_AGENT_BACKEND),

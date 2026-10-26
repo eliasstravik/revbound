@@ -1,6 +1,6 @@
 /**
- * @eliasstravik/gtm: defineGtm and definePlugin for gtm.config.ts, the plugin contract (`api: 1`), the slot interfaces
- * (`V1`) and the workflow registry types. Plain data only: the CLI reads gtm.config.ts, the app reads what `gtm sync`
+ * revbound: defineGtm and definePlugin for gtm.config.ts, the plugin contract (`api: 1`), the slot interfaces
+ * (`V1`) and the workflow registry types. Plain data only: the CLI reads gtm.config.ts, the app reads what `revbound sync`
  * generates from it.
  */
 import type { GtmConfig, GtmPlugin } from "./core/types.js";

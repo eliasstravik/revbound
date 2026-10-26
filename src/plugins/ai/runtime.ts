@@ -5,8 +5,8 @@
  */
 import type { ModelMessage, Tool, ToolSet } from "ai";
 import { z } from "zod";
-import type { Runtime } from "@eliasstravik/gtm";
-import { SKILL_NAME, SKILLS_DIR } from "@eliasstravik/gtm/kit/skill";
+import type { Runtime } from "revbound";
+import { SKILL_NAME, SKILLS_DIR } from "revbound/kit/skill";
 import type { CliBackend, Reasoning, Usage } from "./cli.js";
 import { sanitizeSchema, type Route } from "./models.js";
 import type { McpServer, McpToolDefinition } from "./tools.js";

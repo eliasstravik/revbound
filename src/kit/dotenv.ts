@@ -1,4 +1,4 @@
-/** `.env.example` and `.env.local` as gtm reads them. Node only (the CLI and local route handlers). */
+/** `.env.example` and `.env.local` as Revbound reads them. Node only (the CLI and local route handlers). */
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { PULL_PLACEHOLDER } from "./env.js";

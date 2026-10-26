@@ -1,5 +1,5 @@
 // Inbound webhooks: { <name>: webhook({ verify, dedupe, onEvent }) }, served at /api/gtm/hooks/<name>
-// (`npx gtm docs webhooks`).
-import type { Webhooks } from "@eliasstravik/gtm/workflows";
+// (`npx revbound docs webhooks`).
+import type { Webhooks } from "revbound/workflows";
 
 export const webhooks = {} satisfies Webhooks;

@@ -3,7 +3,7 @@
 # commit message and every pull request's title and description. Separate from the defaults (no [extend]) because
 # their global allowlist hides home-folder paths. Locally:
 #   gitleaks git --log-opts=--all . && gitleaks git --config .github/private-data.toml --log-opts=--all .
-title = "gtm private data"
+title = "Revbound private data"
 
 [[rules]]
 id = "tailscale-name"

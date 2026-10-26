@@ -1,4 +1,4 @@
-/** `gtm add`, `remove`, `eject` and `diff`: plugin management. None of them edits gtm.config.ts except eject's import flip. */
+/** `revbound add`, `remove`, `eject` and `diff`: plugin management. None of them edits gtm.config.ts except eject's import flip. */
 import { spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
@@ -10,17 +10,17 @@ import type { GtmPlugin } from "./types.js";
 const EJECT = ".gtm-eject";
 
 /**
- * `gtm add <name | npm-or-git-spec>`: a first-party optional plugin (`mdm`) needs no install; a package is installed
+ * `revbound add <name | npm-or-git-spec>`: a first-party optional plugin (`mdm`) needs no install; a package is installed
  * pinned. Either way it prints the lines to add to gtm.config.ts.
  */
 export async function add(args: string[]): Promise<void> {
   const [spec] = args;
-  if (!spec || args.length > 1) throw new Error(`Usage: gtm add <${OPTIONAL.join(" | ")} | npm package[@version] | git url#<commit>>`);
+  if (!spec || args.length > 1) throw new Error(`Usage: revbound add <${OPTIONAL.join(" | ")} | npm package[@version] | git url#<commit>>`);
   const own = spec.startsWith(`${PACKAGE}/`) ? spec.slice(PACKAGE.length + 1) : spec;
   if ((OPTIONAL as readonly string[]).includes(own)) {
     const dir = findProject();
     if ((await loadConfig(dir)).plugins.some((p) => p.name === own)) return void console.log(`${own} is already in ${CONFIG}.`);
-    console.log(`${own} ships with ${PACKAGE}; nothing to install. Add these lines to ${CONFIG}, then run \`npx gtm sync\` and \`npx gtm migrate\`:\n`);
+    console.log(`${own} ships with ${PACKAGE}; nothing to install. Add these lines to ${CONFIG}, then run \`npx revbound sync\` and \`npx revbound migrate\`:\n`);
     console.log(`  import { ${own} } from "${PACKAGE}/${own}";`);
     console.log(`  ${own}(),   // in plugins: [...]`);
     return;
@@ -36,24 +36,24 @@ export async function add(args: string[]): Promise<void> {
   const mod = (await projectJiti(dir).import(name).catch(() => ({}))) as Record<string, unknown>;
   const found = Object.entries(mod).find(([, v]) => typeof v === "function" && (() => { try { return (v as () => GtmPlugin)()?.api === 1; } catch { return false; } })());
   const factory = found?.[0] ?? "plugin";
-  console.log(`\nInstalled ${name}. Add these lines to ${CONFIG}, then run \`npx gtm sync\`:\n`);
+  console.log(`\nInstalled ${name}. Add these lines to ${CONFIG}, then run \`npx revbound sync\`:\n`);
   console.log(`  import { ${factory} } from "${name}";`);
   console.log(`  ${factory}(),   // in plugins: [...]`);
 }
 
-/** `gtm remove <name>`: prints the lines to delete and how to drop its tables; never drops anything. */
+/** `revbound remove <name>`: prints the lines to delete and how to drop its tables; never drops anything. */
 export async function remove(args: string[]): Promise<void> {
   const [name] = args;
-  if (!name || args.length > 1) throw new Error("Usage: gtm remove <plugin name>");
+  if (!name || args.length > 1) throw new Error("Usage: revbound remove <plugin name>");
   const dir = findProject(), config = await loadConfig(dir);
   const p = config.plugins.find((x) => x.name === name);
   if (!p) throw new Error(`No plugin named ${name} in ${CONFIG}.`);
   const text = readFileSync(join(dir, CONFIG), "utf8").split("\n");
   const lines = text.map((l, i) => [i + 1, l] as const).filter(([, l]) => new RegExp(`\\b${name.replace(/-/g, "[-_]?")}\\b`, "i").test(l) && /import|\(/.test(l));
   const dependents = config.plugins.filter((x) => x !== p && (x.needs ?? []).some((s) => (p.provides ?? []).includes(s)));
-  console.log(`To remove ${name}, delete these lines from ${CONFIG}, then run \`npx gtm sync\`:\n`);
+  console.log(`To remove ${name}, delete these lines from ${CONFIG}, then run \`npx revbound sync\`:\n`);
   for (const [n, l] of lines) console.log(`  ${CONFIG}:${n}  ${l.trim()}`);
-  if (dependents.length) console.log(`\n${dependents.map((d) => d.name).join(", ")} ${dependents.length === 1 ? "needs" : "need"} it; \`npx gtm check\` will say so until you remove or replace ${dependents.length === 1 ? "it" : "them"} too.`);
+  if (dependents.length) console.log(`\n${dependents.map((d) => d.name).join(", ")} ${dependents.length === 1 ? "needs" : "need"} it; \`npx revbound check\` will say so until you remove or replace ${dependents.length === 1 ? "it" : "them"} too.`);
   if (p.migrations || p.schema) console.log(`\nIts tables stay. To drop them after a backup: psql "$DATABASE_URL" -c 'drop schema ${schemaOf(p)} cascade'`);
 }
 
@@ -81,12 +81,12 @@ function copyPlugin(src: string, to: string, name: string): void {
   }
 }
 
-/** `gtm eject <name>`: copies a package plugin into plugins/<name>/, keeps a pristine copy, flips the config import, syncs. */
+/** `revbound eject <name>`: copies a package plugin into plugins/<name>/, keeps a pristine copy, flips the config import, syncs. */
 export async function eject(args: string[]): Promise<void> {
   const [name] = args;
-  if (!name || args.length > 1) throw new Error("Usage: gtm eject <plugin name>");
+  if (!name || args.length > 1) throw new Error("Usage: revbound eject <plugin name>");
   const dir = findProject(), target = join(dir, "plugins", name);
-  if (existsSync(join(target, "index.ts"))) throw new Error(`plugins/${name} already exists; \`npx gtm diff ${name}\` shows upstream changes.`);
+  if (existsSync(join(target, "index.ts"))) throw new Error(`plugins/${name} already exists; \`npx revbound diff ${name}\` shows upstream changes.`);
   const { src, version } = sourceOf(dir, name);
   const configText = readFileSync(join(dir, CONFIG), "utf8");
   const from = `"${PACKAGE}/${name}"`;
@@ -101,12 +101,12 @@ export async function eject(args: string[]): Promise<void> {
   await sync(dir);
 }
 
-/** `gtm diff <name>`: offline, what changed upstream between the ejected version and the installed one. */
+/** `revbound diff <name>`: offline, what changed upstream between the ejected version and the installed one. */
 export async function diff(args: string[]): Promise<void> {
   const [name] = args;
-  if (!name || args.length > 1) throw new Error("Usage: gtm diff <plugin name>");
+  if (!name || args.length > 1) throw new Error("Usage: revbound diff <plugin name>");
   const dir = findProject(), pristine = join(dir, "plugins", name, EJECT, "src");
-  if (!existsSync(pristine)) throw new Error(`plugins/${name} was not ejected with gtm eject (no ${EJECT}/).`);
+  if (!existsSync(pristine)) throw new Error(`plugins/${name} was not ejected with revbound eject (no ${EJECT}/).`);
   const { src, version } = sourceOf(dir, name);
   const from = readFileSync(join(dir, "plugins", name, EJECT, "version"), "utf8").trim();
   const upstream = join(dir, ".gtm", "diff", name);
@@ -114,7 +114,7 @@ export async function diff(args: string[]): Promise<void> {
   const rel = (p: string) => relative(dir, p).split(sep).join("/");
   const out = spawnSync("git", ["diff", "--no-index", "--stat", "--patch", rel(pristine), rel(upstream)], { cwd: dir, encoding: "utf8" });
   rmSync(upstream, { recursive: true, force: true });
-  if (out.error) throw new Error("gtm diff needs git on PATH.");
+  if (out.error) throw new Error("revbound diff needs git on PATH.");
   if (!out.stdout.trim()) console.log(`No upstream changes to ${name} between ${from} and ${version}.`);
   else console.log(`Upstream changes to ${name}, ${from} → ${version}:\n\n${out.stdout}`);
   console.log(`Your own edits: git diff --no-index plugins/${name}/${EJECT}/src plugins/${name}`);

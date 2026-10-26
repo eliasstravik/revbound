@@ -1,9 +1,9 @@
-import { definePlugin } from "@eliasstravik/gtm";
+import { definePlugin } from "revbound";
 
 export type { ActionOptions, ActionResult } from "./runtime.js";
 
-const P = "@eliasstravik/gtm/ledger";
-const SRC = "@eliasstravik/gtm/src/plugins/ledger";
+const P = "revbound/ledger";
+const SRC = "revbound/src/plugins/ledger";
 
 type Budgets = { perRunUsd?: number; perWorkflowMonthUsd?: number; projectMonthUsd?: number };
 

@@ -1,15 +1,15 @@
-/** The ledger's routes: the hourly reconcile (cron), gtm dev's local tick, and the Runs view (session GET). */
+/** The ledger's routes: the hourly reconcile (cron), revbound dev's local tick, and the Runs view (session GET). */
 import { after } from "next/server.js";
 import { sql } from "drizzle-orm";
-import type { RouteCtx } from "@eliasstravik/gtm";
-import { environment, HttpError, isHosted, json } from "@eliasstravik/gtm/kit";
+import type { RouteCtx } from "revbound";
+import { environment, HttpError, isHosted, json } from "revbound/kit";
 
 /** GET /ledger/reconcile (cron, hourly in vercel.json) → the pass's counts. */
 export async function reconcile(_req: Request, ctx: RouteCtx): Promise<Response> {
   return json(await ctx.get("ledger").reconcile());
 }
 
-/** POST /ledger/tick (local): gtm dev's 60-second reconcile, since crons never fire locally. */
+/** POST /ledger/tick (local): revbound dev's 60-second reconcile, since crons never fire locally. */
 export async function tick(_req: Request, ctx: RouteCtx): Promise<Response> {
   return json(await ctx.get("ledger").reconcile());
 }
@@ -41,7 +41,7 @@ export async function runs(req: Request, ctx: RouteCtx): Promise<Response> {
       coalesce(c.cost_usd, 0)::float8 as cost_usd, coalesce(c.calls, 0)::int as calls, coalesce(c.unmetered, 0)::int as unmetered
     from gtm_ledger.runs r left join gtm_ledger.run_costs c on c.run_id = r.id
     where ${sql.join(where, sql` and `)} order by r.started_at desc, r.id desc limit 51`);
-  after(() => ctx.get("ledger").reconcile().catch((e: Error) => console.error("[gtm] reconcile failed", e)));
+  after(() => ctx.get("ledger").reconcile().catch((e: Error) => console.error("[revbound] reconcile failed", e)));
   const data = rows.slice(0, 50).map((r: Record<string, any>) => ({
     id: r.id, sdkRunId: r.sdk_run_id, workflow: r.workflow, trigger: r.trigger, preview: r.preview, status: r.status, reason: r.reason,
     parentRunId: r.parent_run_id, rootRunId: r.root_run_id, approvedMaxUsd: r.approved_max_usd, approvalNote: r.approval_note,

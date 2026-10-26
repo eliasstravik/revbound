@@ -1,13 +1,13 @@
-import { definePlugin } from "@eliasstravik/gtm";
+import { definePlugin } from "revbound";
 
 export type { FanOutOptions, Webhook, WebhookEvent, Webhooks } from "./runtime.js";
 
-const P = "@eliasstravik/gtm/workflows";
-const SRC = "@eliasstravik/gtm/src/plugins/workflows";
+const P = "revbound/workflows";
+const SRC = "revbound/src/plugins/workflows";
 
 /**
  * The `workflows` slot on the Workflow SDK: the registry and webhooks, the single start path through the ledger,
- * fanOut(), webhook(), currentRun(), crons, `gtm run`, the Workflows views and the local run inspector.
+ * fanOut(), webhook(), currentRun(), crons, `revbound run`, the Workflows views and the local run inspector.
  */
 export function workflows(opts: { registry?: string; webhooks?: string } = {}) {
   const registry = opts.registry ?? "./workflows", webhooks = opts.webhooks ?? "./webhooks";
@@ -39,9 +39,9 @@ export function workflows(opts: { registry?: string; webhooks?: string } = {}) {
     trace: ["./vercel.json"],
     agents: `- \`workflows/\`: Workflow SDK workflows, each registered by name in \`workflows/index.ts\` with what the console shows and its
   \`approval\`, \`budget\` and \`schedule\` (docs: workflows). Lasting results go in the company's own tables. Start child runs with
-  \`fanOut()\` from \`#gtm/workflows\`, never \`start()\`. Ready-made workflows to copy when a person asks: \`npx gtm docs recipes\`.
+  \`fanOut()\` from \`#gtm/workflows\`, never \`start()\`. Ready-made workflows to copy when a person asks: \`npx revbound docs recipes\`.
 - \`webhooks/index.ts\`: inbound webhooks built with \`webhook()\` from \`#gtm/workflows\` (docs: webhooks).
-- Risky or costly runs: \`npx gtm run <workflow> --input … --preview\` first, show its sample and cost in this chat, ask Yes/No
+- Risky or costly runs: \`npx revbound run <workflow> --input … --preview\` first, show its sample and cost in this chat, ask Yes/No
   with the question tool naming the workflow, the input and the cost cap, and only after a yes run it with
   \`--approve --max-usd <n>\`. A schedule's yes (cost per run × runs per month) is committed as \`schedule: { approvedUntil, note }\`
   next to \`budget\`, in the same change that adds the cron to vercel.json. Runs never wait for people.`,

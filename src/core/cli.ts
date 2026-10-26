@@ -5,7 +5,7 @@ import { packageRoot, readJson } from "./project.js";
 
 type Command = (args: string[]) => Promise<void>;
 
-const USAGE = `gtm: the open-source agent plugin that runs your GTM (npx gtm <command>)
+const USAGE = `revbound: the open-source agent plugin that runs your GTM (npx revbound <command>)
 
   init [dir] --company <name> [--example]   create a project (default ./gtm-<company>) in an empty folder, or repair one
   sync                      write gtm/ and the shims from gtm.config.ts
@@ -17,7 +17,7 @@ const USAGE = `gtm: the open-source agent plugin that runs your GTM (npx gtm <co
   eject <name>              copy a package plugin into plugins/<name> to edit it
   diff <name>               what changed upstream since an eject`;
 
-// Loaded on demand so `gtm docs` never loads the database stack.
+// Loaded on demand so `revbound docs` never loads the database stack.
 const core: Record<string, () => Promise<Command>> = {
   init: async () => (await import("./init.js")).init,
   sync: async () => (await import("./sync.js")).syncCommand,
@@ -64,6 +64,6 @@ try {
     }
   }
 } catch (error) {
-  console.error(`gtm ${name}: ${error instanceof Error ? error.message : String(error)}`);
+  console.error(`revbound ${name}: ${error instanceof Error ? error.message : String(error)}`);
   process.exitCode = 1;
 }

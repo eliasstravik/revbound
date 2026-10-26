@@ -10,7 +10,7 @@ export type NextTransform = (cfg: NextConfig) => NextConfig | ((phase: Phase, ct
 
 /**
  * The company's Next.js config with what the plugins add: each plugin's transform from gtm/next.ts in config order, the
- * files they trace, and allowed dev origins (GTM_ALLOWED_HOSTS). It enforces nothing; `gtm check` does.
+ * files they trace, and allowed dev origins (GTM_ALLOWED_HOSTS). It enforces nothing; `revbound check` does.
  */
 export function withGtm(config: ConfigInput = {}, gtm: { manifest: Manifest; transforms: NextTransform[]; trace?: string[] }) {
   return async (phase: Phase, ctx: Context): Promise<NextConfig> => {

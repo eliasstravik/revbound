@@ -1,7 +1,7 @@
 /** The workflows plugin's steps, reached only from the generated binding's "use step" functions. */
 import { FatalError, getStepMetadata } from "workflow";
-import type { Manifest, SlotMap } from "@eliasstravik/gtm";
-import { context } from "@eliasstravik/gtm/kit";
+import type { Manifest, SlotMap } from "revbound";
+import { context } from "revbound/kit";
 
 export async function run(manifest: Manifest, map: SlotMap, op: string, args: unknown[]): Promise<unknown> {
   const ctx = context(manifest, map), workflows = ctx.get("workflows");

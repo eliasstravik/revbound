@@ -14,17 +14,17 @@ export function readJson<T = any>(path: string): T | undefined {
   try { return JSON.parse(readFileSync(path, "utf8")) as T; } catch { return undefined; }
 }
 
-/** True when `dir` holds a gtm project: a package.json that depends on @eliasstravik/gtm. */
+/** True when `dir` holds a Revbound project: a package.json that depends on revbound. */
 export function isGtmProject(dir: string): boolean {
   const pkg = readJson(join(dir, "package.json"));
-  return Boolean(pkg?.dependencies?.["@eliasstravik/gtm"] ?? pkg?.devDependencies?.["@eliasstravik/gtm"]);
+  return Boolean(pkg?.dependencies?.["revbound"] ?? pkg?.devDependencies?.["revbound"]);
 }
 
-/** The nearest folder at or above `from` that holds a gtm project (package.json depending on @eliasstravik/gtm). */
+/** The nearest folder at or above `from` that holds a Revbound project (package.json depending on revbound). */
 export function findProject(from = process.cwd()): string {
   for (let dir = resolve(from); ; dir = dirname(dir)) {
     if (isGtmProject(dir)) return dir;
-    if (dirname(dir) === dir) throw new Error("No gtm project here. Create one with `npx @eliasstravik/gtm init --company <name>` (makes ./gtm-<company>).");
+    if (dirname(dir) === dir) throw new Error("No Revbound project here. Create one with `npx revbound init --company <name>` (makes ./gtm-<company>).");
   }
 }
 

@@ -1,14 +1,14 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import { parseArgs } from "node:util";
-import { type CliCtx, loadEnv } from "@eliasstravik/gtm/cli";
-import { appPort, basePath, value } from "@eliasstravik/gtm/kit";
+import { type CliCtx, loadEnv } from "revbound/cli";
+import { appPort, basePath, value } from "revbound/kit";
 
-const USAGE = "Usage: gtm run <workflow> [--input <json>] [--preview] [--approve --max-usd <n> [--note <text>]] [--prod] [--no-wait]";
+const USAGE = "Usage: revbound run <workflow> [--input <json>] [--preview] [--approve --max-usd <n> [--note <text>]] [--prod] [--no-wait]";
 
 type Row = { id: string; workflow: string; status: string; returnValue: unknown; error: string | null; costUsd: number | null; unmetered: number };
 
 /**
- * `gtm run`: starts a run with POST /api/gtm/start/<workflow> on 127.0.0.1:$GTM_PORT (or GTM_PRODUCTION_URL with the
+ * `revbound run`: starts a run with POST /api/gtm/start/<workflow> on 127.0.0.1:$GTM_PORT (or GTM_PRODUCTION_URL with the
  * bypass header), then polls it and prints status, return value, error and cost as JSON. `--preview` waits for the whole
  * tree and prints each child's return value too. Exits non-zero unless the run completed.
  */
@@ -29,7 +29,7 @@ export default async function run(args: string[], ctx: CliCtx): Promise<void> {
   let base = `http://127.0.0.1:${appPort()}${basePath()}`;
   if (values.prod) {
     const url = value("GTM_PRODUCTION_URL"), secret = value("GTM_BYPASS_SECRET");
-    if (!url || !secret) throw new Error("--prod needs GTM_PRODUCTION_URL and GTM_BYPASS_SECRET in .env.local (`npx gtm docs deploy`).");
+    if (!url || !secret) throw new Error("--prod needs GTM_PRODUCTION_URL and GTM_BYPASS_SECRET in .env.local (`npx revbound docs deploy`).");
     base = new URL(url.includes("://") ? url : `https://${url}`).origin;
     headers["x-vercel-protection-bypass"] = secret;
   }

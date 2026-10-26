@@ -1,16 +1,16 @@
-/** The gtm skill's form (the skill-issue standard's QC) and its copy of the interaction rules. No build needed. */
+/** The revbound skill's form (the skill-issue standard's QC) and its copy of the interaction rules. No build needed. */
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { test } from "node:test";
 
 const root = new URL("../../", import.meta.url);
 const read = (rel) => fs.readFileSync(new URL(rel, root), "utf8");
-const skill = read("skills/gtm/SKILL.md");
+const skill = read("skills/revbound/SKILL.md");
 const [, front, body] = skill.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/) ?? [];
 
 test("frontmatter: name matches the folder; description third person, at most 1,024 characters, no XML", () => {
   assert.ok(front, "SKILL.md starts with frontmatter");
-  assert.match(front, /^name: gtm$/m);
+  assert.match(front, /^name: revbound$/m);
   const description = front.match(/^description: (.*)$/m)?.[1] ?? "";
   assert.ok(description.length > 0 && description.length <= 1024, `description is ${description.length} characters`);
   assert.doesNotMatch(description, /[<>]/);
@@ -28,9 +28,9 @@ test("body: the nine sections in order, under 500 lines", () => {
 });
 
 test("every relative link in the skill resolves inside the skill", () => {
-  for (const [, href] of skill.matchAll(/\]\(([^)#]+)\)/g)) assert.ok(fs.existsSync(new URL(`skills/gtm/${href}`, root)), href);
+  for (const [, href] of skill.matchAll(/\]\(([^)#]+)\)/g)) assert.ok(fs.existsSync(new URL(`skills/revbound/${href}`, root)), href);
 });
 
 test("the skill's interaction rules are docs/interaction.md, byte for byte", () => {
-  assert.equal(read("skills/gtm/references/interaction.md"), read("docs/interaction.md"));
+  assert.equal(read("skills/revbound/references/interaction.md"), read("docs/interaction.md"));
 });

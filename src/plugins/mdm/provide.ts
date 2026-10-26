@@ -5,7 +5,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { sql, type SQL } from "drizzle-orm";
-import type { Ctx } from "@eliasstravik/gtm";
+import type { Ctx } from "revbound";
 import { fieldName, keysOf, MdmInputError, signalType } from "./keys.js";
 import type { Company, CompanyInput, Known, MdmSlotV1, Origin, Person, PersonInput, RecordType, Ref, Signal, Upserted } from "./types.js";
 

@@ -26,11 +26,11 @@ export it in the Console's Data view. Other recipes (enrich-companies, weekly-ne
 
 ## How to
 
-1. Copy the files, then `npm run db:generate` and `npx gtm migrate`.
+1. Copy the files, then `npm run db:generate` and `npx revbound migrate`.
 2. Turn what the person gave (a pasted list, a CSV, a spreadsheet export) into `{ "companies": [{ "name", "domain" }],
    "source": "<where it came from>" }`; a website link works as the domain. A large file goes in runs of about 100
-   rows (`npx gtm docs workflows`, run size).
-3. `npx gtm run import-list --input '<json>'`; the result says how many were saved and which rows had
+   rows (`npx revbound docs workflows`, run size).
+3. `npx revbound run import-list --input '<json>'`; the result says how many were saved and which rows had
    no domain. The rows show in Data → companies.
 
 Saving costs nothing, so it needs no preview. Saving the same domain again updates its row instead of adding one.

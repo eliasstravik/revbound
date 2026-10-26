@@ -1,5 +1,5 @@
 import { FatalError } from "workflow";
-import { value } from "@eliasstravik/gtm/kit";
+import { value } from "revbound/kit";
 
 /**
  * The built-in tools of agent(), each run in one of the ai plugin's steps: MCP over Streamable HTTP (plain JSON-RPC
@@ -88,7 +88,7 @@ async function mcpSession<T>(server: McpServer, use: (rpc: Rpc) => Promise<T>): 
     if (reply.error) throw new Error(`MCP server ${host}: ${method} failed: ${String(reply.error.message).slice(0, 300)}`);
     return reply.result;
   };
-  const init = await rpc("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "gtm", version: "1" } });
+  const init = await rpc("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "revbound", version: "1" } });
   headers["mcp-protocol-version"] = init?.protocolVersion ?? "2025-06-18";
   await rpc("notifications/initialized");
   try {
@@ -120,7 +120,7 @@ export async function fetchPage(url: string): Promise<{ url: string; text: strin
       const addresses = await lookup(host, { all: true }).catch(() => []);
       if (addresses.length === 0) throw new Error(`${host} does not resolve`);
       if (addresses.some((a) => isPrivateAddress(a.address))) throw new Error(`${host} resolves to a private address`);
-      const res = await fetch(current, { headers: { "user-agent": "gtm", accept: "text/html,application/xhtml+xml,text/plain" }, signal: AbortSignal.timeout(20_000), redirect: "manual" });
+      const res = await fetch(current, { headers: { "user-agent": "revbound", accept: "text/html,application/xhtml+xml,text/plain" }, signal: AbortSignal.timeout(20_000), redirect: "manual" });
       const location = res.headers.get("location");
       if ([301, 302, 303, 307, 308].includes(res.status) && location) {
         if (hop >= MAX_REDIRECTS) throw new Error(`${url} redirected more than ${MAX_REDIRECTS} times`);

@@ -13,38 +13,38 @@ connections locally).
 ## Tables and migrations
 
 - The company's tables live in `public`, defined in `db/schema.ts`. After a schema change run `npm run db:generate`,
-  then `npx gtm migrate`, even while `npm run dev` runs; `dev` applies pending migrations only when it starts.
-- `gtm migrate` applies every plugin's migrations in `needs` order (`database`, `ledger`, `workflows`, then the rest),
+  then `npx revbound migrate`, even while `npm run dev` runs; `dev` applies pending migrations only when it starts.
+- `revbound migrate` applies every plugin's migrations in `needs` order (`database`, `ledger`, `workflows`, then the rest),
   each set bookkept in its own schema's `__gtm_migrations`, then the company's `db/migrations/` with Drizzle's own
   bookkeeping, under one advisory lock.
 - Plugin schemas (`gtm`, `gtm_ledger`, `gtm_workflows`, `gtm_<plugin>`) are the plugins': never create, change or drop
   anything in them. Company tables never go there.
-- `npm run build` runs `gtm migrate` first, so a production deploy migrates production. Preview migrates only
+- `npm run build` runs `revbound migrate` first, so a production deploy migrates production. Preview migrates only
   when Preview has its own `DATABASE_URL` that is not production's; otherwise it skips with a notice.
 
 ## Migrations only add
 
 A migration containing `DROP`, `RENAME`, `TRUNCATE`, `ALTER … TYPE` or `DELETE` is destructive. A hosted production
-`gtm migrate` refuses it unless gtm.config.ts lists it by exact id in `acknowledge.destructive`: `"company:0012"` for
+`revbound migrate` refuses it unless gtm.config.ts lists it by exact id in `acknowledge.destructive`: `"company:0012"` for
 `db/migrations/0012_…sql`, `"<plugin>:<NNNN>"` for a plugin's. Add that only after a yes in chat and a Neon backup
 branch of production made before it deploys. A Vercel rollback restores code, not the schema.
 
 ## The production stamp
 
-A hosted production `gtm migrate` writes `gtm.meta` key `production` = the database identity: for Neon the
+A hosted production `revbound migrate` writes `gtm.meta` key `production` = the database identity: for Neon the
 endpoint id (host with `-pooler` removed, so pooled and unpooled URLs match), else the host. Neon preview and
 dev branches copy the stamp but have other endpoint ids, so they work.
 
-`db()`, `gtm migrate` and `gtm dev` refuse a database whose stamp names its own identity anywhere but hosted
+`db()`, `revbound migrate` and `revbound dev` refuse a database whose stamp names its own identity anywhere but hosted
 production, even with `VERCEL_ENV=production` in `.env.local`, with "This is production's database; connect a
 dev branch instead". It means `DATABASE_URL` here is production's. Remove it from `.env.local` to use the
 local database, or connect a Neon dev branch to Development and `vercel env pull` again (docs: local).
 
 ## Local data
 
-- PGlite data lives in `.gtm/pglite/`; `.gtm/db.lock` names the serving process and port. Other gtm commands
+- PGlite data lives in `.gtm/pglite/`; `.gtm/db.lock` names the serving process and port. Other Revbound commands
   use the running server; with none running they start a short-lived one.
-- Query it with any Postgres client through the URL `npx gtm check` prints while `npm run dev`
+- Query it with any Postgres client through the URL `npx revbound check` prints while `npm run dev`
   runs (`postgres://postgres:postgres@127.0.0.1:<port>/postgres?sslmode=disable`; the port changes per start).
   `sslmode` must be `disable` (or omitted); user and password are ignored; at most 10 connections, of which
   the app's pool uses 3.
@@ -52,7 +52,7 @@ local database, or connect a Neon dev branch to Development and `vercel env pull
   collide (Drizzle and `pg` use unnamed ones unless you call `.prepare(name)`), and an open transaction makes
   every other client wait until it ends. Keep transactions short and never leave one idle.
 - PGlite is not full Postgres. When something fails only locally, point `DATABASE_URL` at a Neon dev branch.
-- A data folder written by another PGlite major version makes `gtm dev` refuse and print the dump and restore
+- A data folder written by another PGlite major version makes `revbound dev` refuse and print the dump and restore
   commands.
 - Local data is development data and never moves to production.
 

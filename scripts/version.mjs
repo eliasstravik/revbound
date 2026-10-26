@@ -26,7 +26,7 @@ json(".github/plugin/marketplace.json", (p) => { for (const entry of p.plugins) 
 // The starter keeps its range prefix (^0.0.5 → ^0.0.6).
 json("starter/package.json", (p) => {
   const deps = p.dependencies;
-  deps["@eliasstravik/gtm"] = `${/^[\^~]?/.exec(deps["@eliasstravik/gtm"])[0]}${next}`;
+  deps["revbound"] = `${/^[\^~]?/.exec(deps["revbound"])[0]}${next}`;
 });
 const readme = readFileSync("README.md", "utf8");
 writeFileSync("README.md", readme.replaceAll(`tree%2Fv${before}%2F`, `tree%2Fv${next}%2F`).replaceAll(`at \`v${before}\``, `at \`v${next}\``));

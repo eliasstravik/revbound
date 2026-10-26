@@ -1,7 +1,7 @@
 /** The mdm plugin's steps: each `#gtm/mdm` call, with the running workflow and its ledger run stamped on every write. */
 import { FatalError, getWorkflowMetadata } from "workflow";
-import type { Manifest, SlotMap } from "@eliasstravik/gtm";
-import { context } from "@eliasstravik/gtm/kit";
+import type { Manifest, SlotMap } from "revbound";
+import { context } from "revbound/kit";
 import type { WriteOptions } from "./runtime.js";
 import type { MdmSlotV1, Origin } from "./types.js";
 
