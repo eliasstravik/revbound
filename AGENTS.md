@@ -31,3 +31,10 @@ company data it cannot, so this rule still holds where the check is silent.
 
 Console text (`src/ui`) only helps the user act: labels, empty states, errors with their fix. Never explain how it
 works inside: no file names, where things are stored, what is never shown, or why it is built that way.
+
+## Releases
+
+Every release bumps only the patch version by one (0.0.7 -> 0.0.8 -> 0.0.9), never minor or major, unless the human
+explicitly says otherwise. Bump with `npm run version:bump <x.y.z>`, which refuses anything else; pass
+`--allow-bump` (`npm run version:bump -- <x.y.z> --allow-bump`) only when the human asked for it. The rest is the
+README's release line.
