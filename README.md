@@ -31,7 +31,7 @@ no company should have to rebuild:
 - durable execution (Workflow SDK workflows, on Vercel Workflow when live)
 - a place to keep records (the company's own Postgres: PGlite locally, Neon live)
 - a safe path for keys (environment variables; values never in chat, the console or git)
-- a screen for teammates who don't use an agent (the console: read and navigation only)
+- a screen for teammates who don't use an agent (the console), with a chat agent that works on the project
 - a lasting record of what ran, what it cost and who said yes (the ledger)
 - access control on every route
 
@@ -41,7 +41,7 @@ project, there is no telemetry, and the keys and services are the company's own.
 
 ## Every part is a plugin
 
-`revbound init` writes `revbound.config.ts` with seven default plugins, each one line you can remove or replace:
+`revbound init` writes `revbound.config.ts` with eight default plugins, each one line you can remove or replace:
 
 | Plugin | What it does |
 | --- | --- |
@@ -52,6 +52,7 @@ project, there is no telemetry, and the keys and services are the company's own.
 | `context` | the company's context and skills, the console's home |
 | `connections` | which keys are set, and `revbound connections set` for local ones |
 | `console` | the console's frame, for every plugin's pages |
+| `agent` | the project's chat agent: the console's Chat page, and Slack or Teams with `npx revbound agent add slack` |
 
 Optional plugins ship in the package too and join a project with `npx revbound add <name>`:
 
@@ -86,6 +87,7 @@ The docs match the installed version: `npx revbound docs [topic]` in a project.
 | [connections](src/plugins/connections/docs/connections.md) | keys, locally and live |
 | [context](src/plugins/context/docs/context.md) | the basics at setup, and a suggested layout for company facts |
 | [webhooks](src/plugins/workflows/docs/webhooks.md) | inbound webhooks |
+| [agent](src/plugins/agent/docs/agent.md) | the chat agent: the console's Chat page, Slack, who can use it, the yes, pull requests |
 | [mdm](src/plugins/mdm/docs/mdm.md) | people, companies and signals: matching, merging, where each field came from, the contract for other plugins |
 | [recipes](docs/recipes.md) | ready-made workflows to copy |
 | [interaction](docs/interaction.md) | how agents talk to the GTM team |

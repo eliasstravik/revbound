@@ -10,6 +10,8 @@ import type { Manifest } from "./types.js";
  */
 export const WORKFLOW_ROUTES_SELF_PROTECTED = false;
 const PROBE_TTL_MS = 5 * 60_000;
+/** eve's session API and agent info: the routes behind which the console chat runs. */
+const EVE_CONSOLE = /^\/eve\/v1\/(session|info)(\/|$)/;
 const PROBE_HOSTS = 32;
 
 const NOTICE = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Protection required</title>
@@ -26,7 +28,7 @@ const probes = new Map<string, { at: number; open: Promise<boolean> }>();
 
 /** Whether `host` serves the probe to an anonymous caller, i.e. Vercel Authentication is off for it. Kept 5 minutes per
  * host (at most 32 hosts); a failed probe counts as unprotected and is not kept. */
-async function unprotected(host: string): Promise<boolean> {
+export async function unprotected(host: string): Promise<boolean> {
   const hit = probes.get(host);
   if (hit && Date.now() - hit.at < PROBE_TTL_MS) return hit.open;
   probes.delete(host);
@@ -39,7 +41,7 @@ async function unprotected(host: string): Promise<boolean> {
 }
 
 /** Hosted pages and `session` routes answer 503 while an anonymous request gets past Vercel's login. */
-async function failClosed(req: Request): Promise<Response | undefined> {
+export async function failClosed(req: Request): Promise<Response | undefined> {
   const host = requestHost(req);
   if (!/^[a-z0-9.-]+(:\d+)?$/.test(host)) return refuse("Bad Host header.", 400);
   if (!(await unprotected(host))) return undefined;
@@ -76,6 +78,9 @@ export function revboundProxy(manifest: Manifest) {
       if (!verdict.ok) return refuse(verdict.error, verdict.status);
       return hosted && hit.item.access === "session" ? failClosed(req) : undefined;
     }
+    // eve's routes (the agent plugin's chat): its session API is the console's, so it gets the page rule here and the
+    // console rule again in eve; its other routes (health, chat apps' webhooks, callbacks) check their own credentials.
+    if (path.startsWith("/eve/") && !EVE_CONSOLE.test(path)) return undefined;
     const verdict = pageAccess(req);
     if (!verdict.ok) return refuse(verdict.error, verdict.status);
     return hosted ? failClosed(req) : undefined;

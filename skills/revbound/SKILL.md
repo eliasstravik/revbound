@@ -1,6 +1,6 @@
 ---
 name: revbound
-description: Sets up and maintains a company's go-to-market (GTM) project built on Revbound, the open-source agent plugin that runs GTM work. The project is one Next.js repo and Vercel project named after the company (revbound-acme for Acme) whose revbound.config.ts lists its plugins, with the company's context, workflows, ledger of runs and costs, console and connections. Triggers when someone asks to set up GTM for a company ("set up GTM for Acme", "create revbound-acme"), to add or change the company's context, to build, preview, approve, run or schedule outbound, enrichment, scoring or other GTM workflows, to add, remove or write a plugin, to open the console, to add a connection or API key, to deploy the project to Vercel, and on any work inside a folder whose package.json depends on revbound. Not for unrelated web apps, marketing websites, generic Next.js projects, one-off CRM scripts outside a Revbound project, or changes to the revbound package itself.
+description: Sets up and maintains a company's go-to-market (GTM) project built on Revbound, the open-source agent plugin that runs GTM work. The project is one Next.js repo and Vercel project named after the company (revbound-acme for Acme) whose revbound.config.ts lists its plugins, with the company's context, workflows, ledger of runs and costs, console, chat agent and connections. Triggers when someone asks to set up GTM for a company ("set up GTM for Acme", "create revbound-acme"), to add or change the company's context, to build, preview, approve, run or schedule outbound, enrichment, scoring or other GTM workflows, to add, remove or write a plugin, to open the console, to add Slack to the project's chat agent, to add a connection or API key, to deploy the project to Vercel, and on any work inside a folder whose package.json depends on revbound. Not for unrelated web apps, marketing websites, generic Next.js projects, one-off CRM scripts outside a Revbound project, or changes to the revbound package itself.
 ---
 
 # Revbound
@@ -12,7 +12,7 @@ Apply when a person asks to create, change, run or deploy a company's Revbound p
 ## Scope
 
 Owns one company's Revbound project, `revbound-<company>`, from `init` through every later change: context, workflows
-and their approvals, plugins, the console, connections and deploy. Company know-how lives in that repo, never in this
+and their approvals, plugins, the console and its chat agent, connections and deploy. Company know-how lives in that repo, never in this
 skill, and this skill is never installed into it.
 
 ## Inputs
@@ -33,7 +33,7 @@ Talk by [the interaction rules](references/interaction.md); reproduce [the dialo
 
 1. Find the project: the nearest folder at or above this one whose `package.json` depends on `revbound`.
 2. With none, run `npx revbound init --company <Company>`, which creates `./revbound-<company>` here with
-   `revbound.config.ts` (the seven default plugins), base files only, installs and syncs; add `--example` only when the
+   `revbound.config.ts` (the eight default plugins, the chat agent included), base files only, installs and syncs; add `--example` only when the
    person asks for a demo. Run `init . --company <Company>` instead only when this folder is the project's own
    `revbound-<company>` folder and holds nothing but `.git`, `.agents/`, `.claude/`, `AGENTS.md` or `CLAUDE.md`. Then
    write only the basics into `context/company.md`: the name as its heading and a short description from what the person
@@ -49,7 +49,8 @@ Talk by [the interaction rules](references/interaction.md); reproduce [the dialo
    | Add, remove, eject or write a plugin; add a page or an API route | plugins |
    | Open the console (`npm run dev`) or change project files | layout, local |
    | Add a connection or API key | connections |
-   | Go live on Vercel | deploy |
+   | Go live on Vercel | deploy, agent |
+   | The console's Chat page (Claude Haiku 5.5 unless `agent({ model })` says otherwise); add Slack (`npx revbound agent add slack`, then the steps it prints) or Teams | agent |
    | Inbound webhooks | webhooks |
    | Keep people, companies or signals in one place, or enrich each record once (`npx revbound add mdm`) | mdm |
 

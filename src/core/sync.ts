@@ -2,7 +2,7 @@
  * `revbound sync`: turns revbound.config.ts into the committed files under _revbound/ (manifest, import maps, slot maps, binding files),
  * the `#revbound/*` aliases, the shims, the AGENTS.md block and the installed plugin skills. It writes files only.
  */
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { exampleConnections } from "../kit/dotenv.js";
 import { CONFIG, filePath, loadConfig, PACKAGE } from "./config.js";
@@ -15,6 +15,7 @@ export const SHIMS = ["proxy.ts", "app/api/revbound/[...path]/route.ts", "app/la
 /** The matcher Next.js reads statically from proxy.ts; `revbound check` insists on it. */
 export const MATCHER = `["/((?!_next/static|_next/image|_revbound/probe.txt|favicon.ico).*)"]`;
 const INSTALLED = "_revbound/skills.json";
+const OWNED = "_revbound/files.json";
 
 export type Plan = {
   config: RevboundConfig;
@@ -27,6 +28,11 @@ export type Plan = {
   installed: string[];
   /** Skill folders two plugins would install. */
   duplicateSkills: string[];
+  /** Project files plugins own (`files`): path → plugin, and the symbolic links among them (path → target). */
+  owned: Map<string, string>;
+  links: Map<string, string>;
+  /** Plugin files sync wrote before, to remove when no longer planned. */
+  ownedBefore: string[];
   warnings: string[];
 };
 
@@ -212,7 +218,23 @@ export async function plan(dir: string, config?: RevboundConfig): Promise<Plan> 
   }
   files.set(INSTALLED, `${json([...skills.keys()].sort())}\n`);
   const installed: string[] = readJson(join(dir, INSTALLED)) ?? [];
-  return { config, manifest, files, skills, installed, duplicateSkills, warnings };
+
+  // Plugin files: written like generated files, never over sync's own or another plugin's.
+  const owned = new Map<string, string>(), links = new Map<string, string>();
+  for (const p of plugins) for (const [path, body] of Object.entries(p.files ?? {})) {
+    const file = path.split(/[\\/]+/).filter(Boolean).join("/");
+    if (path.startsWith("/") || file.split("/").includes("..") || file.startsWith("_revbound/") || files.has(file) || SHIMS.includes(file) || file.startsWith(".agents/")) {
+      warnings.push(`The ${p.name} plugin's file ${path} is not one a plugin may write; it is skipped.`);
+    } else if (owned.has(file)) warnings.push(`The ${p.name} and ${owned.get(file)} plugins both write ${file}; the first is kept.`);
+    else {
+      owned.set(file, p.name);
+      if (typeof body === "string") files.set(file, body);
+      else links.set(file, body.link);
+    }
+  }
+  files.set(OWNED, `${json([...owned.keys()].sort())}\n`);
+  const ownedBefore: string[] = readJson(join(dir, OWNED)) ?? [];
+  return { config, manifest, files, skills, installed, duplicateSkills, owned, links, ownedBefore, warnings };
 }
 
 /** `() => import(spec).then(…)` resolving to the module's named or default value (for project modules). */
@@ -272,6 +294,11 @@ export function stale(dir: string, p: Plan): string[] {
     if (json(a) !== json(b) || a.some((f) => !readFileSync(join(src, f)).equals(readFileSync(join(dir, folder, f))))) out.push(folder);
   }
   for (const folder of p.installed) if (!p.skills.has(folder) && existsSync(join(dir, folder))) out.push(folder);
+  for (const [file, target] of p.links) {
+    const st = lstatSync(join(dir, file), { throwIfNoEntry: false });
+    if (!st?.isSymbolicLink() || readlinkSync(join(dir, file)) !== target) out.push(file);
+  }
+  for (const file of p.ownedBefore) if (!p.owned.has(file) && lstatSync(join(dir, file), { throwIfNoEntry: false })) out.push(file);
   return [...new Set(out)];
 }
 
@@ -283,7 +310,12 @@ export async function sync(dir: string, quiet = false): Promise<string[]> {
   if (clash.length) throw new Error(`${clash.join(", ")} ${clash.length === 1 ? "is a company skill" : "are company skills"}, and a plugin installs a skill of that name. Rename the company skill, then run revbound sync again.`);
   for (const file of changed) {
     const target = join(dir, file);
-    if (p.files.has(file)) { mkdirSync(dirname(target), { recursive: true }); writeFileSync(target, p.files.get(file)!); }
+    if (p.files.has(file) || p.links.has(file)) {
+      mkdirSync(dirname(target), { recursive: true });
+      if (lstatSync(target, { throwIfNoEntry: false })?.isSymbolicLink()) rmSync(target);
+      if (p.links.has(file)) { rmSync(target, { recursive: true, force: true }); symlinkSync(p.links.get(file)!, target); }
+      else writeFileSync(target, p.files.get(file)!);
+    }
     else if (p.skills.has(file)) { rmSync(target, { recursive: true, force: true }); cpSync(p.skills.get(file)!, target, { recursive: true }); }
     else rmSync(target, { recursive: true, force: true });
   }

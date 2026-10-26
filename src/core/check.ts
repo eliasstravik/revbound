@@ -20,7 +20,7 @@ export type CheckCtx = { dir: string; config: RevboundConfig; plan: Plan; build:
 type Report = { problems: string[]; warnings: string[]; info: string[] };
 
 const ACCESS = ["session", "automation", "cron", "signature", "local", "tailnet"];
-const RESERVED = ["api", "_revbound", "_next", ".well-known"];
+const RESERVED = ["api", "_revbound", "_next", ".well-known", "eve"];
 const BUILD = "revbound check --build && revbound migrate && next build";
 const SYNC = "run `npx revbound sync`";
 
@@ -143,6 +143,9 @@ export async function rules(c: CheckCtx): Promise<CheckResult[]> {
   }
   if (!/^@AGENTS\.md\s*$/m.test(read("CLAUDE.md") ?? "@AGENTS.md")) err("CLAUDE.md does not contain `@AGENTS.md`.", "add the line `@AGENTS.md` so Claude Code reads AGENTS.md");
   if (!(read("next.config.ts") ?? "withRevbound(").includes("withRevbound(")) err("next.config.ts does not use withRevbound().", "export default withRevbound({}) as the starter does");
+  if (readJson(join(dir, "vercel.json"))?.services?.eve && !plugins.some((p) => p.name === "agent")) {
+    err("vercel.json deploys the agent's eve service, and there is no agent plugin.", "delete `services` and the /eve/v1 rewrite from vercel.json, or add agent() back");
+  }
   if ((read("public/_revbound/probe.txt") ?? "revbound-probe-v1").trim() !== "revbound-probe-v1") err("public/_revbound/probe.txt is changed.", "make `revbound-probe-v1` its only contents");
   const build = readJson(join(dir, "package.json"))?.scripts?.build;
   if (build !== BUILD) err(`package.json's build script is ${JSON.stringify(build)}.`, `set it to "${BUILD}", so revbound check runs first in every build`);

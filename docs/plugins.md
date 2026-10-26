@@ -7,7 +7,7 @@ shell.
 
 ## The defaults
 
-`revbound init` writes seven, each a subpath of this package:
+`revbound init` writes eight, each a subpath of this package:
 
 | Plugin | Provides / needs | What it does |
 | --- | --- | --- |
@@ -18,10 +18,12 @@ shell.
 | `context` | none | the Context view (the console's home) and the context rules |
 | `connections` | none | the Connections view, `revbound connections` |
 | `console` | none | the console's frame, its page, its 404 |
+| `agent` | needs `workflows`, `ledger` | the project's chat agent (eve): the console's Chat page, chat apps such as Slack, `revbound agent` (docs: agent) |
 
 Delete a line to remove a plugin, then run `npx revbound sync`; `npx revbound check` names any plugin that still needs
 it. The smallest working set is `database`, `ledger` and `workflows`. Without `console`, sync writes a plain layout and
-a `notFound()` page. Without `context`, `agent({ skills })` still reads `.agents/skills`.
+a `notFound()` page. Without `context`, `agent({ skills })` still reads `.agents/skills`. Without `agent`, sync removes
+`agent/` and the console has no Chat page; also remove `services` and `rewrites` from `vercel.json`.
 
 ## Optional plugins
 
@@ -82,6 +84,7 @@ export function notes() {
 | `connections` | environment variable names it reads, with labels |
 | `cli` | `revbound <name>` commands; `run` default-exports `(args, ctx) => Promise<void>` |
 | `agents`, `skills`, `docs` | an AGENTS.md line, skill folders installed as `.agents/skills/<plugin>-<skill>`, `revbound docs` topics |
+| `files` | project files it owns, which sync writes and removes (path → contents, or `{ link }`); never `_revbound/`, the shims or `.agents/` |
 | `checks` | `(ctx) => Promise<CheckResult[]>`, run by `revbound check` |
 | `trace`, `next`, `dev` | files the build must ship, a Next.js config transform, a `revbound dev` hook |
 | `modules`, `options` | project modules its code reads with `ctx.module(name)`, plain JSON options |

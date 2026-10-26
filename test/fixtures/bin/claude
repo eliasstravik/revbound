@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // A stand-in for `claude -p --output-format json` in the acceptance tests: it answers each stage from its JSON schema
-// (strings echo the start of the prompt), reports a plan cost and never touches the network.
+// (strings echo the start of the prompt), reports a plan cost and never touches the network. Asked for the chat agent's
+// reply (a schema with `tool_calls`), it plays a short scripted conversation instead (chat() below).
 const args = process.argv.slice(2);
 let stdin = "";
 process.stdin.on("data", (d) => (stdin += d)).on("end", () => {
@@ -18,8 +19,35 @@ process.stdin.on("data", (d) => (stdin += d)).on("end", () => {
     if (type === "string") return `echo:${prompt.slice(0, 40)}`;
     return null;
   };
-  const value = schema ? fill(schema) : undefined;
+  const value = schema?.properties?.tool_calls ? chat(stdin) : schema ? fill(schema) : undefined;
   process.stdout.write(JSON.stringify({ type: "result", subtype: "success", is_error: false, num_turns: 1, total_cost_usd: 0.0123,
     result: schema ? JSON.stringify(value) : `echo:${prompt.slice(0, 40)}`, ...(schema && { structured_output: value }),
     usage: { input_tokens: 10, output_tokens: 5 } }));
 });
+
+/**
+ * The chat agent's scripted turns, from the transcript: "keys" tries to read .env.local; "edit" appends a line to workflows/index.ts with bash; "run"
+ * previews example-import, then asks for the real run (which waits for the person's yes), then reports the run id.
+ */
+function chat(transcript) {
+  // From the person's last request on (eve may add its own user-role notes after it, such as an approval's outcome).
+  const asks = [...transcript.matchAll(/<user>\n([\s\S]*?)\n<\/user>/g)].filter((m) => /\b(keys|edit|run|hello)\b/i.test(m[1]));
+  const last = transcript.slice(asks.at(-1)?.index ?? transcript.lastIndexOf("<user>"));
+  const call = (name, input) => ({ text: "", tool_calls: [{ name, arguments: JSON.stringify(input) }] });
+  const result = (name) => [...last.matchAll(new RegExp(`<tool_result id="[^"]*" name="${name}">([\\s\\S]*?)</tool_result>`, "g"))].map((m) => m[1]);
+  if (/\bkeys\b/i.test(last)) {
+    return result("bash").length ? { text: `The key file: ${result("bash")[0].slice(0, 300)}`, tool_calls: [] }
+      : call("bash", { command: "cat /workspace/.env.local; ls -a /workspace" });
+  }
+  if (/\bedit\b/i.test(last)) {
+    return result("bash").length ? { text: "Edited workflows/index.ts here; review it with git diff.", tool_calls: [] }
+      : call("bash", { command: "echo '// edited by the chat agent' >> /workspace/workflows/index.ts" });
+  }
+  if (/\brun\b/i.test(last)) {
+    const runs = result("start_run");
+    if (!runs.length) return call("start_run", { workflow: "example-import", preview: true, summary: "Preview of the three sample companies" });
+    if (runs.length === 1) return call("start_run", { workflow: "example-import", preview: false, maxUsd: 1, summary: "Save the three sample companies, at most $1" });
+    return { text: `Started run ${/"runId":"([^"]+)"/.exec(runs.at(-1))?.[1] ?? "?"}.`, tool_calls: [] };
+  }
+  return { text: "Hello from the project's agent.", tool_calls: [] };
+}

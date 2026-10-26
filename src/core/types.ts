@@ -51,6 +51,8 @@ export interface RevboundPlugin {
   agents?: string;
   /** Skill folders; sync installs each as .agents/skills/<plugin>-<folder>. */
   skills?: string[];
+  /** Project files this plugin owns, written by sync: path → contents, or `{ link }` for a symbolic link to that target. */
+  files?: Record<string, string | { link: string }>;
   /** Topic → markdown file; `revbound docs <topic>`. */
   docs?: Record<string, string>;
   /** Default export: (ctx) => Promise<CheckResult[]>. */
