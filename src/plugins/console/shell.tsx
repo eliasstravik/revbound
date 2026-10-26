@@ -6,10 +6,9 @@ import { usePathname } from "next/navigation.js";
 import { useEffect, useRef, type ReactNode } from "react";
 import type { Manifest, ManifestView } from "revbound";
 import { find, segments } from "revbound/kit";
-import { Link, Status, useApi } from "revbound/ui";
+import { EnvironmentBadge, Link, Status, useApi } from "revbound/ui";
 
 type Info = { company: string; environment: "local" | "preview" | "production"; deployment: string | null };
-const NAMES: Record<string, string> = { local: "Local", preview: "Preview", production: "Production" };
 
 /** The console's home: the Context view when a plugin has one, else Workflows, else the first view. */
 export function home(views: ManifestView[]): ManifestView | undefined {
@@ -54,12 +53,10 @@ export function Shell({ manifest, children }: { manifest: Manifest; children: Re
     if (!deployment.current) deployment.current = next;
     else if (!document.querySelector("dialog[open], [popover]:popover-open")) location.reload();
   }, [info]);
-  const kind = info && NAMES[info.environment] ? info.environment : "preview";
   const brand = (
     <div className="brand">
       <Link href="/" className="company">{info?.company ?? manifest.company}</Link>
-      {info && <span className="environment-badge" data-environment={kind} role="status"
-        title={kind === "local" ? "The console on this computer" : `Hosted on Vercel (${NAMES[kind]})`}>{NAMES[kind]}</span>}
+      {info && <EnvironmentBadge environment={info.environment} />}
     </div>
   );
   const nav = (

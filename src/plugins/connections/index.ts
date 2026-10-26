@@ -15,6 +15,7 @@ export function connections() {
     routes: [
       { path: "connections", methods: ["GET"], access: "session", handler: `${P}/routes#list` },
       { path: "connections/change", methods: ["POST"], access: "console", handler: `${P}/routes#change` },
+      { path: "connections/release", methods: ["GET"], access: "session", handler: `${P}/routes#release` },
       { path: "connections/missing", methods: ["GET"], access: "session", handler: `${P}/routes#missing` },
     ],
     views: [{ path: "connections", title: "Connections", nav: { label: "Connections", order: 50, count: "connections/missing" }, component: `${P}/view` }],

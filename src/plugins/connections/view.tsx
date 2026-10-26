@@ -1,14 +1,15 @@
 "use client";
 import { Fragment, useEffect, useRef, useState, type FormEvent } from "react";
-import { api, glyphs, Icon, Link, Menu, Status, useApi, vercelUrl } from "revbound/ui";
+import { api, glyphs, Icon, Link, Menu, onReleaseSettled, releaseStarted, Status, useApi, vercelUrl } from "revbound/ui";
 import "./connections.css";
 
 type State = "set" | "missing" | "saved" | "provided" | "readonly";
 type Action = "save" | "rename" | "delete";
 type Connection = { name: string; label: string; state: State; actions: Action[]; usedBy: { workflows: string[]; plugins: string[] }; shell?: boolean; reserved?: boolean };
 type Save = { mode: "local" | "hosted" | "link" | "off"; reason?: string; csrf?: string };
-type Data = { connections: Connection[]; environment: string; save: Save; tokenWarning: string | null; listError: string | null; usageComplete: boolean };
-type Done = { ok: true; status: string; redeploy?: "started" | "skipped" | "failed"; shell?: boolean };
+type Data = { connections: Connection[]; environment: string; save: Save; tokenWarning: string | null; listError: string | null; settingsUrl: string | null;
+  usageComplete: boolean };
+type Done = { ok: true; status: string; id?: string; redeploy?: "started" | "skipped" | "failed"; shell?: boolean };
 type Open = { kind: "add" | "edit" | "delete"; c?: Connection };
 
 /** Heroicons 16 solid: check-circle, x-circle, clock, lock-closed. */
@@ -34,6 +35,12 @@ const post = (body: object, csrf?: string) => api<Done>("connections/change", { 
 export function ConnectionsView({ only }: { only?: string[] | null }) {
   const state = useApi<Data>("connections", () => 15_000), { data, reload } = state;
   const [open, setOpen] = useState<Open | null>(null), [note, setNote] = useState(""), [retry, setRetry] = useState(""), [busy, setBusy] = useState(false);
+  // Keys saved from this page read "going live" until the redeploy the badge follows settles.
+  const [saved, setSaved] = useState<string[]>([]);
+  useEffect(() => onReleaseSettled((s) => {
+    setSaved([]); reload(); setNote("");
+    if (s === "failed") { setRetry("The redeploy failed, so production still runs without your last change."); }
+  }), [reload]);
   useEffect(() => {
     // Leaving the page drops the form and what was typed in it.
     const hide = () => setOpen(null);
@@ -44,22 +51,27 @@ export function ConnectionsView({ only }: { only?: string[] | null }) {
   const { save } = data, local = data.environment === "local", canChange = save.mode === "local" || save.mode === "hosted";
   const rows = only !== undefined ? data.connections.filter((c) => only?.includes(c.name)) : data.connections, n = rows.length;
   const where = local ? "on this computer" : data.environment === "preview" ? "in Preview" : "in Production";
-  const missing = rows.filter((c) => c.state === "missing").length;
+  const missing = rows.filter((c) => c.state === "missing").length, pending = rows.some((c) => saved.includes(c.name));
+  const waiting = rows.filter((c) => c.state === "saved" && !saved.includes(c.name)).length;
   const summary = only === null ? "This workflow doesn't list the keys it uses yet." : only && !only.length ? "This workflow uses no keys."
     : !n ? (only ? "None of the keys this workflow uses is listed yet." : canChange ? "No connections yet. Add your first key, or ask your agent to." : "No connections yet. Ask your agent to add one.")
     : missing ? `${missing} of ${n} ${n === 1 ? "key isn't" : "keys aren't"} set ${where}.`
+    : pending ? "Your workflows can use the keys you saved in about a minute."
+    : waiting ? `${waiting} saved ${waiting === 1 ? "key isn't" : "keys aren't"} live yet; the next production deployment uses ${waiting === 1 ? "it" : "them"}.`
     : `Every key ${only ? "this workflow uses " : ""}is set ${where}.`;
-  const settings = local ? null : vercelUrl("/settings/environment-variables", "Environment Variables");
+  const settings = local ? null : data.settingsUrl ?? vercelUrl("/settings/environment-variables", "Environment Variables");
+  const follow = (r: Done) => r.id && releaseStarted(r.id, "connections/release");
   const how = (c: Connection) => <>Add it in Vercel: <code>vercel env add {c.name} production</code>, then redeploy</>;
   const done = (kind: Open["kind"], name: string, r: Done) => {
-    setOpen(null); reload();
+    setOpen(null); reload(); follow(r);
+    if (r.id && kind !== "delete") setSaved((s) => [...s, name]);
     setRetry(r.redeploy === "failed" || r.redeploy === "skipped" ? r.status : "");
     if (r.shell && kind !== "delete") setNote(`Saved, but your shell sets ${name} too, and that value wins. Unset it in your shell and restart revbound dev to use this one.`);
-    else setNote(local || r.redeploy === "failed" || r.redeploy === "skipped" ? "" : r.status);
+    else setNote(local || r.redeploy ? "" : r.status);
   };
   async function redeploy() {
     setBusy(true);
-    await post({ action: "redeploy" }, save.csrf).then((r) => { setRetry(r.redeploy === "failed" || r.redeploy === "skipped" ? r.status : ""); setNote(r.redeploy === "started" ? r.status : ""); },
+    await post({ action: "redeploy" }, save.csrf).then((r) => { follow(r); setRetry(r.redeploy === "failed" || r.redeploy === "skipped" ? r.status : ""); setNote(r.redeploy ? "" : r.status); },
       (err: Error) => setRetry(err.message));
     setBusy(false);
   }
@@ -89,6 +101,7 @@ export function ConnectionsView({ only }: { only?: string[] | null }) {
         {n > 0 && <div className="connection-list">
           {rows.map((c) => {
             const label = labelOf(c), edit = c.actions.includes("save") || c.actions.includes("rename"), del = c.actions.includes("delete");
+            const going = saved.includes(c.name) && (c.state === "set" || c.state === "saved");
             const start = (kind: Open["kind"]) => { setNote(""); setOpen({ kind, c }); };
             return (
               <div className="connection-row" key={c.name}>
@@ -102,8 +115,8 @@ export function ConnectionsView({ only }: { only?: string[] | null }) {
                   {c.reserved && c.state !== "provided" && <p className="muted connection-usage">Set with the vendor's CLI or integration, not here</p>}
                   {c.state === "missing" && !local && !canChange && !c.reserved && <p className="muted connection-usage">{how(c)}</p>}
                 </div>
-                <span className="connection-state" data-state={c.state} title={c.state === "readonly" ? "Shared with other environments or owned by Vercel or an integration: change it in Vercel" : undefined}>
-                  <Icon d={icons[c.state === "provided" ? "set" : c.state]} />{LABELS[c.state]}
+                <span className="connection-state" data-state={going ? "saved" : c.state} title={c.state === "readonly" ? "Shared with other environments or owned by Vercel or an integration: change it in Vercel" : undefined}>
+                  <Icon d={icons[going ? "saved" : c.state === "provided" ? "set" : c.state]} />{going ? "Saved, going live" : LABELS[c.state]}
                 </span>
                 <div className="connection-buttons">
                   {c.state === "missing" && c.actions.includes("save") && <button type="button" className="primary" aria-label={`Add ${label}`} onClick={() => start("add")}>Add</button>}

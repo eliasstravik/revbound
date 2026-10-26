@@ -34,12 +34,47 @@ async function vercel<T>(token: string, path: string, init?: { method?: string; 
 export type Session = { origin: string; token: string; projectId: string; team: string; csrf: string };
 export type Save = { mode: "local" | "hosted" | "link" | "off"; reason?: string; csrf?: string };
 
-let teamCache: string | undefined;
-/** The project's team (accountId), looked up once per instance. */
-async function teamId(token: string, projectId: string): Promise<string> {
-  teamCache ??= (await vercel<{ accountId: string }>(token, `/v9/projects/${enc(projectId)}`)).accountId;
-  insist(teamCache, "Vercel did not name this project's team.", 502);
-  return teamCache;
+let projectCache: { accountId: string; name: string } | undefined;
+/** The project's team (accountId) and name, looked up once per instance. */
+async function project(token: string, projectId: string): Promise<{ accountId: string; name: string }> {
+  projectCache ??= await vercel<{ accountId: string; name: string }>(token, `/v9/projects/${enc(projectId)}`);
+  insist(projectCache.accountId, "Vercel did not name this project's team.", 502);
+  return projectCache;
+}
+const teamId = async (token: string, projectId: string) => (await project(token, projectId)).accountId;
+
+let settings: Promise<string | null> | undefined;
+/**
+ * The project's Environment Variables settings in Vercel's dashboard, with the token; null without it or when the
+ * lookup fails (retried next time). A project-scoped token may not read the team's slug, but this deployment's
+ * inspector link names it: https://vercel.com/<team>/<project>/<id>.
+ */
+export function settingsUrl(): Promise<string | null> {
+  const token = value("REVBOUND_VERCEL_TOKEN"), projectId = value("VERCEL_PROJECT_ID"), deployment = value("VERCEL_DEPLOYMENT_ID");
+  if (!token || !projectId || !deployment) return Promise.resolve(null);
+  settings ??= (async () => {
+    const p = await project(token, projectId);
+    const d = await vercel<{ inspectorUrl?: string }>(token, `/v13/deployments/${enc(deployment)}?teamId=${enc(p.accountId)}`);
+    const [team] = d.inspectorUrl?.startsWith("https://vercel.com/") ? new URL(d.inspectorUrl).pathname.split("/").filter(Boolean) : [];
+    insist(team, "The deployment has no inspector link.", 502);
+    return `https://vercel.com/${enc(decodeURIComponent(team))}/${enc(p.name)}/settings/environment-variables`;
+  })().catch(() => { settings = undefined; return null; });
+  return settings;
+}
+
+/**
+ * The state of a redeploy a change started: "failed" (with its inspector link), "live" once it serves production
+ * (READY but STAGED or ROLLING is built, not yet serving), else "updating"; null without the token.
+ */
+export async function releaseState(id: string): Promise<{ state: "updating" | "live" | "failed"; details?: string } | null> {
+  const token = value("REVBOUND_VERCEL_TOKEN"), projectId = value("VERCEL_PROJECT_ID");
+  if (!token || !projectId) return null;
+  const d = await vercel<{ projectId?: string; readyState?: string; readySubstate?: string; inspectorUrl?: string }>(token,
+    `/v13/deployments/${enc(id)}?teamId=${enc(await teamId(token, projectId))}`);
+  insist(d.projectId === projectId, "That is not this project's deployment.", 404);
+  const state = d.readyState === "ERROR" || d.readyState === "CANCELED" ? "failed"
+    : d.readyState === "READY" && (d.readySubstate ?? "PROMOTED") === "PROMOTED" ? "live" : "updating";
+  return { state, ...(state === "failed" && d.inspectorUrl?.startsWith("https://") && { details: d.inspectorUrl }) };
 }
 
 /**
@@ -120,14 +155,15 @@ export function tokenWarning(now = Date.now()): string | null {
 }
 
 export type Change = { action: "save" | "rename" | "delete" | "redeploy"; name: string; value?: string; label?: string };
-export type Done = { ok: true; status: string; redeploy?: "started" | "skipped" | "failed"; shell?: boolean };
+/** `id`: the redeploy's deployment, which the console's badge follows. */
+export type Done = { ok: true; status: string; id?: string; redeploy?: "started" | "skipped" | "failed"; shell?: boolean };
 
 /** Redeploys the newest production deployment so it picks up Production's variables; `done` opens the status. */
 async function redeploy(s: Session, done: string): Promise<Done> {
   const id = enc(s.projectId), team = `teamId=${enc(s.team)}`, then = (text: string) => `${done ? `${done} ` : ""}${text}`;
-  const project = await vercel<{ name: string; autoAssignCustomDomains?: boolean }>(s.token, `/v9/projects/${id}?${team}`);
+  const p = await vercel<{ name: string; autoAssignCustomDomains?: boolean }>(s.token, `/v9/projects/${id}?${team}`);
   // An Instant Rollback pins production: Vercel turns production auto-assign off until it is undone.
-  if (project.autoAssignCustomDomains === false) {
+  if (p.autoAssignCustomDomains === false) {
     return { ok: true, redeploy: "skipped", status: then("Production is pinned by a rollback, so nothing was redeployed. Undo the rollback in Vercel, then redeploy.") };
   }
   const { deployments = [] } = await vercel<{ deployments?: { uid: string; readyState?: string }[] }>(s.token,
@@ -135,10 +171,10 @@ async function redeploy(s: Session, done: string): Promise<Done> {
   // Even a build already in flight keeps the old value, so the newest deployable one is redeployed whatever its state.
   const newest = deployments.find((d) => ["READY", "BUILDING", "INITIALIZING", "QUEUED"].includes(d.readyState ?? ""));
   if (!newest) return { ok: true, status: then("There is no production deployment to redeploy yet; the next one uses it.") };
-  const created = await vercel(s.token, `/v13/deployments?${team}`, { body: { name: project.name, deploymentId: newest.uid, target: "production" } })
+  const created = await vercel<{ id: string }>(s.token, `/v13/deployments?${team}`, { body: { name: p.name, deploymentId: newest.uid, target: "production" } })
     .catch((e: Error) => e);
   if (created instanceof Error) return { ok: true, redeploy: "failed", status: then(`The redeploy failed: ${created.message}`) };
-  return { ok: true, redeploy: "started", status: then("Production is redeploying; your workflows use it in about a minute.") };
+  return { ok: true, redeploy: "started", id: created.id, status: then("Production is redeploying; your workflows use it in about a minute.") };
 }
 
 /**

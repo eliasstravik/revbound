@@ -67,10 +67,14 @@ Vercel token (docs: deploy, step 12):
   probe, an anonymous probe must be refused, and every change carries a token bound to that login. Bypass, bearer and
   OIDC callers are refused. On a preview or any other domain the list is read-only.
 - Add and Edit write the value to Production only, as a Sensitive variable with the label as its Note, then redeploy
-  the newest production deployment so it picks the value up (about a minute; the row reads "Saved, not live yet"
-  until then). A label-only Edit changes the Note and redeploys nothing. Delete removes the variable and redeploys.
+  the newest production deployment so it picks the value up (about a minute; the row reads "Saved, going live" until
+  then). A label-only Edit changes the Note and redeploys nothing. Delete removes the variable and redeploys.
+- The environment badge in the sidebar follows that redeploy in every open tab: Production · Updating…, then "Your
+  change is live" once it serves production, or "Update failed" with a Details link to the deployment.
 - When the redeploy fails, or is skipped because a rollback pins production, a notice offers **Redeploy**, which
   redeploys again without sending any value.
+- With the token, Open in Vercel goes straight to the project's Environment Variables settings; without it, Vercel
+  asks for the team and project first.
 - A variable shared with other environments, one an integration or Vercel owns, and a system one show Read only, with
   Open in Vercel; change those in the dashboard. Preview and Development values are set there or with
   `vercel env add <NAME> preview`.

@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { routeAccess } from "../../dist/kit/access.js";
 import { refusedName, writeEnvLocal, writeExample } from "../../dist/plugins/connections/files.js";
-import { change, list } from "../../dist/plugins/connections/routes.js";
+import { change, list, release } from "../../dist/plugins/connections/routes.js";
 
 const HOST = "revbound-acme.vercel.app", TEAM = "team_acme", PROJECT = "prj_acme", TOKEN = "vercel-token-0123456789";
 const SECRET = "apk_secret_$value";
@@ -20,7 +20,7 @@ const SESSION = jwt({ userId: "U0MEMBER01", ownerId: TEAM, aud: HOST, sub: "sso-
  * Runs fn with exactly `env` of VARS set and fetch answered by a stand-in Vercel: the probe (401 anonymous, the probe
  * text with the session cookie), the project, its Production variables and deployments. `calls` records every API call.
  */
-async function hosted(fn, { env = HOSTED, envs = [], anonymousProbe = 401 } = {}) {
+async function hosted(fn, { env = HOSTED, envs = [], anonymousProbe = 401, deployment = { readyState: "READY", readySubstate: "PROMOTED" } } = {}) {
   const saved = Object.fromEntries(VARS.map((k) => [k, process.env[k]])), fetch = globalThis.fetch, calls = [];
   for (const k of VARS) delete process.env[k];
   Object.assign(process.env, env);
@@ -32,6 +32,9 @@ async function hosted(fn, { env = HOSTED, envs = [], anonymousProbe = 401 } = {}
     calls.push({ method, path: u.pathname, body, auth: init.headers?.authorization });
     if (u.pathname === `/v9/projects/${PROJECT}`) return Response.json({ accountId: TEAM, name: "revbound-acme" });
     if (u.pathname === `/v10/projects/${PROJECT}/env` && method === "GET") return Response.json({ envs });
+    if (u.pathname.startsWith("/v13/deployments/")) {
+      return Response.json({ projectId: PROJECT, inspectorUrl: "https://vercel.com/acme-team/revbound-acme/dpl_x", ...deployment });
+    }
     if (u.pathname === "/v6/deployments") return Response.json({ deployments: [{ uid: "dpl_now", readyState: "READY" }] });
     return Response.json({ id: "dpl_next", url: "revbound-acme-next.vercel.app" });
   };
@@ -97,6 +100,8 @@ test("hosted: a signed-in browser on the production domain saves a Production-on
   assert.equal(res.status, 200, text);
   assert.ok(!text.includes(SECRET), "the value is never sent back");
   assert.match(JSON.parse(text).status, /redeploying/);
+  assert.equal(JSON.parse(text).id, "dpl_next", "the badge follows the new deployment");
+  assert.equal(listed.body.settingsUrl, "https://vercel.com/acme-team/revbound-acme/settings/environment-variables");
   const upsert = calls.find((c) => c.method === "POST" && c.path === `/v10/projects/${PROJECT}/env`);
   assert.deepEqual(upsert.body, { key: "APOLLO_API_KEY", value: SECRET, type: "sensitive", target: ["production"], comment: "Apollo" });
   assert.equal(upsert.auth, `Bearer ${TOKEN}`);
@@ -143,4 +148,14 @@ test("hosted: refused without the CSRF token, off the production domain, without
   }, { env: { ...HOSTED, REVBOUND_VERCEL_TOKEN: "" } });
   await hosted(async () => assert.match((await read(await list(browser("GET"), ctx))).body.tokenWarning, /expires in 3 days/),
     { env: { ...HOSTED, REVBOUND_VERCEL_TOKEN_EXPIRES: new Date(Date.now() + 2.5 * 86_400_000).toISOString() } });
+});
+
+test("hosted: the badge's release route says live once the redeploy serves, failed with its inspector link, and only for this project", async () => {
+  const state = async () => (await read(await release(new Request(`https://${HOST}/api/revbound/connections/release?id=dpl_next`)))).body;
+  await hosted(async () => assert.deepEqual(await state(), { release: { state: "live" } }));
+  await hosted(async () => assert.deepEqual(await state(), { release: { state: "updating" } }), { deployment: { readyState: "READY", readySubstate: "STAGED" } });
+  await hosted(async () => assert.deepEqual(await state(), { release: { state: "failed", details: "https://vercel.com/acme-team/revbound-acme/dpl_x" } }),
+    { deployment: { readyState: "ERROR" } });
+  await hosted(async () => assert.match((await state()).error, /not this project/), { deployment: { projectId: "prj_other" } });
+  await hosted(async () => assert.equal((await release(new Request(`https://${HOST}/api/revbound/connections/release?id=../x`))).status, 400));
 });

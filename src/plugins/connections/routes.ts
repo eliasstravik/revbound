@@ -6,7 +6,8 @@
 import type { About, RegistryInfo, RouteCtx } from "revbound";
 import { environment, isHosted, json, safeEqual, value } from "revbound/kit";
 import { checkValue, KEY, refusedName, writeEnvLocal, writeExample } from "./files.js";
-import { type Change, changeHosted, type Done, hostedAccess, insist, type Production, productionVars, Refused, type Save, type Session, tokenWarning } from "./vercel.js";
+import { type Change, changeHosted, type Done, hostedAccess, insist, type Production, productionVars, Refused, releaseState, type Save, type Session, settingsUrl,
+  tokenWarning } from "./vercel.js";
 
 type State = "set" | "missing" | "saved" | "provided" | "readonly";
 type Info = Record<string, About & RegistryInfo>;
@@ -56,10 +57,19 @@ async function rows(ctx: RouteCtx, save: Save, production = true) {
   return { connections, listError, usageComplete: Object.values(registry).every((w) => Array.isArray(w.connections)) };
 }
 
-/** GET /connections → { connections, environment, save, tokenWarning, listError, usageComplete }. */
+/** GET /connections → { connections, environment, save, tokenWarning, listError, settingsUrl, usageComplete }. */
 export async function list(req: Request, ctx: RouteCtx): Promise<Response> {
-  const { save } = await access(req);
-  return reply({ ...(await rows(ctx, save)), environment: environment(), save, tokenWarning: isHosted() ? tokenWarning() : null });
+  const { save } = await access(req), hosted = isHosted();
+  return reply({ ...(await rows(ctx, save)), environment: environment(), save, tokenWarning: hosted ? tokenWarning() : null,
+    settingsUrl: hosted ? await settingsUrl() : null });
+}
+
+/** GET /connections/release?id=dpl_… → { release: { state, details? } | null }: the badge's view of a redeploy a change started. */
+export async function release(req: Request): Promise<Response> {
+  const id = new URL(req.url).searchParams.get("id") ?? "";
+  if (!isHosted()) return reply({ release: null });
+  if (!/^dpl_[A-Za-z0-9]{1,64}$/.test(id)) return reply({ error: "Send ?id=dpl_…" }, 400);
+  return releaseState(id).then((r) => reply({ release: r }), (e: Error) => reply({ error: e.message }, e instanceof Refused ? e.status : 500));
 }
 
 /** GET /connections/missing → { count }: the sidebar's badge. */
