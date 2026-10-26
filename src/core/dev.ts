@@ -11,17 +11,17 @@ import type { GtmConfig } from "./types.js";
 
 const SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
 
-/** What `gtm dev` gives a plugin's dev hook; `env` is the app's environment, which the hook may add to. */
+/** What `revbound dev` gives a plugin's dev hook; `env` is the app's environment, which the hook may add to. */
 export type DevCtx = { dir: string; port: number; env: NodeJS.ProcessEnv; plugin: string; options: unknown; config: GtmConfig };
-/** What a dev hook returns: `started` runs once the app listens, `stop` when gtm dev ends. */
+/** What a dev hook returns: `started` runs once the app listens, `stop` when revbound dev ends. */
 export type DevHandle = { started?(): void; stop?(): Promise<void> | void };
 
 /**
- * `gtm dev`: sync, each plugin's dev hook in needs order (the database plugin serves the local database and migrates),
+ * `revbound dev`: sync, each plugin's dev hook in needs order (the database plugin serves the local database and migrates),
  * then `next dev` on 127.0.0.1. gtm.config.ts, .env.example and local plugins are watched and re-synced on change.
  */
 export async function dev(args: string[]): Promise<void> {
-  // next gets the shell's env plus only ours: it reads the env files itself, so a key set with `gtm connections set`
+  // next gets the shell's env plus only ours: it reads the env files itself, so a key set with `revbound connections set`
   // applies without a restart.
   const env: NodeJS.ProcessEnv = { ...process.env, GTM_DEV: "1" };
   process.env.GTM_DEV = "1"; // never hosted, whatever env files say
@@ -66,7 +66,7 @@ function watchConfig(dir: string): FSWatcher[] {
   let timer: NodeJS.Timeout | undefined;
   const again = () => {
     clearTimeout(timer);
-    timer = setTimeout(() => void sync(dir).catch((e: Error) => console.error(`gtm sync: ${e.message}`)), 300);
+    timer = setTimeout(() => void sync(dir).catch((e: Error) => console.error(`revbound sync: ${e.message}`)), 300);
   };
   const watchers: FSWatcher[] = [];
   const on = (path: string, recursive: boolean, wanted: (file: string) => boolean) => {

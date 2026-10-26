@@ -19,28 +19,28 @@
       "node"
     ],
     "paths": {
-      "@eliasstravik/gtm": [
+      "revbound": [
         "./src/index.ts"
       ],
-      "@eliasstravik/gtm/proxy": [
+      "revbound/proxy": [
         "./src/core/proxy.ts"
       ],
-      "@eliasstravik/gtm/server": [
+      "revbound/server": [
         "./src/core/server.ts"
       ],
-      "@eliasstravik/gtm/next": [
+      "revbound/next": [
         "./src/core/next.ts"
       ],
-      "@eliasstravik/gtm/cli": [
+      "revbound/cli": [
         "./src/cli-kit.ts"
       ],
-      "@eliasstravik/gtm/kit": [
+      "revbound/kit": [
         "./src/kit/index.ts"
       ],
-      "@eliasstravik/gtm/kit/*": [
+      "revbound/kit/*": [
         "./src/kit/*.ts"
       ],
-      "@eliasstravik/gtm/ui": [
+      "revbound/ui": [
         "./src/ui/index.ts"
       ]
     }

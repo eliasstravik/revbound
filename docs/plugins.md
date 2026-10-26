@@ -1,30 +1,30 @@
 # Plugins
 
-Everything in a gtm project is a plugin listed in `gtm.config.ts`. There is no runtime plugin kernel: plugins are
-plain data whose code fields are module specifiers, and `gtm sync` turns the list into committed files under `gtm/`
-that the app imports. The fixed core is wiring only: sync, `gtm check`, the access check and the CLI shell.
+Everything in a Revbound project is a plugin listed in `gtm.config.ts`. There is no runtime plugin kernel: plugins are
+plain data whose code fields are module specifiers, and `revbound sync` turns the list into committed files under `gtm/`
+that the app imports. The fixed core is wiring only: sync, `revbound check`, the access check and the CLI shell.
 
 ## The defaults
 
-`gtm init` writes seven, each a subpath of this package:
+`revbound init` writes seven, each a subpath of this package:
 
 | Plugin | Provides / needs | What it does |
 | --- | --- | --- |
 | `database` | provides `database` | `db()`, PGlite locally, migrations, the production stamp, Data, Open database |
 | `ledger` | provides `ledger`; needs `database`; uses `workflows` | runs, costs and approvals; admit, reserve and settle; reconcile; Runs |
-| `workflows` | provides `workflows`; needs `database`, `ledger` | the registry, the one start path, `fanOut`, `webhook`, `currentRun`, crons, `gtm run`, Workflows |
+| `workflows` | provides `workflows`; needs `database`, `ledger` | the registry, the one start path, `fanOut`, `webhook`, `currentRun`, crons, `revbound run`, Workflows |
 | `ai` | needs `workflows`, `ledger`; spends | `agent()` on AI Gateway, provider keys or the local `claude`/`codex` |
 | `context` | none | the Context view (the console's home) and the context rules |
-| `connections` | none | the Connections view, `gtm connections` |
+| `connections` | none | the Connections view, `revbound connections` |
 | `console` | none | the console's frame, its page, its 404 |
 
-Delete a line to remove a plugin, then run `npx gtm sync`; `npx gtm check` names any plugin that still needs it. The
+Delete a line to remove a plugin, then run `npx revbound sync`; `npx revbound check` names any plugin that still needs it. The
 smallest working set is `database`, `ledger` and `workflows`. Without `console`, sync writes a plain layout and a
 `notFound()` page. Without `context`, `agent({ skills })` still reads `.agents/skills`.
 
 ## Optional plugins
 
-These ship in the package too, but no project gets them until it adds one with `npx gtm add <name>`:
+These ship in the package too, but no project gets them until it adds one with `npx revbound add <name>`:
 
 | Plugin | Provides / needs | What it does |
 | --- | --- | --- |
@@ -33,11 +33,11 @@ These ship in the package too, but no project gets them until it adds one with `
 ## Adding and changing plugins
 
 ```sh
-npx gtm add <name>                                           # an optional plugin above: prints the lines to add
-npx gtm add <npm package[@version] | git url#<commit sha>>   # installs it pinned, prints the lines to add
-npx gtm remove <name>                                        # prints the lines to delete; never drops tables
-npx gtm eject <name>                                         # copies a default plugin into plugins/<name> to edit it
-npx gtm diff <name>                                          # what changed upstream since the eject
+npx revbound add <name>                                           # an optional plugin above: prints the lines to add
+npx revbound add <npm package[@version] | git url#<commit sha>>   # installs it pinned, prints the lines to add
+npx revbound remove <name>                                        # prints the lines to delete; never drops tables
+npx revbound eject <name>                                         # copies a default plugin into plugins/<name> to edit it
+npx revbound diff <name>                                          # what changed upstream since the eject
 ```
 
 `add` and `remove` never edit `gtm.config.ts`; `eject` only flips that plugin's import to `./plugins/<name>` and syncs.
@@ -52,7 +52,7 @@ module specifiers: project paths (`./plugins/<name>/route`) for local plugins, p
 default export is the value, `#name` names another export.
 
 ```ts
-import { definePlugin } from "@eliasstravik/gtm";
+import { definePlugin } from "revbound";
 
 export function notes() {
   return definePlugin({
@@ -79,16 +79,16 @@ export function notes() {
 | `routes` | under `/api/gtm/`, each with an access mode (below) |
 | `views`, `workflowTabs` | console pages (with an optional nav item) and tabs on a workflow's page |
 | `connections` | environment variable names it reads, with labels |
-| `cli` | `gtm <name>` commands; `run` default-exports `(args, ctx) => Promise<void>` |
-| `agents`, `skills`, `docs` | an AGENTS.md line, skill folders installed as `.agents/skills/<plugin>-<skill>`, `gtm docs` topics |
-| `checks` | `(ctx) => Promise<CheckResult[]>`, run by `gtm check` |
-| `trace`, `next`, `dev` | files the build must ship, a Next.js config transform, a `gtm dev` hook |
+| `cli` | `revbound <name>` commands; `run` default-exports `(args, ctx) => Promise<void>` |
+| `agents`, `skills`, `docs` | an AGENTS.md line, skill folders installed as `.agents/skills/<plugin>-<skill>`, `revbound docs` topics |
+| `checks` | `(ctx) => Promise<CheckResult[]>`, run by `revbound check` |
+| `trace`, `next`, `dev` | files the build must ship, a Next.js config transform, a `revbound dev` hook |
 | `modules`, `options` | project modules its code reads with `ctx.module(name)`, plain JSON options |
 
 Route handlers default-export `(req, ctx) => Response`; `ctx` has `params`, `manifest`, `options`, `get(slot)`,
 `has(slot)` and `module(name)`. Views default-export a client component that gets `{ params, manifest, tabs }`; tabs
-get `{ workflow, manifest }`. Shared pieces come from `@eliasstravik/gtm/ui` (`useApi`, `Link`, `Status`, …) and
-`@eliasstravik/gtm/kit`.
+get `{ workflow, manifest }`. Shared pieces come from `revbound/ui` (`useApi`, `Link`, `Status`, …) and
+`revbound/kit`.
 
 ### Access modes
 
@@ -107,7 +107,7 @@ An `/api/*` path no plugin declares is refused, and pages always get the session
 
 Cross-plugin behavior goes only through slots: `ctx.get("ledger").reserve(…)`, never an import of another plugin's
 code (type imports are fine). The slot interfaces are `DatabaseSlotV1`, `LedgerSlotV1` and `WorkflowsSlotV1`, from
-`@eliasstravik/gtm`; an optional plugin's comes with it (`MdmSlotV1` from `@eliasstravik/gtm/mdm`). A replacement for a default keeps its `name` and at least its `runtime.exports`; a slot plugin
+`revbound`; an optional plugin's comes with it (`MdmSlotV1` from `revbound/mdm`). A replacement for a default keeps its `name` and at least its `runtime.exports`; a slot plugin
 can be swapped for any plugin that provides the same slot interface.
 
 For a plugin with `runtime`, sync writes `gtm/<name>.ts`: workflow-safe wrappers around `bind(rt)`, plus generated
@@ -117,10 +117,10 @@ top-level calls, so nothing heavy reaches workflow code except inside a step. `p
 
 ## The entry rule for the defaults
 
-A plugin joins the default list only when most new companies would use it in week one; it works under `gtm dev` with
+A plugin joins the default list only when most new companies would use it in week one; it works under `revbound dev` with
 no new account; the base holds a vendor-neutral slot, never a named vendor; it owns its schema, declares its routes
-with access rules, depends only on slot interfaces and binding files, and removing it fails `gtm check` with a clear
+with access rules, depends only on slot interfaces and binding files, and removing it fails `revbound check` with a clear
 needs error; every send, spend and write about people goes through the ledger; it shipped as an optional plugin for a
 minor release and passes the acceptance tests; it supplies state, durable execution, credentials, records or limits,
 not a workaround for today's models; and maintainers accept the upkeep within its line budget. An addition changes only
-what `init` writes; existing projects opt in with `gtm add`. A removal never uninstalls anything.
+what `init` writes; existing projects opt in with `revbound add`. A removal never uninstalls anything.

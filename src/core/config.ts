@@ -7,13 +7,13 @@ import type { GtmConfig, GtmPlugin } from "./types.js";
 import { packageRoot } from "./project.js";
 
 export const CONFIG = "gtm.config.ts";
-export const PACKAGE = "@eliasstravik/gtm";
-/** The seven default plugins, in the order `gtm init` writes them. */
+export const PACKAGE = "revbound";
+/** The seven default plugins, in the order `revbound init` writes them. */
 export const BASE = ["database", "ledger", "workflows", "ai", "context", "connections", "console"] as const;
-/** First-party plugins that ship in the package but join a project only through `gtm add <name>`. */
+/** First-party plugins that ship in the package but join a project only through `revbound add <name>`. */
 export const OPTIONAL = ["mdm"] as const;
 
-/** A jiti that resolves from the project (so `@eliasstravik/gtm/*` is the installed package) and caches nothing. */
+/** A jiti that resolves from the project (so `revbound/*` is the installed package) and caches nothing. */
 export function projectJiti(dir: string) {
   return createJiti(pathToFileURL(join(dir, "package.json")).href, { moduleCache: false, fsCache: false, interopDefault: true });
 }
@@ -33,7 +33,7 @@ export async function loadConfig(dir: string): Promise<GtmConfig> {
   }
   for (const [i, p] of config.plugins.entries()) {
     if (!p || typeof p !== "object" || typeof p.name !== "string") throw new Error(`${CONFIG}: plugins[${i}] is not a plugin (call the plugin function, e.g. database()).`);
-    if (p.api !== 1) throw new Error(`The ${p.name} plugin speaks plugin API ${JSON.stringify(p.api)}; this gtm speaks API 1. Install a version of it made for this gtm.`);
+    if (p.api !== 1) throw new Error(`The ${p.name} plugin speaks plugin API ${JSON.stringify(p.api)}; this Revbound speaks API 1. Install a version of it made for this gtm.`);
   }
   return config;
 }

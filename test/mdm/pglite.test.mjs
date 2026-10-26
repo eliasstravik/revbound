@@ -1,4 +1,4 @@
-/** The mdm suite on PGlite as gtm dev serves it (one shared session: its socket queue serializes transactions). */
+/** The mdm suite on PGlite as revbound dev serves it (one shared session: its socket queue serializes transactions). */
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";

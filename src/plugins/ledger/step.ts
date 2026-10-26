@@ -1,7 +1,7 @@
 /** The ledger's step side: action() inside a company step (it runs there inline, so its callback never crosses a step). */
 import { getStepMetadata, getWorkflowMetadata } from "workflow";
-import type { Manifest, SlotMap } from "@eliasstravik/gtm";
-import { context } from "@eliasstravik/gtm/kit";
+import type { Manifest, SlotMap } from "revbound";
+import { context } from "revbound/kit";
 import type { ActionOptions, ActionResult } from "./runtime.js";
 
 export async function run(manifest: Manifest, map: SlotMap, op: string, args: unknown[]): Promise<unknown> {

@@ -10,7 +10,7 @@ import { createServer as httpServer, request as httpRequest, type Server } from 
 import { type AddressInfo, createServer } from "node:net";
 import { join } from "node:path";
 import pg from "pg";
-import { assertNotProduction, HttpError, isHosted, json, loopback, requestHost, tailnetLogin, value } from "@eliasstravik/gtm/kit";
+import { assertNotProduction, HttpError, isHosted, json, loopback, requestHost, tailnetLogin, value } from "revbound/kit";
 
 const STUDIO_PORT = 4983, SERVE_PORT = 8443, READY = /https:\/\/local\.drizzle\.studio/;
 // Studio has an IPC channel to this server; when the server goes, however it goes, the channel closes and Studio exits.
@@ -37,11 +37,11 @@ export async function open(req: Request): Promise<Response> {
   const login = loopback(req) ? undefined : tailnetLogin(req), host = requestHost(req).replace(/:\d+$/, "");
   if (login && host !== (await tailnetName())) throw new HttpError(409, "Open database works over this computer's own Tailscale name only.");
   const url = value("DATABASE_URL");
-  if (!url) throw new HttpError(503, "DATABASE_URL is not set; start the app with npm run dev (gtm dev).");
+  if (!url) throw new HttpError(503, "DATABASE_URL is not set; start the app with npm run dev (revbound dev).");
   await refuseProduction(url);
   const port = await studio(url);
   if (!login) return json({ url: `https://local.drizzle.studio/?port=${port}` });
-  if (state.owner && state.owner !== login) throw new HttpError(409, "Studio is shared with another Tailscale login; restart gtm dev to share it with yours.");
+  if (state.owner && state.owner !== login) throw new HttpError(409, "Studio is shared with another Tailscale login; restart revbound dev to share it with yours.");
   state.owner = login;
   state.share ??= share(login, host, Number(requestHost(req).split(":")[1] ?? 443)).catch((error) => {
     state.share = state.owner = undefined;
@@ -128,7 +128,7 @@ const shareFile = (dir: string) => join(/*turbopackIgnore: true*/ dir, ".gtm", "
 
 /**
  * Shares Studio on `host` with `owner` alone: a loopback gate, then Serve on the first HTTPS port no share uses (so
- * nothing already shared is replaced), checked to point there with Funnel off. Recorded in .gtm/ so gtm dev removes it.
+ * nothing already shared is replaced), checked to point there with Funnel off. Recorded in .gtm/ so revbound dev removes it.
  */
 async function share(owner: string, host: string, consolePort: number): Promise<string> {
   const dir = process.cwd();
@@ -175,7 +175,7 @@ async function studioGate(owner: string): Promise<Server> {
   return server;
 }
 
-/** Removes the recorded Studio share while Serve still points it at the recorded gate. Sync, never throws (gtm dev runs it on exit). */
+/** Removes the recorded Studio share while Serve still points it at the recorded gate. Sync, never throws (revbound dev runs it on exit). */
 export function removeStudioShare(dir: string): void {
   let s: { host: string; https: number; target: string };
   try { s = JSON.parse(readFileSync(shareFile(dir), "utf8")); } catch { return; }

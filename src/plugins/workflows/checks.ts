@@ -1,10 +1,10 @@
 /** The workflows plugin's checks: the registry's entries, their approvals, budgets and schedules, crons and webhooks. */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { CheckResult, Registry } from "@eliasstravik/gtm";
-import { type CheckCtx, projectJiti } from "@eliasstravik/gtm/cli";
-import { isBranded } from "@eliasstravik/gtm/kit";
-import { cronSchedules } from "@eliasstravik/gtm/kit/scan";
+import type { CheckResult, Registry } from "revbound";
+import { type CheckCtx, projectJiti } from "revbound/cli";
+import { isBranded } from "revbound/kit";
+import { cronSchedules } from "revbound/kit/scan";
 
 const KEYS = new Set(["run", "description", "tables", "connections", "diagram", "approval", "budget", "schedule"]);
 const DAY = 86_400_000;
@@ -18,7 +18,7 @@ export default async function checks(ctx: CheckCtx): Promise<CheckResult[]> {
     const mod = (await projectJiti(ctx.dir).import(join(ctx.dir, path))) as Record<string, unknown>;
     return mod[name];
   };
-  const DOCS = "`npx gtm docs workflows`";
+  const DOCS = "`npx revbound docs workflows`";
   let registry: Registry;
   try {
     registry = (await load(opts.registry ?? "./workflows", "workflows")) as Registry;
@@ -40,7 +40,7 @@ export default async function checks(ctx: CheckCtx): Promise<CheckResult[]> {
     }
     if (e.budget !== undefined) for (const k of ["perRunUsd", "perMonthUsd"] as const) if (!positive(e.budget[k])) err(`${at}: budget.${k} must be a positive number of dollars.`);
     if (e.schedule !== undefined) {
-      if (!e.budget?.perRunUsd || !e.budget?.perMonthUsd) err(`${at}: a schedule needs budget.perRunUsd and budget.perMonthUsd.`, "quote cost per run × runs per month, get a yes, then commit both next to the schedule (`npx gtm docs ledger`)");
+      if (!e.budget?.perRunUsd || !e.budget?.perMonthUsd) err(`${at}: a schedule needs budget.perRunUsd and budget.perMonthUsd.`, "quote cost per run × runs per month, get a yes, then commit both next to the schedule (`npx revbound docs ledger`)");
       const until = Date.parse(e.schedule.approvedUntil ?? "");
       if (!/^\d{4}-\d{2}-\d{2}/.test(e.schedule.approvedUntil ?? "") || Number.isNaN(until)) err(`${at}: schedule.approvedUntil must be an ISO date (2026-12-31).`);
       else if (until + DAY <= Date.now()) warn(`${at}: its schedule approval ended on ${e.schedule.approvedUntil}, so cron starts are refused until a new yes.`);
@@ -59,7 +59,7 @@ export default async function checks(ctx: CheckCtx): Promise<CheckResult[]> {
     const hooks = (await load(opts.webhooks ?? "./webhooks", "webhooks")) as Record<string, unknown> | undefined;
     for (const [name, h] of Object.entries(hooks ?? {})) if (!isBranded(h)) err(`webhooks/index.ts: ${name} is not built with webhook() from #gtm/workflows.`, "wrap it in webhook({ verify, dedupe, onEvent })");
   } catch (error) {
-    err(`webhooks/index.ts does not load: ${(error as Error).message}`, "export const webhooks = { <name>: webhook({ … }) } (`npx gtm docs webhooks`)");
+    err(`webhooks/index.ts does not load: ${(error as Error).message}`, "export const webhooks = { <name>: webhook({ … }) } (`npx revbound docs webhooks`)");
   }
   return out;
 }

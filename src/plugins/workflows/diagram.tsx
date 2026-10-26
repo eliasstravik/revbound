@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import type { About } from "@eliasstravik/gtm";
+import type { About } from "revbound";
 
 type Diagram = NonNullable<About["diagram"]>;
 const W = 240, H = 88, GAP_X = 64, GAP_Y = 90, PAD = 24;

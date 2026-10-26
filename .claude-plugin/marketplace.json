@@ -1,16 +1,16 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
   "name": "eliasstravik",
-  "description": "Elias Stråvik's plugins: gtm, the open-source agent plugin that runs your GTM.",
+  "description": "Elias Stråvik's plugins: Revbound, the open-source agent plugin that runs your GTM.",
   "owner": {
     "name": "Elias Stråvik",
     "url": "https://github.com/eliasstravik"
   },
   "plugins": [
     {
-      "name": "gtm",
+      "name": "revbound",
       "source": "./",
-      "description": "The open-source agent plugin that runs your GTM: your agent builds the workflows, gtm runs them on Vercel with a record of every run and dollar, and a console for your team."
+      "description": "The open-source agent plugin that runs your GTM: your agent builds the workflows, Revbound runs them on Vercel with a record of every run and dollar, and a console for your team."
     }
   ]
 }

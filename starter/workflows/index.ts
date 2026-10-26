@@ -1,5 +1,5 @@
 // The workflow registry: { <name>: workflowFn } or { <name>: { run, description, tables, connections, diagram, approval,
-// budget, schedule } }. The console, `gtm run` and crons find workflows only here (`npx gtm docs workflows`).
-import type { Registry } from "@eliasstravik/gtm";
+// budget, schedule } }. The console, `revbound run` and crons find workflows only here (`npx revbound docs workflows`).
+import type { Registry } from "revbound";
 
 export const workflows = {} satisfies Registry;

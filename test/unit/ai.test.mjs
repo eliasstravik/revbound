@@ -109,14 +109,14 @@ test("excerpt masks keys and tokens and stays short", () => {
   assert.ok(s.length <= 301);
 });
 
-test("gtm check flags AI SDK imports and model ids in workflows/, not agent() or a stage's own model", () => {
+test("revbound check flags AI SDK imports and model ids in workflows/, not agent() or a stage's own model", () => {
   const src = `import { agent, tool } from "#gtm/ai";\nimport type { ModelMessage } from "ai";\nimport { generateObject } from "ai";
 import { gateway } from "@ai-sdk/gateway";\nconst MODEL = "openai/gpt-6";\nawait agent({ name: "a", model: "anthropic/claude-sonnet-5.5" });\nfetch("https://api.openai.com/v1");`;
   assert.deepEqual(codeFindings([["workflows/x.ts", src]], []).map((f) => f.message),
     ['workflows/x.ts:3 imports "ai".', 'workflows/x.ts:4 imports "@ai-sdk/gateway".', 'workflows/x.ts names the model "openai/gpt-6".']);
 });
 
-test("gtm check ignores AI SDK imports and model ids in comments and strings, and still flags real ones", () => {
+test("revbound check ignores AI SDK imports and model ids in comments and strings, and still flags real ones", () => {
   const flagged = (src) => codeFindings([["workflows/x.ts", src]], []).map((f) => f.message.replace(/:\d+ /, " "));
   assert.deepEqual(flagged('// Previous implementation: import { generateText } from "ai";\nexport const x = 1;'), [], "line comment");
   assert.deepEqual(flagged('/*\nimport { generateText } from "ai";\nconst m = require("@ai-sdk/openai");\n*/\nexport const x = 1;'), [], "block comment");

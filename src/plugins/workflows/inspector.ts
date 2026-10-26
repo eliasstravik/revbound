@@ -5,14 +5,14 @@
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { basePath } from "@eliasstravik/gtm/kit";
+import { basePath } from "revbound/kit";
 
 const BASE = `${basePath()}/api/gtm/inspector`;
 
 type Handler = (req: Request) => Promise<Response>;
 let handler: Promise<Handler> | undefined;
 
-/** @workflow/web through the project's `workflow` dependency (its CLI or Nitro package), so gtm adds no dependency. */
+/** @workflow/web through the project's `workflow` dependency (its CLI or Nitro package), so Revbound adds no dependency. */
 function load(): Promise<Handler> {
   handler ??= (async () => {
     const from = (base: string, id: string) => createRequire(base).resolve(id);

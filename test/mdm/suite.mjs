@@ -78,7 +78,7 @@ export async function suite({ url, concurrent }) {
     // Each round starts from fresh pool connections, so the upserts reach the database together.
     for (let round = 0; round < 4; round += 1) {
       await database.db().$client.end();
-      delete globalThis[Symbol.for("@eliasstravik/gtm/db")];
+      delete globalThis[Symbol.for("revbound/db")];
       const d = fresh();
       const all = await Promise.all(Array.from({ length: 12 }, (_, i) => mdm.upsertCompany({ domain: i % 2 ? d : `www.${d}`, fields: { [`seen${i}`]: true } }, by(`run${i}`))));
       assert.equal(new Set(all.map((c) => c.id)).size, 1);

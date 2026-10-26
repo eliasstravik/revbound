@@ -1,6 +1,6 @@
 /** The workflows plugin's routes. Every start goes through the workflows slot, and so through the ledger. */
-import type { Admission, LedgerRun, Registry, RouteCtx } from "@eliasstravik/gtm";
-import { HttpError, json } from "@eliasstravik/gtm/kit";
+import type { Admission, LedgerRun, Registry, RouteCtx } from "revbound";
+import { HttpError, json } from "revbound/kit";
 import { inspector as serveInspector } from "./inspector.js";
 import { aboutOf, lastRuns, schedules, source } from "./sdk.js";
 
@@ -11,7 +11,7 @@ function refused(a: Extract<Admission, { ok: false }>): Response {
 /** GET /workflows (session) → { workflows: [{ name, schedule, lastRun, file, sourceUrl, ...About }], runsKnown }. */
 export async function list(_req: Request, ctx: RouteCtx): Promise<Response> {
   const workflows = await ctx.module<Registry>("registry"), crons = schedules();
-  const last = await lastRuns(workflows).catch((error) => { console.error("[gtm] could not list workflow runs", error); return null; });
+  const last = await lastRuns(workflows).catch((error) => { console.error("[revbound] could not list workflow runs", error); return null; });
   return json({
     workflows: Object.entries(workflows).map(([name, e]) => {
       const r = last?.get(name);
@@ -24,7 +24,7 @@ export async function list(_req: Request, ctx: RouteCtx): Promise<Response> {
 
 /**
  * POST /start/<name> (automation) with `{ input?, preview?, approve?: { maxUsd, note? } }` → { runId, rootId, sdkRunId }.
- * `x-gtm-client: cli` marks a start from `gtm run`. A refusal answers 403 with the ledger's reason.
+ * `x-gtm-client: cli` marks a start from `revbound run`. A refusal answers 403 with the ledger's reason.
  */
 export async function start(req: Request, ctx: RouteCtx): Promise<Response> {
   const text = (await req.text()).trim();
@@ -50,7 +50,7 @@ async function withValues(ctx: RouteCtx, row: LedgerRun) {
 }
 
 /**
- * GET /runs/<gtm run id> (automation) → { run, tree?, final, costUsd, unmetered }: the run (status refreshed from the SDK)
+ * GET /runs/<revbound run id> (automation) → { run, tree?, final, costUsd, unmetered }: the run (status refreshed from the SDK)
  * with its return value; `?tree=1` adds every run of its tree. `final` is true once the whole tree is.
  */
 export async function status(req: Request, ctx: RouteCtx): Promise<Response> {

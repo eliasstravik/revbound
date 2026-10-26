@@ -1,4 +1,4 @@
-/** Every `gtm check` rule on small projects, and what `gtm sync` generates (against the build: `npm run build` first). */
+/** Every `revbound check` rule on small projects, and what `revbound sync` generates (against the build: `npm run build` first). */
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -8,7 +8,7 @@ import { loadConfig } from "../../dist/core/config.js";
 import { plan, stale, sync } from "../../dist/core/sync.js";
 import { config, project, read, write } from "./project.mjs";
 
-/** gtm check --build's errors and warnings for a project, after a sync unless `synced` is false. */
+/** revbound check --build's errors and warnings for a project, after a sync unless `synced` is false. */
 async function check(dir, { synced = true, build = true } = {}) {
   if (synced) await sync(dir, true);
   const c = await loadConfig(dir), p = await plan(dir, c);
@@ -42,7 +42,7 @@ test("generated files make no top-level calls, and binding files reach heavy cod
     assert.deepEqual(top, [], `gtm/${f} has top-level statements`);
   }
   const ai = read(dir, "gtm/ai.ts");
-  assert.match(ai, /async function step\(op: string, args: unknown\[\]\): Promise<unknown> \{\n {2}"use step";\n {2}const \[\{ run \}, \{ default: map \}\] = await Promise\.all\(\[import\("@eliasstravik\/gtm\/ai\/step"\), import\("\.\/slots\/ai"\)\]\);/);
+  assert.match(ai, /async function step\(op: string, args: unknown\[\]\): Promise<unknown> \{\n {2}"use step";\n {2}const \[\{ run \}, \{ default: map \}\] = await Promise\.all\(\[import\("revbound\/ai\/step"\), import\("\.\/slots\/ai"\)\]\);/);
   assert.doesNotMatch(ai.replace(/async function (step|once)[\s\S]*?\n\}/g, ""), /import\(/, "no dynamic import outside a step");
   assert.doesNotMatch(read(dir, "gtm/slots/ai.ts"), /database\/provide/, "ai's slot map holds only its own needs (the ledger's map reaches the database)");
   assert.match(read(dir, "gtm/slots/ledger.ts"), /"database": \{ plugin: "database"/);
@@ -96,9 +96,9 @@ test("uniqueness: plugin names, CLI commands (also core ones), docs topics, work
   ] }) });
   const { errors } = await check(dir);
   has(errors, /The plugin name "context" is declared by context and context/);
-  has(errors, /The CLI command "sync" is declared by gtm itself and x/);
+  has(errors, /The CLI command "sync" is declared by Revbound itself and x/);
   has(errors, /The CLI command "migrate" is declared by database and x/);
-  has(errors, /The docs topic "plugins" is declared by gtm itself and x/);
+  has(errors, /The docs topic "plugins" is declared by Revbound itself and x/);
   has(errors, /The docs topic "data" is declared by database and x/);
   has(errors, /The workflow tab "runs" is declared by ledger and x/);
   has(errors, /The routes workflows:runs\/:id and x:runs\/:run can match the same path/);
@@ -147,17 +147,17 @@ export const workflows = {
 
 test("company code: no start from workflow/api, no AI SDK, plugins only through #gtm; type imports and ejected folders allowed", async () => {
   const dir = project({
-    "workflows/a.ts": `import { start } from "workflow/api";\nimport { db } from "@eliasstravik/gtm/database";\nimport type { Api } from "@eliasstravik/gtm/ai/runtime";\nimport { agent } from "#gtm/ai";\nexport const x = [start, db, agent];\n`,
+    "workflows/a.ts": `import { start } from "workflow/api";\nimport { db } from "revbound/database";\nimport type { Api } from "revbound/ai/runtime";\nimport { agent } from "#gtm/ai";\nexport const x = [start, db, agent];\n`,
     "webhooks/b.ts": `import { generateText } from "ai";\nexport const y = generateText;\n`,
-    "plugins/ai/runtime.ts": `import { generateText } from "ai";\nimport { x } from "@eliasstravik/gtm/ai/models";\nexport const z = [generateText, x];\n`,
-    "plugins/other/index.ts": `import { start } from "workflow/api";\nimport { db } from "@eliasstravik/gtm/database";\nexport const w = [start, db];\n`,
+    "plugins/ai/runtime.ts": `import { generateText } from "ai";\nimport { x } from "revbound/ai/models";\nexport const z = [generateText, x];\n`,
+    "plugins/other/index.ts": `import { start } from "workflow/api";\nimport { db } from "revbound/database";\nexport const w = [start, db];\n`,
   });
   const { errors } = await check(dir);
   has(errors, /workflows\/a\.ts:1 imports start from workflow\/api/);
-  has(errors, /workflows\/a\.ts:2 imports @eliasstravik\/gtm\/database directly/);
+  has(errors, /workflows\/a\.ts:2 imports revbound\/database directly/);
   has(errors, /webhooks\/b\.ts:1 imports "ai"/);
   has(errors, /plugins\/other\/index\.ts:1 imports start/);
-  has(errors, /plugins\/other\/index\.ts:2 imports @eliasstravik\/gtm\/database directly/);
+  has(errors, /plugins\/other\/index\.ts:2 imports revbound\/database directly/);
   lacks(errors, /workflows\/a\.ts:3/);
   lacks(errors, /plugins\/ai\//);
 });
@@ -170,7 +170,7 @@ test("generated files: a stale gtm/ fails, a leftover binding fails, and sync fi
   has(errors, /Generated files are out of date: gtm\/routes\.ts, gtm\/old\.ts/);
   await sync(dir, true);
   assert.deepEqual((await check(dir, { synced: false })).errors, []);
-  write(dir, { "package.json": read(dir, "package.json").replace('"gtm check --build && gtm migrate && next build"', '"next build"') });
+  write(dir, { "package.json": read(dir, "package.json").replace('"revbound check --build && revbound migrate && next build"', '"next build"') });
   has((await check(dir)).errors, /package\.json's build script is "next build"/);
 });
 
@@ -186,21 +186,21 @@ test(".gitignore: a missing line fails; a Vercel build without the file (as `ver
 
 test("an unknown plugin API version refuses to load, with a clear message", async () => {
   const dir = project({ "gtm.config.ts": config({ plugins: [...defaults, "{ name: 'future', api: 2 }"] }) });
-  await assert.rejects(loadConfig(dir), /The future plugin speaks plugin API 2; this gtm speaks API 1/);
+  await assert.rejects(loadConfig(dir), /The future plugin speaks plugin API 2; this Revbound speaks API 1/);
 });
 
 test("mdm, the optional plugin: sync wires #gtm/mdm, its views, tables, skill and docs; check passes; it needs the ledger and the database", async () => {
-  const imports = 'import { mdm } from "@eliasstravik/gtm/mdm";';
+  const imports = 'import { mdm } from "revbound/mdm";';
   let dir = project({ "gtm.config.ts": config({ imports, plugins: [...defaults, "mdm()"] }) });
   assert.deepEqual((await check(dir)).errors, []);
   assert.equal(JSON.parse(read(dir, "package.json")).imports["#gtm/mdm"], "./gtm/mdm.ts");
   const binding = read(dir, "gtm/mdm.ts");
   for (const name of ["upsertCompany", "upsertPerson", "upsertSignal", "findPerson", "merge", "known", "stale"]) assert.match(binding, new RegExp(`export const ${name}: Api\\["${name}"\\]`));
-  assert.match(binding, /import\("@eliasstravik\/gtm\/mdm\/step"\)/);
+  assert.match(binding, /import\("revbound\/mdm\/step"\)/);
   assert.match(read(dir, "gtm/slots/mdm.ts"), /"mdm": \{ plugin: "mdm"[\s\S]*"database": \{ plugin: "database"[\s\S]*"workflows": \{ plugin: "workflows"/);
   const manifest = read(dir, "gtm/manifest.ts");
   for (const needle of ['"path": "people"', '"path": "companies"', '"path": "signals"', '"name": "people"', '"schema": "gtm_mdm"', '"key": "mdm:mdm/people/:id"']) assert.ok(manifest.includes(needle), needle);
-  assert.match(read(dir, "gtm/views.tsx"), /import \{ PeopleView as C\d+ \} from "@eliasstravik\/gtm\/mdm\/views";/);
+  assert.match(read(dir, "gtm/views.tsx"), /import \{ PeopleView as C\d+ \} from "revbound\/mdm\/views";/);
   assert.match(read(dir, ".agents/skills/mdm-records/SKILL.md"), /^---\nname: mdm-records\n/);
   assert.match(read(dir, "AGENTS.md"), /upsertPerson[\s\S]*stale\(record, fields/);
   dir = project({ "gtm.config.ts": config({ imports, plugins: ["database()", "mdm()"] }) });

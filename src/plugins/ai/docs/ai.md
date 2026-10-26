@@ -4,7 +4,7 @@ Every AI call in a workflow, one-shot or tool-using, is `agent()` from `#gtm/ai`
 `agent()` without `tools`; research that picks its own tool calls is `agent()` with them. It picks the backend, reserves
 each call's cost in the ledger, counts calls in previews and keeps keys out of the run log. Never import `ai` or
 `@ai-sdk/*` in company code, and never write a model id there: `GTM_MODEL` picks the model, and a stage's own `model`
-is only for a stage that truly needs another one. Custom tools take `tool` from `#gtm/ai` too. `npx gtm check` flags
+is only for a stage that truly needs another one. Custom tools take `tool` from `#gtm/ai` too. `npx revbound check` flags
 both.
 
 ```ts
@@ -71,6 +71,6 @@ Luna. Production gets the same variables, so hosted runs stay on that family (do
 The CLI path runs on the person's own subscription through the real, unmodified `claude`/`codex` binary and never
 touches their login. Anthropic's [legal and compliance](https://code.claude.com/docs/en/legal-and-compliance) page says
 plan limits "assume ordinary, individual usage of Claude Code and the Agent SDK", so big batch runs may hit plan limits;
-`agent()` prints this once per process. For big runs set a provider key (`npx gtm connections set ANTHROPIC_API_KEY`)
+`agent()` prints this once per process. For big runs set a provider key (`npx revbound connections set ANTHROPIC_API_KEY`)
 or link Vercel for AI Gateway, which switches the CLI path off. Cursor users without `claude` or `codex` on PATH need a
 provider key or AI Gateway for AI steps.

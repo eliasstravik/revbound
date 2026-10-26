@@ -1,6 +1,6 @@
-# gtm
+# Revbound
 
-The `@eliasstravik/gtm` package, its starter, docs, skill and plugin manifests (README.md). `starter/AGENTS.md` is
+The `revbound` package, its starter, docs, skill and plugin manifests (README.md). `starter/AGENTS.md` is
 the template companies get, not instructions for this repo.
 
 ## Public repo

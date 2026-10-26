@@ -1,6 +1,6 @@
 "use client";
 import type { ReactNode } from "react";
-import { Link, Search, Status, time, useApi, useQuery, type ViewProps } from "@eliasstravik/gtm/ui";
+import { Link, Search, Status, time, useApi, useQuery, type ViewProps } from "revbound/ui";
 import "./mdm.css";
 
 type CompanyRef = { id: string; name: string | null; domain: string | null };

@@ -1,7 +1,7 @@
 "use client";
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { ColumnChooser } from "./column-chooser.js";
-import { api, apiUrl, glyphs, Icon, Menu, Search, Status, time, useApi, useQuery } from "@eliasstravik/gtm/ui";
+import { api, apiUrl, glyphs, Icon, Menu, Search, Status, time, useApi, useQuery } from "revbound/ui";
 import "./data.css";
 
 type Page = { table: string; fields: { name: string; type: string }[]; columns: string[]; pinned: string | null; rows: unknown[][]; offset: number; total: number };

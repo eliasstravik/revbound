@@ -1,5 +1,5 @@
 /**
- * The plugin contract (`api: 1`), the slot interfaces (`V1`), the manifest `gtm sync` writes and the workflow registry.
+ * The plugin contract (`api: 1`), the slot interfaces (`V1`), the manifest `revbound sync` writes and the workflow registry.
  * Types only: every module may import it, in any scope.
  */
 
@@ -51,14 +51,14 @@ export interface GtmPlugin {
   agents?: string;
   /** Skill folders; sync installs each as .agents/skills/<plugin>-<folder>. */
   skills?: string[];
-  /** Topic → markdown file; `gtm docs <topic>`. */
+  /** Topic → markdown file; `revbound docs <topic>`. */
   docs?: Record<string, string>;
   /** Default export: (ctx) => Promise<CheckResult[]>. */
   checks?: Code;
   trace?: string[];
   /** Default export: (cfg: NextConfig) => NextConfig, applied by withGtm. */
   next?: Code;
-  /** Default export: (ctx) => Promise<DevHandle | void>, run by `gtm dev` before the app starts. */
+  /** Default export: (ctx) => Promise<DevHandle | void>, run by `revbound dev` before the app starts. */
   dev?: Code;
   /** The console shell: this plugin owns app/layout.tsx (`layout`) and app/[[...path]]/page.tsx (`page`). */
   shell?: { layout: Code; page: Code };
@@ -84,7 +84,7 @@ export type ManifestRoute = Omit<RouteDecl, "handler"> & { plugin: string; key: 
 export type ManifestView = Omit<ViewDecl, "component"> & { plugin: string };
 export type ManifestTab = Omit<TabDecl, "component"> & { plugin: string };
 
-/** What `gtm sync` writes to gtm/manifest.ts: plain data the proxy, the routes and the console read. */
+/** What `revbound sync` writes to gtm/manifest.ts: plain data the proxy, the routes and the console read. */
 export type Manifest = {
   api: 1;
   version: string;

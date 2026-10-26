@@ -1,7 +1,7 @@
 /** The Context view's routes (session GET): the company's context files and skills, read from the project as deployed. */
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { HttpError, isHosted, json, parseSkill, SKILL_NAME, SKILLS_DIR } from "@eliasstravik/gtm/kit";
+import { HttpError, isHosted, json, parseSkill, SKILL_NAME, SKILLS_DIR } from "revbound/kit";
 
 const read = (file: string) => readFile(path.join(/*turbopackIgnore: true*/ process.cwd(), file), "utf8").catch(() => null);
 

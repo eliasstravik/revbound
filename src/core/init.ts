@@ -13,14 +13,14 @@ const SPECIAL = new Set(["gitignore", ".gitignore", "package.json", "AGENTS.md",
 const RESTORED = ["public/_gtm/probe.txt", "webhooks/index.ts", "workflows/index.ts", ".env.example", "vercel.json"];
 const SKILLS_TARGET = "../.agents/skills";
 
-const USAGE = "Usage: gtm init [dir] --company <name> [--example]";
+const USAGE = "Usage: revbound init [dir] --company <name> [--example]";
 
 /**
- * `gtm init [dir] [--company <name>] [--example] [--package <spec>] [--no-install]`: copies the starter into an empty
- * folder and writes gtm.config.ts with the seven default plugins, or repairs an existing gtm project (restores missing
- * wiring, nothing else). Then it installs and runs `gtm sync`. With no dir it repairs the project here, else creates
+ * `revbound init [dir] [--company <name>] [--example] [--package <spec>] [--no-install]`: copies the starter into an empty
+ * folder and writes gtm.config.ts with the seven default plugins, or repairs an existing Revbound project (restores missing
+ * wiring, nothing else). Then it installs and runs `revbound sync`. With no dir it repairs the project here, else creates
  * ./gtm-<company>. `--example` (new projects only) adds one small marked example. `--package` (or GTM_PACKAGE_SPEC)
- * replaces the @eliasstravik/gtm dependency spec; it and `--no-install` are for tests.
+ * replaces the revbound dependency spec; it and `--no-install` are for tests.
  */
 export async function init(args: string[]): Promise<void> {
   const options = { company: { type: "string" }, example: { type: "boolean" }, package: { type: "string" }, "no-install": { type: "boolean" } } as const;
@@ -31,26 +31,26 @@ export async function init(args: string[]): Promise<void> {
   const dir = resolve(positionals[0] ?? (here ? "." : projectFolder(company!)));
   const starter = join(packageRoot(), "starter");
   const fresh = !isGtmProject(dir);
-  if (values.example && !fresh) throw new Error(`${dir} is already a gtm project; --example is only for a new one.`);
+  if (values.example && !fresh) throw new Error(`${dir} is already a Revbound project; --example is only for a new one.`);
   const repaired = fresh ? [] : repair(dir, starter);
   let backend: string | undefined;
   if (fresh) backend = create(dir, starter, values.package ?? process.env.GTM_PACKAGE_SPEC, company ?? basename(dir).replace(/^gtm-/, ""));
   if (values.example) cpSync(join(packageRoot(), "example"), dir, { recursive: true });
   const installed = values["no-install"] ? false : (fresh || !existsSync(join(dir, "node_modules"))) ? install(dir) : true;
-  if (values["no-install"]) console.log("Skipped npm install (--no-install); run `npm install`, then `npx gtm sync`.");
+  if (values["no-install"]) console.log("Skipped npm install (--no-install); run `npm install`, then `npx revbound sync`.");
   if (installed) {
     const { sync } = await import("./sync.js");
     await sync(dir, true);
   }
   const rel = relative(process.cwd(), dir) || ".";
-  console.log(fresh ? `\nCreated a gtm project in ${rel}.`
-    : `\n${rel} is already a gtm project: ${repaired.join("; ") || "nothing to restore"}; generated files are current.`);
+  console.log(fresh ? `\nCreated a Revbound project in ${rel}.`
+    : `\n${rel} is already a Revbound project: ${repaired.join("; ") || "nothing to restore"}; generated files are current.`);
   if (fresh) console.log(backend ? `AI steps run on your local ${backend} login (GTM_AGENT_BACKEND in .env.local).`
-    : "AI steps need a provider key or AI Gateway here: no claude or codex is on PATH (`npx gtm docs ai`).");
-  if (values.example) console.log("Added the example: workflows/example-import.ts (`npx gtm run example-import`), its table and context/example-icp.md; the workflow file says how to remove it.");
+    : "AI steps need a provider key or AI Gateway here: no claude or codex is on PATH (`npx revbound docs ai`).");
+  if (values.example) console.log("Added the example: workflows/example-import.ts (`npx revbound run example-import`), its table and context/example-icp.md; the workflow file says how to remove it.");
   console.log(`Next:${rel === "." ? "" : `\n  cd ${rel}`}
   npm run dev                    console on http://127.0.0.1:3000
-  npx gtm check                  problems with their fixes
+  npx revbound check                  problems with their fixes
   then fill in context/company.md`);
 }
 
@@ -64,7 +64,7 @@ function projectFolder(company: string): string {
 
 /** Asks for the company name on a terminal; elsewhere (an agent, CI) the error names the flag. */
 async function askCompany(): Promise<string> {
-  if (!process.stdin.isTTY) throw new Error(`Name the company: gtm init --company Acme creates ./gtm-acme (or give a folder). ${USAGE}`);
+  if (!process.stdin.isTTY) throw new Error(`Name the company: revbound init --company Acme creates ./gtm-acme (or give a folder). ${USAGE}`);
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {
     const answer = (await rl.question("Company name (the project goes in ./gtm-<company>): ")).trim();
@@ -79,9 +79,9 @@ function refuseNonEmpty(dir: string): void {
   if (!existsSync(dir)) return;
   const pkg = readJson(join(dir, "package.json"));
   if (pkg?.dependencies?.next || pkg?.devDependencies?.next || readdirSync(dir).some((f) => f.startsWith("next.config.")))
-    throw new Error(`${dir} is an existing Next.js app; adding gtm to one is not supported yet. Run init in a new folder.`);
+    throw new Error(`${dir} is an existing Next.js app; adding Revbound to one is not supported yet. Run init in a new folder.`);
   const extra = readdirSync(dir).filter((name) => !EMPTY_OK.has(name));
-  if (extra.length) throw new Error(`${dir} is not empty (${extra.slice(0, 5).join(", ")}). Run init in an empty folder or a gtm project.`);
+  if (extra.length) throw new Error(`${dir} is not empty (${extra.slice(0, 5).join(", ")}). Run init in an empty folder or a Revbound project.`);
   const [claude, agents] = [join(dir, ".claude", "skills"), join(dir, ".agents", "skills")];
   const clash = existsSync(claude) && existsSync(agents) ? readdirSync(claude).filter((n) => n !== ".gitkeep" && existsSync(join(agents, n))) : [];
   if (clash.length) throw new Error(`.claude/skills and .agents/skills both hold ${clash.join(", ")}; merge them by hand, then run init again.`);
@@ -113,7 +113,7 @@ function create(dir: string, starter: string, spec: string | undefined, company:
   writeFileSync(companyFile, readFileSync(companyFile, "utf8").replace(/^# .*$/m, () => `# ${company}`));
   const pkg = readJson(join(starter, "package.json"));
   pkg.name = basename(dir).toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^[._-]+/, "") || pkg.name;
-  pkg.dependencies["@eliasstravik/gtm"] = spec ?? readJson(join(packageRoot(), "package.json")).version;
+  pkg.dependencies["revbound"] = spec ?? readJson(join(packageRoot(), "package.json")).version;
   writeFileSync(join(dir, "package.json"), `${JSON.stringify(pkg, null, 2)}\n`);
   linkSkills(dir, true);
   const backend = localBackend();
@@ -157,6 +157,6 @@ function linkSkills(dir: string, merge: boolean): boolean {
 
 function install(dir: string): true {
   const result = spawnSync("npm", ["install"], { cwd: dir, stdio: "inherit", shell: process.platform === "win32" });
-  if (result.status !== 0) throw new Error("npm install failed; fix the error above, then run `npm install` and `npx gtm sync` in the project.");
+  if (result.status !== 0) throw new Error("npm install failed; fix the error above, then run `npm install` and `npx revbound sync` in the project.");
   return true;
 }

@@ -1,8 +1,8 @@
 {
   "name": "gtm-plugin-fixture",
   "version": "1.0.0",
-  "description": "A packed third-party plugin for gtm's acceptance tests.",
+  "description": "A packed third-party plugin for Revbound's acceptance tests.",
   "type": "module",
   "exports": { ".": { "types": "./index.d.ts", "default": "./index.js" }, "./*": { "types": "./*.d.ts", "default": "./*.js" } },
-  "peerDependencies": { "@eliasstravik/gtm": "*" }
+  "peerDependencies": { "revbound": "*" }
 }

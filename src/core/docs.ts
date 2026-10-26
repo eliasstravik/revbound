@@ -5,9 +5,9 @@ import { findProject, packageRoot, readJson } from "./project.js";
 import type { GtmPlugin } from "./types.js";
 
 /**
- * `gtm docs [topic]`: one doc of the installed version, or the list. Core topics are docs/*.md (`recipes/<name>` prints a
+ * `revbound docs [topic]`: one doc of the installed version, or the list. Core topics are docs/*.md (`recipes/<name>` prints a
  * recipe); every other topic comes from a plugin's `docs`: this project's plugins (outside one, the defaults), then the
- * optional first-party ones, so their docs can be read before `gtm add`.
+ * optional first-party ones, so their docs can be read before `revbound add`.
  */
 export async function docs(args: string[]): Promise<void> {
   const dir = join(packageRoot(), "docs");
@@ -29,6 +29,6 @@ export async function docs(args: string[]): Promise<void> {
     console.error(`No doc "${topic}".`);
     process.exitCode = 1;
   }
-  console.log(`Docs for @eliasstravik/gtm ${readJson(join(packageRoot(), "package.json"))?.version}:`);
-  for (const t of [...topics.keys()].sort()) console.log(`  npx gtm docs ${t}`);
+  console.log(`Docs for revbound ${readJson(join(packageRoot(), "package.json"))?.version}:`);
+  for (const t of [...topics.keys()].sort()) console.log(`  npx revbound docs ${t}`);
 }

@@ -1,6 +1,6 @@
 import type { Ctx, Manifest, SlotMap } from "../core/types.js";
 
-const INSTANCES = Symbol.for("@eliasstravik/gtm/slot-instances");
+const INSTANCES = Symbol.for("revbound/slot-instances");
 
 /**
  * `load()`, again for up to 3 s after a ChunkLoadError under next dev: Turbopack keeps a chunk load that raced a rebuild
@@ -32,7 +32,7 @@ export function context(manifest: Manifest, map: SlotMap): Ctx {
     has: (slot: string) => Object.hasOwn(map.slots, slot),
     get: ((slot: string) => {
       const entry = map.slots[slot];
-      if (!entry) throw new Error(`The ${map.plugin} plugin has no "${slot}" slot: add it to its needs or uses, or add a plugin that provides it, then run gtm sync.`);
+      if (!entry) throw new Error(`The ${map.plugin} plugin has no "${slot}" slot: add it to its needs or uses, or add a plugin that provides it, then run revbound sync.`);
       const key = `${slot}:${entry.plugin}`;
       if (!instances.has(key)) {
         const provide = entry.provide as { default?: (c: Ctx) => unknown } | ((c: Ctx) => unknown);

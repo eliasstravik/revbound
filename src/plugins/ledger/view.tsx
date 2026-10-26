@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { apiUrl, duration, Link, Search, Status, time, useApi, useQuery, vercelUrl, type TabProps } from "@eliasstravik/gtm/ui";
+import { apiUrl, duration, Link, Search, Status, time, useApi, useQuery, vercelUrl, type TabProps } from "revbound/ui";
 import "./runs.css";
 
 type Run = { id: string; sdkRunId: string | null; workflow: string; trigger: string; preview: boolean; status: string; reason: string | null;
@@ -94,7 +94,7 @@ export function RunsView({ workflow }: { workflow?: string }) {
               {d.data.map((r) => {
                 const link = runLink(d, r.sdkRunId);
                 return <tr key={r.id}>
-                  {!workflow && <td><Link href={`/workflows/${encodeURIComponent(r.workflow)}?view=runs`}>{r.workflow}</Link><div className="muted" title={r.id}>{r.trigger === "external" ? "Started outside gtm" : r.id.slice(0, 8)}</div></td>}
+                  {!workflow && <td><Link href={`/workflows/${encodeURIComponent(r.workflow)}?view=runs`}>{r.workflow}</Link><div className="muted" title={r.id}>{r.trigger === "external" ? "Started outside Revbound" : r.id.slice(0, 8)}</div></td>}
                   <td><time tabIndex={0} dateTime={r.startedAt} title={new Date(r.startedAt).toString()}>{time(r.startedAt)}</time></td>
                   <td><span className={`status status-${r.status}`}>{WORDS[r.status] ?? r.status}</span></td>
                   <td className="numeric"><Duration run={r} /></td>

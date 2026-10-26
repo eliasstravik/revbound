@@ -1,5 +1,5 @@
 /** What `#gtm/ledger` exports: action(), the company-facing helper for paid calls. Workflow-safe: no Node imports. */
-import type { Runtime } from "@eliasstravik/gtm";
+import type { Runtime } from "revbound";
 
 export type ActionOptions<T> = {
   /** What it is, e.g. "paid_api". */

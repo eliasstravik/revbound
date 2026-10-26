@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /**
- * The live smoke test, run by hand against a real Vercel Pro + Neon deployment of a gtm project (never in CI):
+ * The live smoke test, run by hand against a real Vercel Pro + Neon deployment of a Revbound project (never in CI):
  *
- *   node <gtm repo>/scripts/smoke-live.mjs --install     # in the project: adds the smoke workflows and webhook, then commit and deploy
- *   node <gtm repo>/scripts/smoke-live.mjs               # in the project, after the deploy: runs the checks
+ *   node <revbound repo>/scripts/smoke-live.mjs --install     # in the project: adds the smoke workflows and webhook, then commit and deploy
+ *   node <revbound repo>/scripts/smoke-live.mjs               # in the project, after the deploy: runs the checks
  *
  * It needs, in the project's .env.local or the shell: GTM_PRODUCTION_URL, GTM_BYPASS_SECRET (the automation bypass),
  * CRON_SECRET (the same value as Production's), and for the webhook GTM_SMOKE_HOOK_BYPASS (the smoke sender's own
  * bypass secret, stored in Production as GTM_HOOK_SMOKE_BYPASS) and GTM_SMOKE_SIGNATURE (Production's
- * SMOKE_SIGNATURE). Steps: gtm check --prod; a preview, then --approve on it; one cron tick of a scheduled workflow;
+ * SMOKE_SIGNATURE). Steps: revbound check --prod; a preview, then --approve on it; one cron tick of a scheduled workflow;
  * the hourly reconcile; ledger rows present; a forced failure reconciled; one signed webhook.
  */
 import { spawnSync } from "node:child_process";
@@ -17,7 +17,7 @@ import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
 const dir = process.cwd();
-const gtm = (args) => spawnSync("npx", ["gtm", ...args], { cwd: dir, encoding: "utf8", env: process.env });
+const revbound = (args) => spawnSync("npx", ["revbound", ...args], { cwd: dir, encoding: "utf8", env: process.env });
 const fail = (message) => { console.error(`smoke: FAILED: ${message}`); process.exit(1); };
 const ok = (message) => console.log(`smoke: ok: ${message}`);
 
@@ -90,14 +90,14 @@ const call = async (path, init = {}) => {
 };
 const automation = { "x-vercel-protection-bypass": bypass, "x-gtm-client": "cli" };
 
-const check = gtm(["check", "--prod"]);
-if (check.status !== 0) fail(`gtm check --prod:\n${check.stdout}${check.stderr}`);
-ok("gtm check --prod");
+const check = revbound(["check", "--prod"]);
+if (check.status !== 0) fail(`revbound check --prod:\n${check.stdout}${check.stderr}`);
+ok("revbound check --prod");
 
 const input = JSON.stringify({ word: `smoke-${Date.now()}` });
-const preview = gtm(["run", "smoke", "--prod", "--input", input, "--preview"]);
+const preview = revbound(["run", "smoke", "--prod", "--input", input, "--preview"]);
 if (preview.status !== 0) fail(`the preview:\n${preview.stdout}${preview.stderr}`);
-const approved = gtm(["run", "smoke", "--prod", "--input", input, "--approve", "--max-usd", "0.5", "--note", "smoke test"]);
+const approved = revbound(["run", "smoke", "--prod", "--input", input, "--approve", "--max-usd", "0.5", "--note", "smoke test"]);
 if (approved.status !== 0) fail(`--approve:\n${approved.stdout}${approved.stderr}`);
 const approvedRun = JSON.parse(approved.stdout.slice(approved.stdout.indexOf("{")));
 ok(`preview, then --approve (run ${approvedRun.runId}, $${approvedRun.costUsd})`);

@@ -1,4 +1,4 @@
-/** Source scanning for `gtm check`. */
+/** Source scanning for `revbound check`. */
 
 /**
  * src with comments blanked (`text`), and with the contents of strings, template literals and regex literals blanked

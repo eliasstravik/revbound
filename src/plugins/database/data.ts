@@ -1,7 +1,7 @@
 /** The Data view's routes: the company's `public` tables and the tables plugins declare, read-only (session GET). */
 import pg from "pg";
-import type { RouteCtx } from "@eliasstravik/gtm";
-import { assertNotProduction, HttpError, json, PRODUCTION_DATABASE, toJson, value } from "@eliasstravik/gtm/kit";
+import type { RouteCtx } from "revbound";
+import { assertNotProduction, HttpError, json, PRODUCTION_DATABASE, toJson, value } from "revbound/kit";
 
 const PAGE_SIZE = 100;
 const CSV_ROWS = 10_000;
@@ -9,12 +9,12 @@ const CSV_BYTES = 5 * 1024 * 1024;
 
 type Query = (text: string, values?: unknown[]) => Promise<pg.QueryArrayResult>;
 type Db = { url: string; pool: pg.Pool; checked: boolean };
-const POOL = Symbol.for("@eliasstravik/gtm/api/pool");
+const POOL = Symbol.for("revbound/api/pool");
 
 /** Runs fn inside BEGIN READ ONLY … ROLLBACK on this process's small pool, after the production-stamp check. */
 async function readOnly<T>(fn: (q: Query) => Promise<T>): Promise<T> {
   const url = value("DATABASE_URL");
-  if (!url) throw new HttpError(503, "DATABASE_URL is not set. Locally, start the app with `gtm dev`; hosted, connect a database.");
+  if (!url) throw new HttpError(503, "DATABASE_URL is not set. Locally, start the app with `revbound dev`; hosted, connect a database.");
   const g = globalThis as unknown as Record<symbol, Db | undefined>;
   if (g[POOL]?.url !== url) {
     g[POOL]?.pool.end().catch(() => {});

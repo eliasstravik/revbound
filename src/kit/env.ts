@@ -15,7 +15,7 @@ export function value(name: string, env: Env = process.env): string | undefined 
 
 /**
  * Hosted means a Vercel deployment: VERCEL_ENV preview or production plus VERCEL_DEPLOYMENT_ID, which only
- * deployments carry (`vercel env pull` never writes it). Anything under `next dev` (and so `gtm dev`) is never hosted.
+ * deployments carry (`vercel env pull` never writes it). Anything under `next dev` (and so `revbound dev`) is never hosted.
  */
 export function isHosted(env: Env = process.env): boolean {
   if (env.NODE_ENV === "development" || env.GTM_DEV === "1") return false;
@@ -69,10 +69,10 @@ export function databaseIdentity(url: string): string {
 }
 
 export const PRODUCTION_DATABASE =
-  "This is production's database; connect a dev branch instead (see `npx @eliasstravik/gtm docs data`).";
+  "This is production's database; connect a dev branch instead (see `npx revbound docs data`).";
 
 /**
- * The stamp check used by db(), `gtm migrate` and `gtm dev`. `query` runs one SQL statement and returns its rows.
+ * The stamp check used by db(), `revbound migrate` and `revbound dev`. `query` runs one SQL statement and returns its rows.
  * A database whose `gtm.meta` stamp names its own identity is refused unless this is hosted production.
  */
 export async function assertNotProduction(query: (sql: string) => Promise<{ value: string }[]>, url: string,

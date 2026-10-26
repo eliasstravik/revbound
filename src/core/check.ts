@@ -1,5 +1,5 @@
 /**
- * `gtm check [--build] [--prod]`: every rule, implemented once and read-only. `--build` runs the static rules (the first
+ * `revbound check [--build] [--prod]`: every rule, implemented once and read-only. `--build` runs the static rules (the first
  * command of every build); the full check adds plugin checks that reach the database; `--prod` adds Vercel's settings.
  */
 import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync } from "node:fs";
@@ -21,8 +21,8 @@ type Report = { problems: string[]; warnings: string[]; info: string[] };
 
 const ACCESS = ["session", "automation", "cron", "signature", "local", "tailnet"];
 const RESERVED = ["api", "_gtm", "_next", ".well-known"];
-const BUILD = "gtm check --build && gtm migrate && next build";
-const SYNC = "run `npx gtm sync`";
+const BUILD = "revbound check --build && revbound migrate && next build";
+const SYNC = "run `npx revbound sync`";
 
 export async function check(args: string[]): Promise<void> {
   const { values } = parseArgs({ args, options: { build: { type: "boolean" }, prod: { type: "boolean" } } });
@@ -45,7 +45,7 @@ export async function check(args: string[]): Promise<void> {
     add(await rules({ dir, config, plan: p, build: Boolean(values.build), prod: Boolean(values.prod) }));
     if (values.prod) add(await prod(dir, config, shellToken));
   }
-  console.log(`gtm check${values.build ? " --build" : ""}: ${dir}`);
+  console.log(`revbound check${values.build ? " --build" : ""}: ${dir}`);
   for (const p of r.problems) console.log(`\nPROBLEM: ${p}`);
   for (const w of r.warnings) console.log(`\nWARNING: ${w}`);
   console.log(`${r.info.length ? `\n${r.info.join("\n")}\n` : ""}\n${r.problems.length ? `${r.problems.length} problem(s).` : "No problems."}`);
@@ -80,8 +80,8 @@ export async function rules(c: CheckCtx): Promise<CheckResult[]> {
     for (const [k, owners] of by) if (owners.length > 1) err(`${what} ${JSON.stringify(k)} is declared by ${owners.join(" and ")}.`, fix);
   };
   seen(plugins.map((p) => [p.name, p.name]), "The plugin name", `keep one plugin of each name in ${CONFIG}`);
-  seen([...CORE_COMMANDS.map((n) => [n, "gtm itself"] as [string, string]), ...plugins.flatMap((p) => (p.cli ?? []).map((x) => [x.name, p.name] as [string, string]))], "The CLI command", "rename the plugin's command");
-  seen([...CORE_TOPICS.map((n) => [n, "gtm itself"] as [string, string]), ...plugins.flatMap((p) => Object.keys(p.docs ?? {}).map((t) => [t, p.name] as [string, string]))], "The docs topic", "rename the plugin's topic");
+  seen([...CORE_COMMANDS.map((n) => [n, "Revbound itself"] as [string, string]), ...plugins.flatMap((p) => (p.cli ?? []).map((x) => [x.name, p.name] as [string, string]))], "The CLI command", "rename the plugin's command");
+  seen([...CORE_TOPICS.map((n) => [n, "Revbound itself"] as [string, string]), ...plugins.flatMap((p) => Object.keys(p.docs ?? {}).map((t) => [t, p.name] as [string, string]))], "The docs topic", "rename the plugin's topic");
   seen(plugins.flatMap((p) => (p.workflowTabs ?? []).map((t) => [t.id, p.name] as [string, string])), "The workflow tab", "rename one of the tabs");
   for (const folder of c.plan.duplicateSkills) err(`Two plugins install the skill folder ${folder}.`, "rename one of the skills");
   for (const folder of c.plan.skills.keys()) {
@@ -131,7 +131,7 @@ export async function rules(c: CheckCtx): Promise<CheckResult[]> {
   if (old.length) err(`Generated files are out of date: ${old.slice(0, 8).join(", ")}${old.length > 8 ? ` and ${old.length - 8} more` : ""}.`, SYNC);
   const read = (f: string) => { try { return readFileSync(join(dir, f), "utf8"); } catch { return undefined; } };
   const proxy = read("proxy.ts"), route = read("app/api/gtm/[...path]/route.ts");
-  if (proxy != null && !proxy.replace(/\s+/g, "").includes(`matcher:${MATCHER}`)) err("proxy.ts's matcher differs from gtm's.", SYNC);
+  if (proxy != null && !proxy.replace(/\s+/g, "").includes(`matcher:${MATCHER}`)) err("proxy.ts's matcher differs from Revbound's.", SYNC);
   if (route != null && !/export const dynamic = "force-dynamic"/.test(route)) err("app/api/gtm/[...path]/route.ts is not force-dynamic.", SYNC);
   // `vercel deploy` uploads no .gitignore, so a Vercel build without one has nothing to check.
   const ignore = read(".gitignore") ?? (process.env.VERCEL === "1" ? undefined : "");
@@ -139,17 +139,17 @@ export async function rules(c: CheckCtx): Promise<CheckResult[]> {
     if (!ignore.split(/\r?\n/).includes(line)) err(`.gitignore lacks \`${line}\`.`, `add the line \`${line}\``);
   }
   for (const f of ["package.json", "AGENTS.md", "CLAUDE.md", "next.config.ts", ".env.example", "vercel.json", "public/_gtm/probe.txt", "workflows/index.ts"]) {
-    if (!existsSync(join(dir, f))) err(`${f} is missing.`, "recreate it as the starter has it (`npx gtm docs layout`)");
+    if (!existsSync(join(dir, f))) err(`${f} is missing.`, "recreate it as the starter has it (`npx revbound docs layout`)");
   }
   if (!/^@AGENTS\.md\s*$/m.test(read("CLAUDE.md") ?? "@AGENTS.md")) err("CLAUDE.md does not contain `@AGENTS.md`.", "add the line `@AGENTS.md` so Claude Code reads AGENTS.md");
   if (!(read("next.config.ts") ?? "withGtm(").includes("withGtm(")) err("next.config.ts does not use withGtm().", "export default withGtm({}) as the starter does");
   if ((read("public/_gtm/probe.txt") ?? "gtm-probe-v1").trim() !== "gtm-probe-v1") err("public/_gtm/probe.txt is changed.", "make `gtm-probe-v1` its only contents");
   const build = readJson(join(dir, "package.json"))?.scripts?.build;
-  if (build !== BUILD) err(`package.json's build script is ${JSON.stringify(build)}.`, `set it to "${BUILD}", so gtm check runs first in every build`);
+  if (build !== BUILD) err(`package.json's build script is ${JSON.stringify(build)}.`, `set it to "${BUILD}", so revbound check runs first in every build`);
   const link = join(dir, ".claude", "skills"), st = lstatSync(link, { throwIfNoEntry: false });
-  if (!st) err(".claude/skills is missing.", "run `npx gtm init` in the project to recreate the link");
+  if (!st) err(".claude/skills is missing.", "run `npx revbound init` in the project to recreate the link");
   else if (!st.isSymbolicLink()) warn(".claude/skills is a copy of .agents/skills (symlinks failed here); copy .agents/skills over it after every skill change.");
-  else if (readlinkSync(link) !== "../.agents/skills") err(".claude/skills does not point at .agents/skills.", "delete it and run `npx gtm init`");
+  else if (readlinkSync(link) !== "../.agents/skills") err(".claude/skills does not point at .agents/skills.", "delete it and run `npx revbound init`");
 
   // Company code: no direct starts, no AI SDK, plugins only through #gtm/<plugin>.
   out.push(...companyCode(dir, plugins));
@@ -229,7 +229,7 @@ function sources(dir: string, folder: string): [string, string][] {
 /**
  * Files under workflows/, webhooks/ and local plugins/ never import `start` from workflow/api, `ai` or `@ai-sdk/*`
  * (except the folder of a plugin that provides workflows, or that spends and replaces ai), never value-import
- * `@eliasstravik/gtm/<plugin>` subpaths (a plugin's own folder may use its own), and workflows/ names no model id.
+ * `revbound/<plugin>` subpaths (a plugin's own folder may use its own), and workflows/ names no model id.
  */
 export function companyCode(dir: string, plugins: GtmPlugin[]): CheckResult[] {
   return codeFindings([...sources(dir, "workflows"), ...sources(dir, "webhooks"), ...sources(dir, "plugins")], plugins);
@@ -246,10 +246,10 @@ export function codeFindings(files: [string, string][], plugins: GtmPlugin[]): C
       if (i.typeOnly) continue;
       const at = `${file}:${i.line}`;
       if (!exempt && i.spec === "workflow/api" && (i.names.includes("start") || !i.names.length)) {
-        out.push({ level: "error", message: `${at} imports start from workflow/api.`, fix: "start runs through the ledger: use fanOut() from #gtm/workflows, or `gtm run`" });
+        out.push({ level: "error", message: `${at} imports start from workflow/api.`, fix: "start runs through the ledger: use fanOut() from #gtm/workflows, or `revbound run`" });
       }
       if (!exempt && AI_MODULE.test(i.spec)) {
-        out.push({ level: "error", message: `${at} imports "${i.spec}".`, fix: "call agent() from #gtm/ai for every AI call; custom tools take `tool` from there too (`npx gtm docs ai`)" });
+        out.push({ level: "error", message: `${at} imports "${i.spec}".`, fix: "call agent() from #gtm/ai for every AI call; custom tools take `tool` from there too (`npx revbound docs ai`)" });
       }
       const sub = i.spec.startsWith(`${PACKAGE}/`) ? i.spec.slice(PACKAGE.length + 1).split("/")[0] : undefined;
       if (sub && local.has(sub) && sub !== owner) {
@@ -270,14 +270,14 @@ async function prod(dir: string, config: GtmConfig, shellToken: string | undefin
   for (const id of config.acknowledge?.destructive ?? []) out.push({ level: "info", message: `Acknowledged destructive migration: ${id}` });
   if (config.acknowledge?.customLedger) out.push({ level: "info", message: "Acknowledged: a custom ledger (it stops getting the package's safety fixes)." });
   const url = value("GTM_PRODUCTION_URL");
-  if (!url) err("GTM_PRODUCTION_URL is not set.", "add it to .env.local (`npx gtm docs deploy`)");
+  if (!url) err("GTM_PRODUCTION_URL is not set.", "add it to .env.local (`npx revbound docs deploy`)");
   else {
     const res = await fetch(new URL(url.includes("://") ? url : `https://${url}`), { redirect: "manual", signal: AbortSignal.timeout(15_000) }).catch((e: Error) => e);
     const location = res instanceof Response ? res.headers.get("location") ?? "" : "";
     if (!(res instanceof Response)) err(`${url} is unreachable: ${res.message}`, "check GTM_PRODUCTION_URL");
     else if (res.status === 401 || res.status === 403 || (res.status >= 300 && res.status < 400 && location.startsWith("https://vercel.com/sso-api")))
       out.push({ level: "info", message: `Production: ${url} answers with Vercel's login` });
-    else err(`${url} answers ${res.status} without Vercel's login.`, "turn on Vercel Authentication → All Deployments (`npx gtm docs deploy`)");
+    else err(`${url} answers ${res.status} without Vercel's login.`, "turn on Vercel Authentication → All Deployments (`npx revbound docs deploy`)");
   }
   const link = readJson(join(dir, ".vercel", "project.json"));
   if (!link?.projectId) { err("This folder is not linked to a Vercel project.", "run `vercel link`"); return out; }

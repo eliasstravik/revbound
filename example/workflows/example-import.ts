@@ -1,5 +1,5 @@
-// An example from `gtm init --example`: saves a list of companies to the example_companies table, which the
-// console's Data view shows. `npx gtm run example-import` saves three sample companies.
+// An example from `revbound init --example`: saves a list of companies to the example_companies table, which the
+// console's Data view shows. `npx revbound run example-import` saves three sample companies.
 //
 // To remove the example before anything reached production: delete this file and context/example-icp.md, empty
 // the registry in workflows/index.ts and db/schema.ts back to `export {}`, delete db/migrations/, and delete .gtm/

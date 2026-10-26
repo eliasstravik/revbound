@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Link, Search, Status, useApi, useQuery, type TabProps, type ViewProps, type WorkflowInfo } from "@eliasstravik/gtm/ui";
+import { Link, Search, Status, useApi, useQuery, type TabProps, type ViewProps, type WorkflowInfo } from "revbound/ui";
 import { DiagramView } from "./diagram.js";
 import "./workflows.css";
 

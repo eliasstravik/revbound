@@ -33,7 +33,7 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-      - name: Typecheck, unit tests and every gtm check rule
+      - name: Typecheck, unit tests and every revbound check rule
         run: npm run check
 
       - name: The ledger and mdm on Postgres 16 and on PGlite

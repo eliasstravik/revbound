@@ -1,5 +1,5 @@
 // The conformance fixture: a local plugin that adds one of everything a plugin can add.
-import { definePlugin } from "@eliasstravik/gtm";
+import { definePlugin } from "revbound";
 
 export function fixture() {
   return definePlugin({

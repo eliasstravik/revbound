@@ -1,9 +1,9 @@
-import { definePlugin } from "@eliasstravik/gtm";
+import { definePlugin } from "revbound";
 
 export type { AgentOptions, AgentResult, AgentTools, McpServer } from "./runtime.js";
 
-const P = "@eliasstravik/gtm/ai";
-const SRC = "@eliasstravik/gtm/src/plugins/ai";
+const P = "revbound/ai";
+const SRC = "revbound/src/plugins/ai";
 
 /**
  * agent(): every AI call in a workflow, on AI Gateway (hosted, or with its key), a provider key, or the person's own

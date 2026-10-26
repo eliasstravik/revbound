@@ -1,6 +1,6 @@
-import { definePlugin } from "@eliasstravik/gtm";
+import { definePlugin } from "revbound";
 
-const P = "@eliasstravik/gtm/console";
+const P = "revbound/console";
 
 /**
  * The console: its frame (sidebar, environment badge), the page that shows whichever plugin view matches the path, and

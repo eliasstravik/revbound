@@ -2,7 +2,7 @@
  * What `#gtm/mdm` exports: upsert, find, merge and "what is known since when" for people, companies and signals.
  * Workflow-safe: each call is a step of this plugin's step module, which stamps the run it came from.
  */
-import type { Runtime } from "@eliasstravik/gtm";
+import type { Runtime } from "revbound";
 import type { Company, CompanyInput, Known, Person, PersonInput, Ref, Signal, SignalInput, Upserted } from "./types.js";
 
 export type * from "./types.js";

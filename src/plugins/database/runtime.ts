@@ -1,7 +1,7 @@
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import pg from "pg";
-import type { Runtime } from "@eliasstravik/gtm";
-import { PRODUCTION_DATABASE, assertNotProduction, isHosted, value } from "@eliasstravik/gtm/kit";
+import type { Runtime } from "revbound";
+import { PRODUCTION_DATABASE, assertNotProduction, isHosted, value } from "revbound/kit";
 
 export type { NodePgDatabase };
 
@@ -10,7 +10,7 @@ export type Api = { db: typeof db };
 export const bind = (_rt: Runtime): Api => ({ db });
 
 type Call = (...args: unknown[]) => unknown;
-const KEY: unique symbol = Symbol.for("@eliasstravik/gtm/db");
+const KEY: unique symbol = Symbol.for("revbound/db");
 
 /** A pool that runs the production-stamp check once, before its first query or checkout. */
 class GtmPool extends pg.Pool {
@@ -21,13 +21,13 @@ class GtmPool extends pg.Pool {
     super({ connectionString: url, max: isHosted() ? undefined : 3 });
     this.#url = url;
     // An idle client the server dropped (a restart, a pooler timeout) must not crash the process; the next query reconnects.
-    this.on("error", (error) => console.error(`gtm db(): an idle database connection closed (${error.message})`));
+    this.on("error", (error) => console.error(`revbound db(): an idle database connection closed (${error.message})`));
   }
 
   #check(): Promise<void> {
     return (this.#checked ??= assertNotProduction((sql) => super.query(sql).then((r) => r.rows), this.#url).catch((error) => {
       // Drizzle wraps query errors as "Failed query: …" (ours is the cause), so say it plainly once per pool.
-      if (error?.message === PRODUCTION_DATABASE) console.error(`gtm db(): ${PRODUCTION_DATABASE}`);
+      if (error?.message === PRODUCTION_DATABASE) console.error(`revbound db(): ${PRODUCTION_DATABASE}`);
       else this.#checked = undefined; // retry after a connection error
       throw error;
     }));
@@ -57,8 +57,8 @@ export function db(): NodePgDatabase {
   const url = value("DATABASE_URL");
   if (!url) {
     throw new Error(isHosted()
-      ? "DATABASE_URL is not set in this deployment: connect Neon via the Vercel Marketplace; see `npx gtm docs deploy`."
-      : "DATABASE_URL is not set: run the app with `gtm dev` (npm run dev), which serves the local database.");
+      ? "DATABASE_URL is not set in this deployment: connect Neon via the Vercel Marketplace; see `npx revbound docs deploy`."
+      : "DATABASE_URL is not set: run the app with `revbound dev` (npm run dev), which serves the local database.");
   }
   return (store[KEY] = drizzle({ client: new GtmPool(url) }));
 }

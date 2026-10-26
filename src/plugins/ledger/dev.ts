@@ -1,6 +1,6 @@
-/** gtm dev's reconcile: every 60 seconds, since crons never fire locally. */
-import type { DevCtx, DevHandle } from "@eliasstravik/gtm/cli";
-import { basePath } from "@eliasstravik/gtm/kit";
+/** revbound dev's reconcile: every 60 seconds, since crons never fire locally. */
+import type { DevCtx, DevHandle } from "revbound/cli";
+import { basePath } from "revbound/kit";
 
 export default async function ledgerDev(ctx: DevCtx): Promise<DevHandle> {
   let timer: NodeJS.Timeout | undefined;

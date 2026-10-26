@@ -12,7 +12,7 @@ step with the vendors' own CLIs and dashboards. Our conventions:
    the production domain public. Until it is on, every page and console route answers "Turn on Vercel
    Authentication → All Deployments" instead of content (checked per host, cached 5 minutes).
 4. **"Automatically expose System Environment Variables" on.** Vercel Workflow needs them; without them runs fall
-   back to a local store and fail. gtm knows it is hosted from `VERCEL_ENV` plus `VERCEL_DEPLOYMENT_ID`.
+   back to a local store and fail. Revbound knows it is hosted from `VERCEL_ENV` plus `VERCEL_DEPLOYMENT_ID`.
 5. **No Deployment Protection Exceptions and no Shareable Links**, ever.
 6. **Teammates get Viewer invites.** Never approve access requests from outsiders.
 7. **`CRON_SECRET`** on Production (`vercel env add CRON_SECRET production`, a long random value): workflow
@@ -23,12 +23,12 @@ step with the vendors' own CLIs and dashboards. Our conventions:
    outer ceiling (docs: ledger).
 9. **The bypass secret for laptops**: the Protection Bypass for Automation secret (Project Settings → Deployment
    Protection) that deployments see as `VERCEL_AUTOMATION_BYPASS_SECRET`, copied to `.env.local` as
-   `GTM_BYPASS_SECRET` with `GTM_PRODUCTION_URL` (`https://<production domain>`) for `npx gtm run --prod`. It reaches
+   `GTM_BYPASS_SECRET` with `GTM_PRODUCTION_URL` (`https://<production domain>`) for `npx revbound run --prod`. It reaches
    only `automation` routes (`start/:name`, `runs/:id`); pages and console routes refuse it. Redeploy once after
    creating it.
 10. **One separate, labeled bypass secret per webhook sender**, never the one above, stored as
     `GTM_HOOK_<NAME>_BYPASS` so its route accepts it and no other (docs: webhooks).
-11. **`npx gtm check --prod`** before calling it live: production must answer with Vercel's login, the project must
+11. **`npx revbound check --prod`** before calling it live: production must answer with Vercel's login, the project must
     have no Exceptions or Shareable Links, system variables exposed and `CRON_SECRET` set. It also prints every
     `acknowledge` entry in gtm.config.ts.
 
@@ -44,16 +44,16 @@ vercel env ls production
 vercel redeploy <production deployment url>
 ```
 
-Never change a variable shared across environments from here, and leave names gtm, Vercel or an integration own
+Never change a variable shared across environments from here, and leave names Revbound, Vercel or an integration own
 (`DATABASE_URL*`, `POSTGRES_*`, `PG*`, `CRON_SECRET`, `GTM_*`, `VERCEL_*`, `NEON_*`) to them.
 
 ## Notes
 
-- The build is `gtm check --build && gtm migrate && next build`: every deploy checks the project, then applies
-  pending migrations, before Next builds. A hosted-production `gtm migrate` refuses destructive migrations unless
+- The build is `revbound check --build && revbound migrate && next build`: every deploy checks the project, then applies
+  pending migrations, before Next builds. A hosted-production `revbound migrate` refuses destructive migrations unless
   acknowledged (docs: data).
 - A `vercel deploy` from a laptop uploads what `.vercelignore` does not exclude; the starter's repeats `.gitignore`
   and adds the generated `app/.well-known/workflow/`. Git deploys follow `.gitignore`.
 - `vercel link` appends `.env*` to `.gitignore`, which would also hide `.env.example`; put it back to `.env*.local`.
-- `scripts/smoke-live.mjs` in the gtm repository checks a real deployment by hand (preview, approve, a cron tick,
+- `scripts/smoke-live.mjs` in the revbound repository checks a real deployment by hand (preview, approve, a cron tick,
   reconcile, ledger rows).

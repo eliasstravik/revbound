@@ -1,13 +1,13 @@
-// The project's plugins. Delete a line to remove a default plugin, then run `npx gtm sync`; `npx gtm check` says
-// when another plugin needs it. `npx gtm docs plugins` explains the rest.
-import { defineGtm } from "@eliasstravik/gtm";
-import { database } from "@eliasstravik/gtm/database";
-import { ledger } from "@eliasstravik/gtm/ledger";
-import { workflows } from "@eliasstravik/gtm/workflows";
-import { ai } from "@eliasstravik/gtm/ai";
-import { context } from "@eliasstravik/gtm/context";
-import { connections } from "@eliasstravik/gtm/connections";
-import { console } from "@eliasstravik/gtm/console"; // shadows the global console in this file only
+// The project's plugins. Delete a line to remove a default plugin, then run `npx revbound sync`; `npx revbound check` says
+// when another plugin needs it. `npx revbound docs plugins` explains the rest.
+import { defineGtm } from "revbound";
+import { database } from "revbound/database";
+import { ledger } from "revbound/ledger";
+import { workflows } from "revbound/workflows";
+import { ai } from "revbound/ai";
+import { context } from "revbound/context";
+import { connections } from "revbound/connections";
+import { console } from "revbound/console"; // shadows the global console in this file only
 
 export default defineGtm({
   company: "Company",
@@ -20,5 +20,5 @@ export default defineGtm({
     connections(),
     console(),
   ],
-  // acknowledge: { customLedger: true, destructive: ["company:0012"] },  // only when needed (`npx gtm docs ledger`)
+  // acknowledge: { customLedger: true, destructive: ["company:0012"] },  // only when needed (`npx revbound docs ledger`)
 });

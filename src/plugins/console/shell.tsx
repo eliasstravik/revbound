@@ -4,9 +4,9 @@ import "@fontsource-variable/geist-mono/index.css";
 import "./style.css";
 import { usePathname } from "next/navigation.js";
 import { useEffect, useRef, type ReactNode } from "react";
-import type { Manifest, ManifestView } from "@eliasstravik/gtm";
-import { find, segments } from "@eliasstravik/gtm/kit";
-import { Link, Status, useApi } from "@eliasstravik/gtm/ui";
+import type { Manifest, ManifestView } from "revbound";
+import { find, segments } from "revbound/kit";
+import { Link, Status, useApi } from "revbound/ui";
 
 type Info = { company: string; environment: "local" | "preview" | "production"; deployment: string | null };
 const NAMES: Record<string, string> = { local: "Local", preview: "Preview", production: "Production" };

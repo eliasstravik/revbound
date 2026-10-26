@@ -5,7 +5,7 @@
  */
 import { createHash, randomUUID } from "node:crypto";
 import { sql, type SQL } from "drizzle-orm";
-import type { Admission, Ctx, LedgerRun, LedgerSlotV1, Limits, Reservation, ReserveRequest, RunStatus, SdkRun } from "@eliasstravik/gtm";
+import type { Admission, Ctx, LedgerRun, LedgerSlotV1, Limits, Reservation, ReserveRequest, RunStatus, SdkRun } from "revbound";
 
 /** The 403 every refused start of an approval-required workflow opens with. */
 export const NEEDS_YES = "This workflow needs a person's yes. Run a preview, show the person the sample and the cost, and ask Yes/No in chat. " +
@@ -204,7 +204,7 @@ export default function provide(ctx: Ctx): LedgerSlotV1 {
 
     async reserve(action) {
       try {
-        // Before the lock: the run gtm admitted for this SDK run, else the gtm id its attributes claim.
+        // Before the lock: the run Revbound admitted for this SDK run, else the Revbound id its attributes claim.
         let row = await one(sql`select id from gtm_ledger.runs where sdk_run_id = ${action.sdkRunId}`);
         const sdk = row ? null : await workflows()?.getRun(action.sdkRunId).catch(() => null);
         const claimed = sdk?.attributes?.gtm_run_id;
@@ -218,7 +218,7 @@ export default function provide(ctx: Ctx): LedgerSlotV1 {
             }
           }
           if (!row) {
-            // No gtm metadata, or it belongs to another SDK run (a re-run that copied attributes): its own external root.
+            // No Revbound metadata, or it belongs to another SDK run (a re-run that copied attributes): its own external root.
             const ext = randomUUID();
             await tx.execute(sql`insert into gtm_ledger.runs (id, sdk_run_id, workflow, trigger, root_run_id, status)
               values (${ext}, ${action.sdkRunId}, ${sdk?.workflow ?? "unknown"}, 'external', ${ext}, 'running') on conflict (sdk_run_id) do nothing`);
@@ -284,7 +284,7 @@ export default function provide(ctx: Ctx): LedgerSlotV1 {
         await db().execute(sql`update gtm_ledger.actions set cost_usd = coalesce(${cost}::numeric, cost_usd), outcome = ${actual.outcome ?? "ok"},
           detail = detail || ${redactJson(ctx, detail)}::jsonb where id = ${Number(reservationId)} and outcome in ('reserved', 'unknown')`);
       } catch (error) {
-        console.error(`[gtm] ledger: could not settle action ${reservationId}; reconcile will (${(error as Error).message})`);
+        console.error(`[revbound] ledger: could not settle action ${reservationId}; reconcile will (${(error as Error).message})`);
       }
     },
 
@@ -295,7 +295,7 @@ export default function provide(ctx: Ctx): LedgerSlotV1 {
       const w = workflows();
       let linked = 0, external = 0, refreshed = 0;
       if (w) {
-        // 1. SDK runs since the cursor (with an overlap): link those gtm started, record the rest as external.
+        // 1. SDK runs since the cursor (with an overlap): link those Revbound started, record the rest as external.
         const cursor = (await one(sql`select value from gtm_ledger.meta where key = 'reconcile_cursor'`)).value as string;
         const since = cursor === "-infinity" ? cursor : new Date(Date.parse(cursor) - 5 * 60_000).toISOString();
         const runs = await w.listRuns(since);
