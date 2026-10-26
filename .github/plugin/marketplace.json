@@ -11,7 +11,7 @@
       "name": "revbound",
       "source": "./",
       "description": "The open-source agent plugin that runs your GTM: your agent builds the workflows, Revbound runs them on Vercel with a record of every run and dollar, and a console for your team.",
-      "version": "0.0.6"
+      "version": "0.0.7"
     }
   ]
 }
