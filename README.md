@@ -135,7 +135,8 @@ npm run lines                         # line counts per plugin against their bud
 ```
 
 Releases: `npm run version:bump <x.y.z>` sets one version across the package, the plugin manifests, the starter's pin
-and the Deploy button; [release.yml](.github/workflows/release.yml) publishes a pushed `v<x.y.z>` tag through npm
+and the Deploy button. It takes only the next patch (or its `-rc.N`); `npm run version:bump -- <x.y.z> --allow-bump`
+skips that check; [release.yml](.github/workflows/release.yml) publishes a pushed `v<x.y.z>` tag through npm
 trusted publishing after `npm run check` passes.
 
 ## License
