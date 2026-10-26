@@ -30,10 +30,12 @@ console admits besides `127.0.0.1` and `localhost`, matched against the request'
 Host kept.
 
 **Anyone on that private network gets in without a login** and reads Context, Workflows, Runs, Data and Connections.
-Nothing there writes: `session` routes are read-only, and `automation` and `local` routes (start, run status, the run
+Nothing there writes: `session` routes are read-only, Connections changes keys only for a Tailscale login (below),
+and `automation` and `local` routes (start, run status, the run
 inspector) answer only on `127.0.0.1`/`localhost`, so nobody else runs stages on the owner's subscription. The Chat
 page is the one exception, and only for a Tailscale login Serve puts on the request (never Funnel): it answers on this
-computer's own AI login, as that person, whose yes alone starts their runs. Run workflows on this machine with
+computer's own AI login, as that person, whose yes alone starts their runs. Connections' Add, Edit and Delete work for
+such a login too. Run workflows on this machine with
 `npx revbound run`. Open database also works on this machine's own Tailscale name, for the
 Tailscale login that presses it only (docs: data).
 

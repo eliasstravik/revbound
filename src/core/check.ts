@@ -19,7 +19,7 @@ import type { CheckResult, RevboundConfig, RevboundPlugin } from "./types.js";
 export type CheckCtx = { dir: string; config: RevboundConfig; plan: Plan; build: boolean; prod: boolean; plugin?: string; options?: unknown };
 type Report = { problems: string[]; warnings: string[]; info: string[] };
 
-const ACCESS = ["session", "automation", "cron", "signature", "local", "tailnet"];
+const ACCESS = ["session", "console", "automation", "cron", "signature", "local", "tailnet"];
 const RESERVED = ["api", "_revbound", "_next", ".well-known", "eve"];
 const BUILD = "revbound check --build && revbound migrate && next build";
 const SYNC = "run `npx revbound sync`";
@@ -108,13 +108,14 @@ export async function rules(c: CheckCtx): Promise<CheckResult[]> {
   // Routes, views and access.
   for (const p of plugins) for (const r of p.routes ?? []) {
     if (!ACCESS.includes(r.access)) err(`The ${p.name} route ${r.path} has access ${JSON.stringify(r.access)}.`, `use one of ${ACCESS.join(", ")}`);
-    if (r.access === "session" && r.methods.some((m) => m !== "GET")) err(`The ${p.name} route ${r.path} is a session route that accepts ${r.methods.join(", ")}.`, "session routes only read: make it GET, or use automation for writes");
+    if (r.access === "session" && r.methods.some((m) => m !== "GET")) err(`The ${p.name} route ${r.path} is a session route that accepts ${r.methods.join(", ")}.`, "session routes only read: make it GET, or use console for the console's own writes");
     if (!r.methods.length || r.methods.some((m) => m !== "GET" && m !== "POST")) err(`The ${p.name} route ${r.path} has methods ${JSON.stringify(r.methods)}.`, "use GET and/or POST");
   }
   const routes = c.plan.manifest.routes, views = c.plan.manifest.views;
   for (let i = 0; i < routes.length; i++) for (let j = i + 1; j < routes.length; j++) {
     const [a, b] = [routes[i], routes[j]];
     if (sameShape(a.path, b.path) && a.methods.some((m) => b.methods.includes(m))) err(`The routes ${a.key} and ${b.key} can match the same path.`, "rename one of them");
+    else if (a.key === b.key) err(`The ${a.plugin} plugin declares the route ${a.path} twice.`, "give each route its own path");
   }
   for (let i = 0; i < views.length; i++) for (let j = i + 1; j < views.length; j++) {
     if (sameShape(views[i].path, views[j].path)) err(`The views ${views[i].plugin}:${views[i].path} and ${views[j].plugin}:${views[j].path} can match the same path.`, "rename one of them");

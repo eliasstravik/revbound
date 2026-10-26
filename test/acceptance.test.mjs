@@ -383,6 +383,22 @@ test("connections: set reads a hidden value from stdin into .env.local (0600), l
   }
   assertOk(await revbound(["connections", "delete", "ACME_API_KEY"]), "revbound connections delete");
   assert.doesNotMatch(read(".env.local"), /ACME_API_KEY/);
+  if (!s.dev) return;
+  // The console's form: add writes .env.local and .env.example, edit changes the label, delete removes both; the value never comes back.
+  const send = (body, headers = {}) => get("/api/revbound/connections/change", { method: "POST", body, headers: { "content-type": "application/json", ...headers } });
+  const added = await send({ action: "save", name: "APOLLO_API_KEY", label: "Apollo", value: "apk-console-$1" });
+  assert.equal(added.status, 200, added.text);
+  assert.ok(!added.text.includes("apk-console"), "the value is never sent back");
+  assert.match(read(".env.local"), /^APOLLO_API_KEY='apk-console-\\\$1'$/m);
+  assert.match(read(".env.example"), /# Apollo\nAPOLLO_API_KEY=\n/);
+  const row = async () => (await json("/api/revbound/connections")).connections.find((c) => c.name === "APOLLO_API_KEY");
+  assert.equal((await row()).state, "set");
+  assert.equal((await send({ action: "rename", name: "APOLLO_API_KEY", label: "Apollo (Production)" })).status, 200);
+  assert.equal((await row()).label, "Apollo (Production)");
+  refused(await send({ action: "save", name: "APOLLO_API_KEY", value: "x" }, { origin: "http://evil.test", "sec-fetch-site": "cross-site" }), "a cross-site change");
+  refused(await send({ action: "save", name: "CRON_SECRET", value: "x" }), "an owned name");
+  assert.equal((await send({ action: "delete", name: "APOLLO_API_KEY" })).status, 200);
+  assert.doesNotMatch(read(".env.local") + read(".env.example"), /APOLLO_API_KEY/);
 });
 
 test("guards: cross-site starts, foreign hosts, cron without CRON_SECRET; REVBOUND_ALLOWED_HOSTS reads but never starts", { timeout: 15 * MIN }, async (t) => {

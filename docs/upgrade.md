@@ -9,6 +9,11 @@ Preset to Services). Keep
 `.agents/skills` to skill folders only (`revbound check` lists anything else, such as a `.gitkeep`), and add `.eve/` and
 `.output/` to `.gitignore` if the check asks.
 
+The console's Connections page adds, edits and deletes keys again: locally at once, and on the production domain once
+the project has `REVBOUND_VERCEL_TOKEN` and `REVBOUND_VERCEL_TOKEN_EXPIRES` in Production (docs: deploy, step 12).
+Without them nothing changes: production keys are still set with `vercel env add`. `revbound connections set` and the
+console now also refuse `SLACK_*`, `GITHUB_*` and `EVE_*`, which the agent's setup sets in Vercel.
+
 ## From revbound 0.0.6
 
 Every remaining `gtm` name is now `revbound`, with no fallback: an old project fails `revbound check` and its build
@@ -71,7 +76,8 @@ company's files across:
 6. `npx revbound check`, then `npm run dev` and `npx revbound run <workflow> --preview`.
 7. Deploy: point the existing Vercel project at the new repo, or create one and move the Neon integration. The new
    `vercel.json` schedules the hourly reconcile, which needs `CRON_SECRET` (docs: deploy). The Slack agent
-   and the console's key form are gone: set production keys with `vercel env add` (docs: connections).
+   moved to the agent plugin (docs: agent); production keys are set on the console's Connections page or with
+   `vercel env add` (docs: connections).
 
 The old `gtm.__drizzle_migrations` table stays in the old database; the new one keeps its bookkeeping in each plugin's
 schema (`revbound.__revbound_migrations`, `revbound_ledger.__revbound_migrations`, …) and the company's in `drizzle`.

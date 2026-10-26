@@ -32,14 +32,21 @@ step with the vendors' own CLIs and dashboards. Our conventions:
     Framework Preset to **Services** (Project Settings → Build and Deployment). It starts runs with the automation bypass secret from step 9, so turn that on even without laptops.
     For its pull requests, create the GitHub connector once: `vercel connect create github --name revbound`, finish it
     in the browser and install the app on this project's repository only. Chat apps: `npx revbound agent add slack`.
-12. **`npx revbound check --prod`** before calling it live: production must answer with Vercel's login, the project must
+12. **`REVBOUND_VERCEL_TOKEN`**, so the console's Connections page can add, edit and delete production keys (docs:
+    connections): the person setting up creates a token in the Vercel dashboard (Account Settings → Tokens) scoped to
+    this project only, with an expiry, and saves it themselves with
+    `vercel env add REVBOUND_VERCEL_TOKEN production --sensitive`; its expiry date goes in
+    `REVBOUND_VERCEL_TOKEN_EXPIRES` (an ISO date, `vercel env add REVBOUND_VERCEL_TOKEN_EXPIRES production`). Production
+    only, never Preview or Development, and never a team-wide or account-wide token. Redeploy once. Without it the
+    console only shows which keys are set. Replace it before it expires: Connections warns 14 days ahead.
+13. **`npx revbound check --prod`** before calling it live: production must answer with Vercel's login, the project must
     have no Exceptions or Shareable Links, system variables exposed and `CRON_SECRET` set. It also prints every
     `acknowledge` entry in revbound.config.ts.
 
 ## Production keys
 
-The deployment holds no Vercel token and writes no variables; the console only shows which names are set. Add or
-change a key with the Vercel CLI, then redeploy:
+With step 12 done, people add, edit and delete production keys on the console's Connections page, on the production
+domain; each change redeploys production (docs: connections). Without it, use the Vercel CLI, then redeploy:
 
 ```sh
 vercel env add APOLLO_API_KEY production --sensitive   # paste the value at the prompt
@@ -49,7 +56,8 @@ vercel redeploy <production deployment url>
 ```
 
 Never change a variable shared across environments from here, and leave names Revbound, Vercel or an integration own
-(`DATABASE_URL*`, `POSTGRES_*`, `PG*`, `CRON_SECRET`, `REVBOUND_*`, `VERCEL_*`, `NEON_*`) to them.
+(`DATABASE_URL*`, `POSTGRES_*`, `PG*`, `CRON_SECRET`, `REVBOUND_*`, `VERCEL_*`, `NEON_*`, `SLACK_*`, `GITHUB_*`,
+`EVE_*`) to them.
 
 ## Notes
 

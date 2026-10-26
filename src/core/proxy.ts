@@ -76,7 +76,7 @@ export function revboundProxy(manifest: Manifest) {
       if (!(hit.item.methods as string[]).includes(method)) return refuse(`${req.method} is not allowed here.`, 405);
       const verdict = routeAccess(hit.item.access, req, secretName(hit.item.secret, hit.params));
       if (!verdict.ok) return refuse(verdict.error, verdict.status);
-      return hosted && hit.item.access === "session" ? failClosed(req) : undefined;
+      return hosted && (hit.item.access === "session" || hit.item.access === "console") ? failClosed(req) : undefined;
     }
     // eve's routes (the agent plugin's chat): its session API is the console's, so it gets the page rule here and the
     // console rule again in eve; its other routes (health, chat apps' webhooks, callbacks) check their own credentials.
