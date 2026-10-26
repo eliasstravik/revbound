@@ -5,7 +5,7 @@
  *
  * Usage:
  *   npm test                                   # packs a copy of this repo first (needs `npm ci` done here)
- *   GTM_TEST_TARBALL=/abs/revbound-0.0.5.tgz node --test test/acceptance.test.mjs
+ *   GTM_TEST_TARBALL=/abs/revbound-<version>.tgz node --test test/acceptance.test.mjs
  * Optional env: GTM_TEST_TARBALL · GTM_TEST_DIR (parent of the temp work folder) · GTM_TEST_LOGS · GTM_TEST_PORT (first
  * of four consecutive ports; default 4710) · GTM_TEST_KEEP=1 (keep the projects).
  * Needs Linux (`ss`, /proc), tar, openssl and the npm registry. AI steps run on test/fixtures/bin/claude, a stand-in for
@@ -26,6 +26,7 @@ const START_PORT = PORT + 1; // hosted-mode `next start`
 const PROBE_PORT = PORT + 2; // HTTPS stand-in for Vercel's login wall
 const BOX = "box.tail1234.ts.net";
 const FAKE_BIN = path.join(REPO, "test", "fixtures", "bin");
+const VERSION = JSON.parse(fs.readFileSync(path.join(REPO, "package.json"), "utf8")).version;
 const NEEDS_YES = "This workflow needs a person's yes. Run a preview, show the person the sample and the cost, and ask Yes/No in chat. Only after a yes, run it again with `--approve --max-usd`.";
 
 const s = { work: "", tarball: "", cli: "", dir: "", dev: null, dbUrl: "" };
@@ -548,7 +549,7 @@ test("a packed plugin: add, swap the database, remove; eject ai and ledger into 
   assert.match(read("plugins/ai/index.ts", dir), /const P = "\.\/plugins\/ai";/);
   assert.ok(exists("plugins/ai/.gtm-eject/src/index.ts", dir) && exists("plugins/ai/.gtm-eject/version", dir));
   assertOk(await revbound(["check", "--build"], { dir }), "revbound check after ejecting ai");
-  assert.match((await revbound(["diff", "ai"], { dir })).stdout, /No upstream changes to ai between 0\.0\.5 and 0\.0\.5/);
+  assert.match((await revbound(["diff", "ai"], { dir })).stdout, new RegExp(`No upstream changes to ai between ${VERSION} and ${VERSION}`));
   assertOk(await revbound(["eject", "ledger"], { dir }), "revbound eject ledger");
   const guard = await revbound(["check", "--build"], { dir });
   assert.notEqual(guard.code, 0);
