@@ -50,7 +50,7 @@ export async function init(args: string[]): Promise<void> {
   if (values.example) console.log("Added the example: workflows/example-import.ts (`npx revbound run example-import`), its table and context/example-icp.md; the workflow file says how to remove it.");
   console.log(`Next:${rel === "." ? "" : `\n  cd ${rel}`}
   npm run dev                    console on http://127.0.0.1:3000
-  npx revbound check                  problems with their fixes
+  npx revbound check             problems with their fixes
   then fill in context/company.md`);
 }
 

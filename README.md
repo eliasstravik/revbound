@@ -9,7 +9,7 @@ every part is a plugin.
 ```sh
 npx skills add eliasstravik/revbound -g     # the skill, for any agent
 # then ask your agent: "set up GTM for Acme"
-npm run dev                            # in ./gtm-acme: the console on http://127.0.0.1:3000
+npm run dev                                 # in ./gtm-acme: the console on http://127.0.0.1:3000
 ```
 
 Or install it as your agent's plugin:
