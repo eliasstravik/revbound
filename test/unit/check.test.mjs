@@ -30,8 +30,9 @@ test("the starter with the seven defaults passes, and its generated files are cu
   const pkg = JSON.parse(read(dir, "package.json"));
   assert.deepEqual(Object.keys(pkg.imports).sort(), ["#revbound/ai", "#revbound/database", "#revbound/ledger", "#revbound/workflows"]);
   assert.equal(JSON.parse(read(dir, "tsconfig.json")).compilerOptions.paths["#revbound/ai"][0], "./_revbound/ai.ts");
-  assert.match(read(dir, "AGENTS.md"), /<!-- BEGIN:revbound -->[\s\S]*#revbound\/database[\s\S]*fanOut\(\)[\s\S]*<!-- END:revbound -->/);
+  assert.match(read(dir, "AGENTS.md"), /<!-- BEGIN:revbound -->\n\n## Revbound project \(managed by revbound\)[\s\S]*#revbound\/database[\s\S]*fanOut\(\)[\s\S]*<!-- END:revbound -->/);
   assert.match(read(dir, "proxy.ts"), /export default revboundProxy\(manifest\);/);
+  assert.match(read(dir, "app/layout.tsx"), /title: "Revbound Console"/);
 });
 
 test("generated files make no top-level calls, and binding files reach heavy code only inside steps", async () => {

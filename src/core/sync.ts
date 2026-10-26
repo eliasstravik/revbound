@@ -67,7 +67,7 @@ function slotsOf(p: RevboundPlugin, provider: Map<string, RevboundPlugin>): [str
   return names.flatMap((s) => (provider.get(s)?.provide ? [[s, provider.get(s)!] as [string, RevboundPlugin]] : []));
 }
 
-const CORE_AGENTS = `## GTM project (managed by ${PACKAGE})
+const CORE_AGENTS = `## Revbound project (managed by ${PACKAGE})
 
 This repo is the company's go-to-market project, \`revbound-<company>\`: a Next.js app on \`${PACKAGE}\`, deployed as one Vercel
 project of the same name. \`revbound sync\` rewrites this block from revbound.config.ts; write company notes outside it.
@@ -174,7 +174,7 @@ export async function plan(dir: string, config?: RevboundConfig): Promise<Plan> 
   files.set("app/api/revbound/[...path]/route.ts", `${HEAD}\nimport manifest from "../../../../_revbound/manifest";\nimport { handlers } from "../../../../_revbound/routes";\nimport { revboundRoutes } from "${PACKAGE}/server";\n\nexport const dynamic = "force-dynamic";\nexport const { GET, POST } = revboundRoutes(manifest, handlers);\n`);
   if (shell) {
     files.set("app/layout.tsx", [HEAD, `import type { ReactNode } from "react";`, `import manifest from "../_revbound/manifest";`, importLine("Layout", specifier(shell.shell!.layout, "app")), "",
-      `export const metadata = { title: "GTM Console" };`, "",
+      `export const metadata = { title: "Revbound Console" };`, "",
       "export default function RootLayout({ children }: { children: ReactNode }) {", "  return <Layout manifest={manifest}>{children}</Layout>;", "}", ""].join("\n"));
     files.set("app/[[...path]]/page.tsx", [HEAD, `import { RevboundConsole } from "../../_revbound/views";`, "",
       "export default async function Page({ params }: { params: Promise<{ path?: string[] }> }) {",
