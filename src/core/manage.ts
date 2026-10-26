@@ -1,17 +1,17 @@
-/** `revbound add`, `remove`, `eject` and `diff`: plugin management. None of them edits gtm.config.ts except eject's import flip. */
+/** `revbound add`, `remove`, `eject` and `diff`: plugin management. None of them edits revbound.config.ts except eject's import flip. */
 import { spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { CONFIG, loadConfig, OPTIONAL, PACKAGE, packageDir, projectJiti } from "./config.js";
 import { findProject, readJson } from "./project.js";
 import { listFiles, schemaOf, sync } from "./sync.js";
-import type { GtmPlugin } from "./types.js";
+import type { RevboundPlugin } from "./types.js";
 
-const EJECT = ".gtm-eject";
+const EJECT = ".revbound-eject";
 
 /**
  * `revbound add <name | npm-or-git-spec>`: a first-party optional plugin (`mdm`) needs no install; a package is installed
- * pinned. Either way it prints the lines to add to gtm.config.ts.
+ * pinned. Either way it prints the lines to add to revbound.config.ts.
  */
 export async function add(args: string[]): Promise<void> {
   const [spec] = args;
@@ -34,7 +34,7 @@ export async function add(args: string[]): Promise<void> {
   const deps = readJson(join(dir, "package.json"))?.dependencies ?? {};
   const name = Object.keys(deps).find((d) => !before.includes(d)) ?? (spec.startsWith("@") ? `@${spec.slice(1).split("@")[0]}` : spec.split("@")[0]);
   const mod = (await projectJiti(dir).import(name).catch(() => ({}))) as Record<string, unknown>;
-  const found = Object.entries(mod).find(([, v]) => typeof v === "function" && (() => { try { return (v as () => GtmPlugin)()?.api === 1; } catch { return false; } })());
+  const found = Object.entries(mod).find(([, v]) => typeof v === "function" && (() => { try { return (v as () => RevboundPlugin)()?.api === 1; } catch { return false; } })());
   const factory = found?.[0] ?? "plugin";
   console.log(`\nInstalled ${name}. Add these lines to ${CONFIG}, then run \`npx revbound sync\`:\n`);
   console.log(`  import { ${factory} } from "${name}";`);
@@ -109,7 +109,7 @@ export async function diff(args: string[]): Promise<void> {
   if (!existsSync(pristine)) throw new Error(`plugins/${name} was not ejected with revbound eject (no ${EJECT}/).`);
   const { src, version } = sourceOf(dir, name);
   const from = readFileSync(join(dir, "plugins", name, EJECT, "version"), "utf8").trim();
-  const upstream = join(dir, ".gtm", "diff", name);
+  const upstream = join(dir, ".revbound", "diff", name);
   copyPlugin(src, upstream, name);
   const rel = (p: string) => relative(dir, p).split(sep).join("/");
   const out = spawnSync("git", ["diff", "--no-index", "--stat", "--patch", rel(pristine), rel(upstream)], { cwd: dir, encoding: "utf8" });

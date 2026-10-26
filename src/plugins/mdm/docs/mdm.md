@@ -1,9 +1,9 @@
 # MDM: people, companies and signals
 
 `mdm` (master data management) keeps one de-duplicated set of **people**, **companies** and **signals** in the company's
-own Postgres (schema `gtm_mdm`). Every workflow pushes what it finds into it and gets back the one record it already
-is, or a new one. Enrichment runs on that set, so each person or company is enriched once, and every field says where
-it came from and when.
+own Postgres (schema `revbound_mdm`). Every workflow pushes what it finds into it and gets back the one record it
+already is, or a new one. Enrichment runs on that set, so each person or company is enriched once, and every field says
+where it came from and when.
 
 It is optional. Add it to a project:
 
@@ -12,12 +12,12 @@ npx revbound add mdm          # prints the two lines below; nothing to install, 
 ```
 
 ```ts
-import { mdm } from "revbound/mdm";   // in gtm.config.ts
+import { mdm } from "revbound/mdm";   // in revbound.config.ts
     mdm(),                                     // in plugins: [...]
 ```
 
-Then `npx revbound sync` and `npx revbound migrate` (or restart `npm run dev`). It needs `database` and the ledger, and uses
-`workflows` to stamp each write with its run. The console gets People, Companies and Signals.
+Then `npx revbound sync` and `npx revbound migrate` (or restart `npm run dev`). It needs `database` and the ledger, and
+uses `workflows` to stamp each write with its run. The console gets People, Companies and Signals.
 
 ## Records and their keys
 
@@ -37,7 +37,7 @@ Then `npx revbound sync` and `npx revbound migrate` (or restart `npm run dev`). 
   other records' keys stay with them, and the result's `conflicts` lists those records. Decide, then `merge()`.
 - A person or company with no key at all is refused. mdm never matches on names.
 
-## Helpers from `#gtm/mdm`
+## Helpers from `#revbound/mdm`
 
 Each is one step, so call them from workflow code or inside your own steps.
 
@@ -59,8 +59,8 @@ running workflow's name. Every write also records the workflow and its ledger ru
 ### Enrich once
 
 ```ts
-import { agent } from "#gtm/ai";
-import { stale, upsertCompany, upsertPerson } from "#gtm/mdm";
+import { agent } from "#revbound/ai";
+import { stale, upsertCompany, upsertPerson } from "#revbound/mdm";
 import { z } from "zod";
 
 export async function importLeads(input: { leads: { email: string; name: string; domain: string }[] }) {
@@ -127,9 +127,10 @@ await mdm.upsertCompany({ domain, fields: { employees } }, { source: "acme-vendo
   A replacement keeps the plugin name `mdm` and the slot.
 - Store a record's id (a uuid) in your own tables to link to it, never a copy of its fields. Ids never change; a merged
   id resolves to the record it went into (`findPerson({ id })`).
-- Reading the tables directly is fine for reports and joins, never for writes: `gtm_mdm.people`, `gtm_mdm.companies`
-  (live rows have `merged_into is null`), `gtm_mdm.signals`, `gtm_mdm.keys` (`record_type`, `key`, `value`,
-  `record_id`) and `gtm_mdm.fields` (`record_id`, `field`, `value`, `source`, `workflow`, `run_id`, `set_at`).
+- Reading the tables directly is fine for reports and joins, never for writes: `revbound_mdm.people`,
+  `revbound_mdm.companies` (live rows have `merged_into is null`), `revbound_mdm.signals`, `revbound_mdm.keys`
+  (`record_type`, `key`, `value`, `record_id`) and `revbound_mdm.fields` (`record_id`, `field`, `value`, `source`,
+  `workflow`, `run_id`, `set_at`).
 - Push ids from your system as `ids: { <system>: id }`, so later writes from it match the same record.
 
 More record types (job postings, say) can join later: keys, fields and signals already name their record by type.
@@ -139,11 +140,11 @@ More record types (job postings, say) can join later: keys, fields and signals a
 To delete everything mdm holds about one person, after a yes in chat:
 
 ```sql
-with p as (select id from gtm_mdm.people where id = (select record_id from gtm_mdm.keys where key = 'email' and value = 'person@example.com'))
-, s as (delete from gtm_mdm.signals where record_id in (select id from p))
-, f as (delete from gtm_mdm.fields where record_id in (select id from p))
-, k as (delete from gtm_mdm.keys where record_id in (select id from p))
-delete from gtm_mdm.people where id in (select id from p) or merged_into in (select id from p);
+with p as (select id from revbound_mdm.people where id = (select record_id from revbound_mdm.keys where key = 'email' and value = 'person@example.com'))
+, s as (delete from revbound_mdm.signals where record_id in (select id from p))
+, f as (delete from revbound_mdm.fields where record_id in (select id from p))
+, k as (delete from revbound_mdm.keys where record_id in (select id from p))
+delete from revbound_mdm.people where id in (select id from p) or merged_into in (select id from p);
 ```
 
 The ledger keeps its own natural keys (docs: ledger).

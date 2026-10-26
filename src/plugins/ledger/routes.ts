@@ -39,7 +39,7 @@ export async function runs(req: Request, ctx: RouteCtx): Promise<Response> {
       r.approved_max_usd::float8 as approved_max_usd, r.approval_note, r.started_at, r.finished_at,
       to_char(r.started_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as at,
       coalesce(c.cost_usd, 0)::float8 as cost_usd, coalesce(c.calls, 0)::int as calls, coalesce(c.unmetered, 0)::int as unmetered
-    from gtm_ledger.runs r left join gtm_ledger.run_costs c on c.run_id = r.id
+    from revbound_ledger.runs r left join revbound_ledger.run_costs c on c.run_id = r.id
     where ${sql.join(where, sql` and `)} order by r.started_at desc, r.id desc limit 51`);
   after(() => ctx.get("ledger").reconcile().catch((e: Error) => console.error("[revbound] reconcile failed", e)));
   const data = rows.slice(0, 50).map((r: Record<string, any>) => ({

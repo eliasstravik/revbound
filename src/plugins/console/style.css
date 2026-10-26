@@ -1,4 +1,4 @@
-/* The Console's shared stylesheet: the gtm-skills workflows viewer's look (Geist, neutral greys, 24px edges, hairline
+/* The Console's shared stylesheet: a quiet workflows-viewer look (Geist, neutral greys, 24px edges, hairline
    rules), with a sidebar instead of top tabs. Light and dark follow the system setting. */
 :root {
   color-scheme: light dark;

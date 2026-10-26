@@ -18,7 +18,7 @@ export function value(name: string, env: Env = process.env): string | undefined 
  * deployments carry (`vercel env pull` never writes it). Anything under `next dev` (and so `revbound dev`) is never hosted.
  */
 export function isHosted(env: Env = process.env): boolean {
-  if (env.NODE_ENV === "development" || env.GTM_DEV === "1") return false;
+  if (env.NODE_ENV === "development" || env.REVBOUND_DEV === "1") return false;
   return (env.VERCEL_ENV === "preview" || env.VERCEL_ENV === "production") && value("VERCEL_DEPLOYMENT_ID", env) != null;
 }
 
@@ -28,24 +28,24 @@ export function environment(env: Env = process.env): Environment {
   return isHosted(env) ? (env.VERCEL_ENV as "preview" | "production") : "local";
 }
 
-/** The local app port: GTM_PORT, default 3000. */
+/** The local app port: REVBOUND_PORT, default 3000. */
 export function appPort(env: Env = process.env): number {
-  const port = Number(value("GTM_PORT", env) ?? 3000);
-  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error(`GTM_PORT must be a port number, not ${env.GTM_PORT}`);
+  const port = Number(value("REVBOUND_PORT", env) ?? 3000);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error(`REVBOUND_PORT must be a port number, not ${env.REVBOUND_PORT}`);
   return port;
 }
 
 /**
- * The app's sub-path, "" at the root: GTM_BASE_PATH (e.g. `/acme`, to share the local Console under a path), which
- * withGtm makes Next's basePath. Inside Next it is the value Next inlined at build.
+ * The app's sub-path, "" at the root: REVBOUND_BASE_PATH (e.g. `/acme`, to share the local Console under a path), which
+ * withRevbound makes Next's basePath. Inside Next it is the value Next inlined at build.
  */
 export function basePath(env: Env = process.env): string {
-  return process.env.__NEXT_ROUTER_BASEPATH || value("GTM_BASE_PATH", env) || "";
+  return process.env.__NEXT_ROUTER_BASEPATH || value("REVBOUND_BASE_PATH", env) || "";
 }
 
-/** Private hostnames the person admits to the local Console (GTM_ALLOWED_HOSTS, comma-separated, off by default). */
+/** Private hostnames the person admits to the local Console (REVBOUND_ALLOWED_HOSTS, comma-separated, off by default). */
 export function allowedHosts(env: Env = process.env): string[] {
-  return (value("GTM_ALLOWED_HOSTS", env) ?? "").split(",").map((h) => h.trim().toLowerCase()).filter(Boolean);
+  return (value("REVBOUND_ALLOWED_HOSTS", env) ?? "").split(",").map((h) => h.trim().toLowerCase()).filter(Boolean);
 }
 
 /** The hosts that always reach the local Console. */
@@ -73,13 +73,13 @@ export const PRODUCTION_DATABASE =
 
 /**
  * The stamp check used by db(), `revbound migrate` and `revbound dev`. `query` runs one SQL statement and returns its rows.
- * A database whose `gtm.meta` stamp names its own identity is refused unless this is hosted production.
+ * A database whose `revbound.meta` stamp names its own identity is refused unless this is hosted production.
  */
 export async function assertNotProduction(query: (sql: string) => Promise<{ value: string }[]>, url: string,
   env: Env = process.env): Promise<void> {
   if (isHosted(env) && env.VERCEL_ENV === "production") return;
-  const rows = await query("select value from gtm.meta where key = 'production'").catch((error: { code?: string }) => {
-    if (error?.code === "42P01" || error?.code === "3F000") return []; // gtm.meta or schema gtm not created yet
+  const rows = await query("select value from revbound.meta where key = 'production'").catch((error: { code?: string }) => {
+    if (error?.code === "42P01" || error?.code === "3F000") return []; // revbound.meta or schema revbound not created yet
     throw error;
   });
   if (rows.some((r) => r.value === databaseIdentity(url))) throw new Error(PRODUCTION_DATABASE);

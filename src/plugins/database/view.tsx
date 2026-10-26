@@ -171,7 +171,7 @@ export function DataView({ tables: only }: { tables?: string[] }) {
       const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(await res.blob()), download: `${table}.${format}` });
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-      setMessage(`Export complete at ${time(Date.now())}.${res.headers.get("x-gtm-truncated") ? " It stops at 10,000 rows or 5 MB." : ""}`);
+      setMessage(`Export complete at ${time(Date.now())}.${res.headers.get("x-revbound-truncated") ? " It stops at 10,000 rows or 5 MB." : ""}`);
     } catch (e) {
       setMessage((e as Error).message);
     } finally {

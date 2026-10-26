@@ -8,7 +8,7 @@ import { suite } from "./suite.mjs";
 
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
 const { startDevDatabase } = await import(path.join(REPO, "dist", "plugins", "database", "localdb.js"));
-const dir = fs.mkdtempSync(path.join(process.env.GTM_TEST_DIR ?? os.tmpdir(), "gtm-pglite-"));
+const dir = fs.mkdtempSync(path.join(process.env.REVBOUND_TEST_DIR ?? os.tmpdir(), "revbound-pglite-"));
 const local = await startDevDatabase(dir);
 after(() => local.stop());
 await suite({ url: local.url, concurrent: false });

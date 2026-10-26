@@ -20,8 +20,8 @@ export async function suite({ url, concurrent }) {
   const provideLedger = (await dist("plugins/ledger/provide.js")).default;
   const { NEEDS_YES } = await dist("plugins/ledger/provide.js");
   const folder = (p) => path.join(REPO, "src", "plugins", p, "migrations");
-  await applyPlan({ sets: [{ id: "database", schema: "gtm", folder: folder("database") }, { id: "ledger", schema: "gtm_ledger", folder: folder("ledger") },
-    { id: "workflows", schema: "gtm_workflows", folder: folder("workflows") }], destructive: [] }, url);
+  await applyPlan({ sets: [{ id: "database", schema: "revbound", folder: folder("database") }, { id: "ledger", schema: "revbound_ledger", folder: folder("ledger") },
+    { id: "workflows", schema: "revbound_workflows", folder: folder("workflows") }], destructive: [] }, url);
 
   const registry = {}, sdk = new Map();
   const workflows = {
@@ -45,7 +45,7 @@ export async function suite({ url, concurrent }) {
     assert.ok(a.ok, `admit refused: ${a.reason}`);
     if (a.existing) return { ...a, sdkRunId: a.existing };
     const sdkRunId = `wrun_${randomUUID()}`;
-    sdk.set(sdkRunId, { sdkRunId, workflow: request.workflow, status, createdAt: new Date().toISOString(), completedAt: null, attributes: attrs ? { gtm_run_id: a.runId } : {}, error: null });
+    sdk.set(sdkRunId, { sdkRunId, workflow: request.workflow, status, createdAt: new Date().toISOString(), completedAt: null, attributes: attrs ? { revbound_run_id: a.runId } : {}, error: null });
     await ledger.started(a.runId, sdkRunId);
     return { ...a, sdkRunId };
   };
@@ -55,21 +55,21 @@ export async function suite({ url, concurrent }) {
     await ledger.refreshRun(run.runId);
   };
   const spend = (run, usd, key = randomUUID(), holder) => ledger.reserve({ sdkRunId: run.sdkRunId, plugin: "test", kind: "paid_api", idempotencyKey: key, estimateUsd: usd, holder });
-  const treeUsd = async (rootId) => Number((await q("select coalesce(sum(coalesce(cost_usd, reserved_usd)), 0)::float8 as usd from gtm_ledger.actions where root_run_id = $1", [rootId]))[0].usd);
+  const treeUsd = async (rootId) => Number((await q("select coalesce(sum(coalesce(cost_usd, reserved_usd)), 0)::float8 as usd from revbound_ledger.actions where root_run_id = $1", [rootId]))[0].usd);
 
   test("admit commits a row before start; start_failed voids it; a refused start is recorded with the 403 text", async () => {
     const plain = wf(), needs = wf({ approval: { required: true } });
     const a = await ledger.admit({ workflow: plain, input: { a: 1 }, trigger: "cli" });
-    assert.equal((await q("select status from gtm_ledger.runs where id = $1", [a.runId]))[0].status, "admitted");
+    assert.equal((await q("select status from revbound_ledger.runs where id = $1", [a.runId]))[0].status, "admitted");
     await ledger.startFailed(a.runId, new Error(`boom with ${process.env.ACME_KEY = "acme-secret-value"}`));
-    const row = (await q("select status, reason from gtm_ledger.runs where id = $1", [a.runId]))[0];
+    const row = (await q("select status, reason from revbound_ledger.runs where id = $1", [a.runId]))[0];
     assert.equal(row.status, "start_failed");
     assert.ok(row.reason.includes("[redacted]") && !row.reason.includes("acme-secret-value"), row.reason);
     const r = await ledger.admit({ workflow: needs, input: {}, trigger: "cli" });
     assert.equal(r.ok, false);
     assert.ok(r.reason.startsWith(NEEDS_YES), r.reason);
     assert.match(NEEDS_YES, /^This workflow needs a person's yes\. Run a preview, show the person the sample and the cost, and ask Yes\/No in chat\. Only after a yes, run it again with `--approve --max-usd`\.$/);
-    assert.equal((await q("select status from gtm_ledger.runs where id = $1", [r.runId]))[0].status, "refused");
+    assert.equal((await q("select status from revbound_ledger.runs where id = $1", [r.runId]))[0].status, "refused");
   });
 
   test("--approve rests on a completed preview of the same input; a fan-out preview completes only when its children are final", async () => {
@@ -89,7 +89,7 @@ export async function suite({ url, concurrent }) {
     }
     const ok = await ledger.admit({ workflow: name, input: same, trigger: "cli", approve: { maxUsd: 5, note: "yes in chat" } });
     assert.ok(ok.ok && ok.approved, ok.reason);
-    const row = (await q("select approved_max_usd::float8 as cap, approval_note, approved_by_preview from gtm_ledger.runs where id = $1", [ok.runId]))[0];
+    const row = (await q("select approved_max_usd::float8 as cap, approval_note, approved_by_preview from revbound_ledger.runs where id = $1", [ok.runId]))[0];
     assert.deepEqual(row, { cap: 5, approval_note: "yes in chat", approved_by_preview: preview.runId });
     assert.equal((await ledger.admit({ workflow: name, input: { other: true }, trigger: "cli", approve: { maxUsd: 5 } })).ok, false, "another input");
   });
@@ -107,7 +107,7 @@ export async function suite({ url, concurrent }) {
     const third = await ledger.admit({ workflow: child, input: 2, trigger: "child", parent: { runId: root.runId, childKey: `${root.runId}:2` } });
     assert.equal(third.ok, false);
     assert.match(third.reason, /at most 2 children/);
-    assert.equal(Number((await q("select count(*) from gtm_ledger.runs where root_run_id = $1 and status <> 'refused'", [root.runId]))[0].count), 3);
+    assert.equal(Number((await q("select count(*) from revbound_ledger.runs where root_run_id = $1 and status <> 'refused'", [root.runId]))[0].count), 3);
   });
 
   test("a child whose start failed starts again on retry; costs that are not $0 or more never lower spend", async () => {
@@ -136,7 +136,7 @@ export async function suite({ url, concurrent }) {
     assert.match(r.reason, new RegExp(`ended on ${yesterday}`));
     const ok = await ledger.admit({ workflow: fresh, input: undefined, trigger: "cron" });
     assert.ok(ok.ok && ok.approved);
-    assert.deepEqual((await q("select approved_max_usd::float8 as cap, approval_note from gtm_ledger.runs where id = $1", [ok.runId]))[0], { cap: 3, approval_note: `schedule until ${later}: weekly` });
+    assert.deepEqual((await q("select approved_max_usd::float8 as cap, approval_note from revbound_ledger.runs where id = $1", [ok.runId]))[0], { cap: 3, approval_note: `schedule until ${later}: weekly` });
     assert.ok((await ledger.admit({ workflow: today, input: undefined, trigger: "cron" })).ok, "approvedUntil today still counts");
     const hook = await ledger.admit({ workflow: fresh, input: {}, trigger: "webhook" });
     assert.equal(hook.ok, false);
@@ -166,7 +166,7 @@ export async function suite({ url, concurrent }) {
     const roots = await Promise.all(Array.from({ length: 30 }, () => begin({ workflow: capped, input: randomUUID(), trigger: "cli" })));
     const results = await Promise.all(roots.map((r) => spend(r, 1)));
     assert.equal(results.filter((r) => r.ok).length, 10);
-    const spent = Number((await q("select coalesce(sum(coalesce(cost_usd, reserved_usd)), 0)::float8 as usd from gtm_ledger.actions where workflow = $1", [capped]))[0].usd);
+    const spent = Number((await q("select coalesce(sum(coalesce(cost_usd, reserved_usd)), 0)::float8 as usd from revbound_ledger.actions where workflow = $1", [capped]))[0].usd);
     assert.equal(spent, 10);
     const parent = wf(), child = wf();
     const root = await begin({ workflow: parent, input: {}, trigger: "cli", approve: { maxUsd: 10 } });
@@ -180,7 +180,7 @@ export async function suite({ url, concurrent }) {
   test("reserve and settle: each retried attempt counts; done-before only after ok; reruns after failed; a reserved row runs again", async () => {
     const run = await begin({ workflow: wf(), input: {}, trigger: "cli" });
     for (const attempt of [1, 2]) assert.ok((await spend(run, 0.1, `${run.sdkRunId}:step_1:${attempt}`)).ok);
-    assert.equal(Number((await q("select count(*) from gtm_ledger.actions where run_id = $1", [run.runId]))[0].count), 2);
+    assert.equal(Number((await q("select count(*) from revbound_ledger.actions where run_id = $1", [run.runId]))[0].count), 2);
     const key = `enrich:${randomUUID()}`;
     const first = await spend(run, 0.2, key, { step: "step_a", attempt: 1 });
     assert.ok(first.ok && !first.repeat);
@@ -194,14 +194,14 @@ export async function suite({ url, concurrent }) {
     await ledger.settle(first.id, { outcome: "failed" });
     const retry = await spend(run, 0.2, key);
     assert.ok(retry.ok && !retry.repeat && retry.id !== first.id, "after failed: a new attempt row");
-    assert.deepEqual((await q("select idempotency_key, attempt from gtm_ledger.actions where id = $1", [retry.id]))[0], { idempotency_key: key, attempt: 2 });
+    assert.deepEqual((await q("select idempotency_key, attempt from revbound_ledger.actions where id = $1", [retry.id]))[0], { idempotency_key: key, attempt: 2 });
     await ledger.settle(retry.id, { costUsd: 0.15, outcome: "ok" });
     assert.equal((await spend(run, 0.2, key)).repeat, "ok", "after ok: done-before");
-    const failed = (await q("select cost_usd, reserved_usd::float8 as r from gtm_ledger.actions where id = $1", [first.id]))[0];
+    const failed = (await q("select cost_usd, reserved_usd::float8 as r from revbound_ledger.actions where id = $1", [first.id]))[0];
     assert.deepEqual(failed, { cost_usd: null, r: 0.2 }, "a failed call with no known cost keeps its reservation counted");
     const leaky = await spend(run, 0.01);
     await ledger.settle(leaky.id, { outcome: "failed", detail: { error: `vendor said no to ${process.env.ACME_KEY}` } });
-    const detail = (await q("select detail from gtm_ledger.actions where id = $1", [leaky.id]))[0].detail;
+    const detail = (await q("select detail from revbound_ledger.actions where id = $1", [leaky.id]))[0].detail;
     assert.equal(detail.error, "vendor said no to [redacted]", "a declared connection's value never lands in the ledger");
     const unmetered = await ledger.reserve({ sdkRunId: run.sdkRunId, plugin: "ai", kind: "model_call", idempotencyKey: randomUUID(), estimateUsd: null });
     assert.ok(unmetered.ok);
@@ -237,15 +237,15 @@ export async function suite({ url, concurrent }) {
     sdk.set(outside, { sdkRunId: outside, workflow: needs, status: "running", createdAt: new Date().toISOString(), completedAt: null, attributes: {} });
     const ext = await ledger.reserve({ sdkRunId: outside, plugin: "ai", kind: "model_call", idempotencyKey: randomUUID(), estimateUsd: 0.01 });
     assert.equal(ext.ok, false);
-    assert.equal((await q("select trigger, root_run_id = id as own from gtm_ledger.runs where sdk_run_id = $1", [outside]))[0].trigger, "external");
-    assert.equal((await q("select outcome from gtm_ledger.actions where id = $1", [ext.id]))[0].outcome, "blocked");
+    assert.equal((await q("select trigger, root_run_id = id as own from revbound_ledger.runs where sdk_run_id = $1", [outside]))[0].trigger, "external");
+    assert.equal((await q("select outcome from revbound_ledger.actions where id = $1", [ext.id]))[0].outcome, "blocked");
     const approved = await begin({ workflow: wf({ approval: { required: true } }), input: {}, trigger: "cron" }).catch(() => undefined);
     void approved;
     const yes = wf({ approval: { required: true }, budget: { perRunUsd: 5, perMonthUsd: 50 }, schedule: { approvedUntil: "2999-01-01", note: "x" } });
     const real = await begin({ workflow: yes, input: undefined, trigger: "cron" });
     assert.ok((await spend(real, 0.5)).ok, "the approved run itself spends");
     const copy = `wrun_${randomUUID()}`;
-    sdk.set(copy, { sdkRunId: copy, workflow: yes, status: "running", createdAt: new Date().toISOString(), completedAt: null, attributes: { gtm_run_id: real.runId } });
+    sdk.set(copy, { sdkRunId: copy, workflow: yes, status: "running", createdAt: new Date().toISOString(), completedAt: null, attributes: { revbound_run_id: real.runId } });
     const rerun = await ledger.reserve({ sdkRunId: copy, plugin: "ai", kind: "model_call", idempotencyKey: randomUUID(), estimateUsd: 0.01 });
     assert.equal(rerun.ok, false, "a re-run with copied attributes is its own external, unapproved root");
   });
@@ -304,11 +304,11 @@ export async function suite({ url, concurrent }) {
   });
 
   test("reconcile: the throttle, links, external discovery, refresh, unknown, start_failed timeout, settling reservations", async () => {
-    await q("update gtm_ledger.meta set value = '-infinity' where key = 'reconcile_at'");
+    await q("update revbound_ledger.meta set value = '-infinity' where key = 'reconcile_at'");
     const name = wf();
     const linked = await ledger.admit({ workflow: name, input: {}, trigger: "http" });
     const sdkLinked = `wrun_${randomUUID()}`;
-    sdk.set(sdkLinked, { sdkRunId: sdkLinked, workflow: name, status: "completed", createdAt: new Date().toISOString(), completedAt: new Date().toISOString(), attributes: { gtm_run_id: linked.runId } });
+    sdk.set(sdkLinked, { sdkRunId: sdkLinked, workflow: name, status: "completed", createdAt: new Date().toISOString(), completedAt: new Date().toISOString(), attributes: { revbound_run_id: linked.runId } });
     const outsider = `wrun_${randomUUID()}`;
     sdk.set(outsider, { sdkRunId: outsider, workflow: name, status: "failed", createdAt: new Date().toISOString(), completedAt: new Date().toISOString(), attributes: {} });
     const gone = await begin({ workflow: name, input: 2, trigger: "cli" });
@@ -317,38 +317,38 @@ export async function suite({ url, concurrent }) {
     sdk.delete(gone.sdkRunId);
     sdk.get(spentRun.sdkRunId).status = "failed";
     const stuck = await ledger.admit({ workflow: name, input: 4, trigger: "cli" });
-    await q("update gtm_ledger.runs set started_at = now() - interval '11 minutes' where id = $1", [stuck.runId]);
+    await q("update revbound_ledger.runs set started_at = now() - interval '11 minutes' where id = $1", [stuck.runId]);
     // Earlier tests leave many runs going; a pass refreshes only the 50 oldest.
-    await q("update gtm_ledger.runs set status = 'completed' where status = 'running' and id <> all($1)", [[gone.runId, spentRun.runId]]);
+    await q("update revbound_ledger.runs set status = 'completed' where status = 'running' and id <> all($1)", [[gone.runId, spentRun.runId]]);
     const pass = await ledger.reconcile();
     assert.equal(pass.ran, true);
     assert.equal((await ledger.reconcile()).ran, false, "one pass a minute");
-    const status = async (id) => (await q("select status from gtm_ledger.runs where id = $1", [id]))[0].status;
-    assert.equal((await q("select sdk_run_id from gtm_ledger.runs where id = $1", [linked.runId]))[0].sdk_run_id, sdkLinked, "linked by its attributes");
-    assert.deepEqual((await q("select trigger, status from gtm_ledger.runs where sdk_run_id = $1", [outsider]))[0], { trigger: "external", status: "failed" });
+    const status = async (id) => (await q("select status from revbound_ledger.runs where id = $1", [id]))[0].status;
+    assert.equal((await q("select sdk_run_id from revbound_ledger.runs where id = $1", [linked.runId]))[0].sdk_run_id, sdkLinked, "linked by its attributes");
+    assert.deepEqual((await q("select trigger, status from revbound_ledger.runs where sdk_run_id = $1", [outsider]))[0], { trigger: "external", status: "failed" });
     assert.equal(await status(gone.runId), "unknown", "its SDK record is gone");
     assert.equal(await status(spentRun.runId), "failed");
     assert.equal(await status(stuck.runId), "start_failed");
-    assert.equal((await q("select outcome from gtm_ledger.actions where id = $1", [open.id]))[0].outcome, "unknown", "a reservation on an ended run stays counted as unknown");
-    assert.notEqual((await q("select value from gtm_ledger.meta where key = 'reconcile_cursor'"))[0].value, "-infinity", "the cursor moved");
-    await q("update gtm_ledger.meta set value = '-infinity' where key = 'reconcile_at'");
+    assert.equal((await q("select outcome from revbound_ledger.actions where id = $1", [open.id]))[0].outcome, "unknown", "a reservation on an ended run stays counted as unknown");
+    assert.notEqual((await q("select value from revbound_ledger.meta where key = 'reconcile_cursor'"))[0].value, "-infinity", "the cursor moved");
+    await q("update revbound_ledger.meta set value = '-infinity' where key = 'reconcile_at'");
     assert.equal((await ledger.reconcile()).external, 0, "a second pass inserts nothing twice");
   });
 
   test("reconcile: refresh takes running rows in turn, so 50 older open runs never hide a newer finished one", async () => {
-    await q("update gtm_ledger.runs set status = 'completed' where status = 'running'");
+    await q("update revbound_ledger.runs set status = 'completed' where status = 'running'");
     const name = wf();
     for (let i = 0; i < 50; i += 1) await begin({ workflow: name, input: { old: i }, trigger: "cli" });
-    await q("update gtm_ledger.runs set started_at = now() - interval '1 hour' where workflow = $1", [name]);
+    await q("update revbound_ledger.runs set started_at = now() - interval '1 hour' where workflow = $1", [name]);
     const newer = await begin({ workflow: name, input: { newer: true }, trigger: "cli" });
     sdk.get(newer.sdkRunId).status = "completed";
-    const status = async () => (await q("select status from gtm_ledger.runs where id = $1", [newer.runId]))[0].status;
+    const status = async () => (await q("select status from revbound_ledger.runs where id = $1", [newer.runId]))[0].status;
     for (let pass = 0; pass < 2 && (await status()) === "running"; pass += 1) {
-      await q("update gtm_ledger.meta set value = '-infinity' where key = 'reconcile_at'");
+      await q("update revbound_ledger.meta set value = '-infinity' where key = 'reconcile_at'");
       assert.equal((await ledger.reconcile()).refreshed, 50);
     }
     assert.equal(await status(), "completed", "refreshed within two passes");
-    await q("update gtm_ledger.runs set status = 'completed' where status = 'running'");
+    await q("update revbound_ledger.runs set status = 'completed' where status = 'running'");
   });
 
   test("the views: run_costs per run and per tree, spend_by_workflow_month", async () => {
@@ -356,9 +356,9 @@ export async function suite({ url, concurrent }) {
     const root = await begin({ workflow: name, input: {}, trigger: "cli" });
     const r = await spend(root, 0.25);
     await ledger.settle(r.id, { costUsd: 0.2, outcome: "ok" });
-    const row = (await q("select cost_usd::float8 as c, tree_cost_usd::float8 as t, calls from gtm_ledger.run_costs where run_id = $1", [root.runId]))[0];
+    const row = (await q("select cost_usd::float8 as c, tree_cost_usd::float8 as t, calls from revbound_ledger.run_costs where run_id = $1", [root.runId]))[0];
     assert.deepEqual(row, { c: 0.2, t: 0.2, calls: "1" });
-    assert.equal(Number((await q("select cost_usd from gtm_ledger.spend_by_workflow_month where workflow = $1", [name]))[0].cost_usd), 0.2);
+    assert.equal(Number((await q("select cost_usd from revbound_ledger.spend_by_workflow_month where workflow = $1", [name]))[0].cost_usd), 0.2);
   });
 
   test("teardown", async () => { await client.end(); await database.db().$client.end(); });

@@ -7,8 +7,8 @@ import { codeFindings } from "../../dist/core/check.js";
 import { mask } from "../../dist/core/mask.js";
 import { parseSkill } from "../../dist/kit/skill.js";
 
-const VARS = ["VERCEL_ENV", "VERCEL_DEPLOYMENT_ID", "NODE_ENV", "GTM_DEV", "AI_GATEWAY_API_KEY", "VERCEL_OIDC_TOKEN", "ANTHROPIC_API_KEY",
-  "OPENAI_API_KEY", "GTM_MODEL", "GTM_AGENT_BACKEND"];
+const VARS = ["VERCEL_ENV", "VERCEL_DEPLOYMENT_ID", "NODE_ENV", "REVBOUND_DEV", "AI_GATEWAY_API_KEY", "VERCEL_OIDC_TOKEN", "ANTHROPIC_API_KEY",
+  "OPENAI_API_KEY", "REVBOUND_MODEL", "REVBOUND_AGENT_BACKEND"];
 /** Runs fn with exactly these of VARS set. */
 function withEnv(env, fn) {
   const saved = Object.fromEntries(VARS.map((k) => [k, process.env[k]]));
@@ -21,19 +21,19 @@ const route = (env, o = {}) => withEnv(env, () => chooseBackend({ name: "stage",
 
 test("backend: hosted and laptop Gateway, then API keys, then the CLI", () => {
   assert.deepEqual(route({ VERCEL_ENV: "production", VERCEL_DEPLOYMENT_ID: "dpl_1" }), { kind: "gateway", model: "openai/gpt-6-luna" });
-  assert.deepEqual(route({ VERCEL_ENV: "production", VERCEL_DEPLOYMENT_ID: "dpl_1", GTM_AGENT_BACKEND: "claude" }), { kind: "gateway", model: "anthropic/claude-haiku-5.5" });
+  assert.deepEqual(route({ VERCEL_ENV: "production", VERCEL_DEPLOYMENT_ID: "dpl_1", REVBOUND_AGENT_BACKEND: "claude" }), { kind: "gateway", model: "anthropic/claude-haiku-5.5" });
   assert.equal(route({ VERCEL_ENV: "production", VERCEL_DEPLOYMENT_ID: "dpl_1", NODE_ENV: "development" }).kind, "cli", "next dev is never hosted");
-  assert.deepEqual(route({ AI_GATEWAY_API_KEY: "k", GTM_MODEL: "anthropic/claude-sonnet-5.5" }), { kind: "gateway", model: "anthropic/claude-sonnet-5.5" });
-  assert.deepEqual(route({ AI_GATEWAY_API_KEY: "k", GTM_MODEL: "x/y" }, { model: "openai/gpt-6" }), { kind: "gateway", model: "openai/gpt-6" }, "a stage's model wins");
+  assert.deepEqual(route({ AI_GATEWAY_API_KEY: "k", REVBOUND_MODEL: "anthropic/claude-sonnet-5.5" }), { kind: "gateway", model: "anthropic/claude-sonnet-5.5" });
+  assert.deepEqual(route({ AI_GATEWAY_API_KEY: "k", REVBOUND_MODEL: "x/y" }, { model: "openai/gpt-6" }), { kind: "gateway", model: "openai/gpt-6" }, "a stage's model wins");
   assert.equal(route({ VERCEL_OIDC_TOKEN: jwt({ exp: Date.now() / 1000 + 600 }) }).kind, "gateway");
   assert.throws(() => route({ VERCEL_OIDC_TOKEN: jwt({ exp: 1 }) }), /expired.*vercel env pull/);
   assert.deepEqual(route({ ANTHROPIC_API_KEY: "k" }), { kind: "anthropic", id: "claude-haiku-5-5" }, "the default family has no key: the other one");
   assert.deepEqual(route({ ANTHROPIC_API_KEY: "k", OPENAI_API_KEY: "k" }), { kind: "openai", id: "gpt-6-luna" });
-  assert.deepEqual(route({ OPENAI_API_KEY: "k", GTM_MODEL: "openai/gpt-6" }), { kind: "openai", id: "gpt-6" });
+  assert.deepEqual(route({ OPENAI_API_KEY: "k", REVBOUND_MODEL: "openai/gpt-6" }), { kind: "openai", id: "gpt-6" });
   assert.throws(() => route({ OPENAI_API_KEY: "k" }, { model: "anthropic/claude-sonnet-5.5" }), /needs ANTHROPIC_API_KEY/);
   assert.deepEqual(route({}), { kind: "cli", cli: undefined });
-  assert.deepEqual(route({ GTM_AGENT_BACKEND: " Codex " }), { kind: "cli", cli: "codex" });
-  assert.deepEqual(route({ GTM_AGENT_BACKEND: "gateway" }), { kind: "cli", cli: undefined });
+  assert.deepEqual(route({ REVBOUND_AGENT_BACKEND: " Codex " }), { kind: "cli", cli: "codex" });
+  assert.deepEqual(route({ REVBOUND_AGENT_BACKEND: "gateway" }), { kind: "cli", cli: undefined });
   assert.throws(() => route({}, { custom: true }), /custom tools need AI Gateway or an API key/);
 });
 
@@ -50,7 +50,7 @@ test("providerModel and cliModel: a CLI gets a model only of its own family", ()
     assert.equal(cliModel("claude", "google/gemini-4"), undefined);
     assert.equal(cliModel("claude"), undefined, "no model named: the CLI's own default");
   });
-  withEnv({ GTM_MODEL: "openai/gpt-6" }, () => assert.equal(cliModel("codex"), "gpt-6"));
+  withEnv({ REVBOUND_MODEL: "openai/gpt-6" }, () => assert.equal(cliModel("codex"), "gpt-6"));
 });
 
 test("sanitizeSchema drops $schema and string formats, not properties named format", () => {
@@ -110,7 +110,7 @@ test("excerpt masks keys and tokens and stays short", () => {
 });
 
 test("revbound check flags AI SDK imports and model ids in workflows/, not agent() or a stage's own model", () => {
-  const src = `import { agent, tool } from "#gtm/ai";\nimport type { ModelMessage } from "ai";\nimport { generateObject } from "ai";
+  const src = `import { agent, tool } from "#revbound/ai";\nimport type { ModelMessage } from "ai";\nimport { generateObject } from "ai";
 import { gateway } from "@ai-sdk/gateway";\nconst MODEL = "openai/gpt-6";\nawait agent({ name: "a", model: "anthropic/claude-sonnet-5.5" });\nfetch("https://api.openai.com/v1");`;
   assert.deepEqual(codeFindings([["workflows/x.ts", src]], []).map((f) => f.message),
     ['workflows/x.ts:3 imports "ai".', 'workflows/x.ts:4 imports "@ai-sdk/gateway".', 'workflows/x.ts names the model "openai/gpt-6".']);

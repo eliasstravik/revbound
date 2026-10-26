@@ -8,7 +8,7 @@ const USAGE = "Usage: revbound run <workflow> [--input <json>] [--preview] [--ap
 type Row = { id: string; workflow: string; status: string; returnValue: unknown; error: string | null; costUsd: number | null; unmetered: number };
 
 /**
- * `revbound run`: starts a run with POST /api/gtm/start/<workflow> on 127.0.0.1:$GTM_PORT (or GTM_PRODUCTION_URL with the
+ * `revbound run`: starts a run with POST /api/revbound/start/<workflow> on 127.0.0.1:$REVBOUND_PORT (or REVBOUND_PRODUCTION_URL with the
  * bypass header), then polls it and prints status, return value, error and cost as JSON. `--preview` waits for the whole
  * tree and prints each child's return value too. Exits non-zero unless the run completed.
  */
@@ -25,20 +25,20 @@ export default async function run(args: string[], ctx: CliCtx): Promise<void> {
   let input: unknown;
   try { input = values.input === undefined ? undefined : JSON.parse(values.input); }
   catch { throw new Error(`--input must be JSON, e.g. --input '{"limit":5}'`); }
-  const headers: Record<string, string> = { "content-type": "application/json", "x-gtm-client": "cli" };
+  const headers: Record<string, string> = { "content-type": "application/json", "x-revbound-client": "cli" };
   let base = `http://127.0.0.1:${appPort()}${basePath()}`;
   if (values.prod) {
-    const url = value("GTM_PRODUCTION_URL"), secret = value("GTM_BYPASS_SECRET");
-    if (!url || !secret) throw new Error("--prod needs GTM_PRODUCTION_URL and GTM_BYPASS_SECRET in .env.local (`npx revbound docs deploy`).");
+    const url = value("REVBOUND_PRODUCTION_URL"), secret = value("REVBOUND_BYPASS_SECRET");
+    if (!url || !secret) throw new Error("--prod needs REVBOUND_PRODUCTION_URL and REVBOUND_BYPASS_SECRET in .env.local (`npx revbound docs deploy`).");
     base = new URL(url.includes("://") ? url : `https://${url}`).origin;
     headers["x-vercel-protection-bypass"] = secret;
   }
   const call = async (path: string, init: RequestInit = {}) => {
-    const res = await fetch(`${base}/api/gtm${path}`, { ...init, headers, redirect: "manual" }).catch((error: Error) => {
+    const res = await fetch(`${base}/api/revbound${path}`, { ...init, headers, redirect: "manual" }).catch((error: Error) => {
       throw new Error(values.prod ? `${base} is unreachable: ${error.message}` : `Nothing answers on ${base}; start \`npm run dev\` first.`);
     });
     if (res.status === 401 || (res.status >= 300 && res.status < 400))
-      throw new Error(`Vercel's login answered instead of the app (${res.status}); GTM_BYPASS_SECRET is wrong or outdated.`);
+      throw new Error(`Vercel's login answered instead of the app (${res.status}); REVBOUND_BYPASS_SECRET is wrong or outdated.`);
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(`${res.status} from ${path}: ${json.error ?? res.statusText}`);
     return json;

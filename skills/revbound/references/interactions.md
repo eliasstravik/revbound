@@ -25,12 +25,12 @@ Created Acme's project. Its description says Acme sells product analytics to Saa
 **Agent:** Saved. Acme's project is ready whenever there is more to add.
 
 **Files:**
-- created the project folder `gtm-acme/` (`init --company Acme`)
+- created the project folder `revbound-acme/` (`init --company Acme`)
 - changed `context/company.md` (heading and description only)
 
 ## Add context when asked
 
-**Setup:** Project gtm-acme exists with only `context/company.md`.
+**Setup:** Project revbound-acme exists with only `context/company.md`.
 
 **Human:** Add our ICP: B2B SaaS companies, 50 to 200 people, US or UK, on HubSpot.
 
@@ -68,4 +68,5 @@ Done. 512 of 800 fit, for $11.40; the Data view's qualified_companies table has 
 
 **Commands:**
 - `npx revbound run score-inbound --input '{"month":"2026-09"}' --preview`
-- after the Yes: `npx revbound run score-inbound --input '{"month":"2026-09"}' --approve --max-usd 15 --note "Yes in chat"`
+- after the Yes:
+  `npx revbound run score-inbound --input '{"month":"2026-09"}' --approve --max-usd 15 --note "Yes in chat"`

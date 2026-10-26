@@ -23,11 +23,11 @@ export function mdm() {
     runtime: { from: `${P}/runtime`, step: `${P}/step`, exports: ["upsertCompany", "upsertPerson", "upsertSignal", "findCompany", "findPerson", "merge", "known", "stale", "signals"] },
     migrations: `${SRC}/migrations`,
     tables: [
-      { schema: "gtm_mdm", name: "people", label: "MDM: people" },
-      { schema: "gtm_mdm", name: "companies", label: "MDM: companies" },
-      { schema: "gtm_mdm", name: "signals", label: "MDM: signals" },
-      { schema: "gtm_mdm", name: "keys", label: "MDM: matching keys" },
-      { schema: "gtm_mdm", name: "fields", label: "MDM: where each field came from" },
+      { schema: "revbound_mdm", name: "people", label: "MDM: people" },
+      { schema: "revbound_mdm", name: "companies", label: "MDM: companies" },
+      { schema: "revbound_mdm", name: "signals", label: "MDM: signals" },
+      { schema: "revbound_mdm", name: "keys", label: "MDM: matching keys" },
+      { schema: "revbound_mdm", name: "fields", label: "MDM: where each field came from" },
     ],
     routes: [
       { path: "mdm/people", methods: ["GET"], access: "session", handler: `${P}/routes#people` },
@@ -44,7 +44,7 @@ export function mdm() {
       { path: "signals", title: "Signals", nav: { label: "Signals", order: 32 }, fill: true, component: `${P}/views#SignalsView` },
     ],
     agents: `- People, companies and signals a workflow finds go into mdm with \`upsertPerson\`, \`upsertCompany\` and \`upsertSignal\` from
-  \`#gtm/mdm\`, which match them to the one existing record (email, domain, LinkedIn URL or an id in another system) or create
+  \`#revbound/mdm\`, which match them to the one existing record (email, domain, LinkedIn URL or an id in another system) or create
   it. Before enriching a record, ask \`stale(record, fields, { maxAgeDays })\` and enrich only what it returns; write the
   results back as \`fields\` with the vendor as \`source\`. Never keep a second copy of people or companies in company
   tables: store the mdm id instead (docs: mdm).`,

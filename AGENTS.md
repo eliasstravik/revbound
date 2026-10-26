@@ -22,7 +22,7 @@ descriptions and comments, reviews, issues, releases and CI logs. Never put any 
   real workspace;
 - local paths (home folders on Linux, macOS or Windows) and links to local reports or files.
 
-Use placeholders instead: Acme, `example.com`, `box.tail1234.ts.net`, `gtm-acme.vercel.app`, `U0MEMBER01`. Anything
+Use placeholders instead: Acme, `example.com`, `box.tail1234.ts.net`, `revbound-acme.vercel.app`, `U0MEMBER01`. Anything
 private for a reviewer goes in the task's private report, never in the pull request. CI's privacy check
 (`.github/workflows/privacy.yml`, rules in `.github/private-data.toml`) fails the build on the patterns it can see;
 company data it cannot, so this rule still holds where the check is silent.

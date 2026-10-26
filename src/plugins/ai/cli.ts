@@ -13,7 +13,7 @@ export type Reasoning = "none" | "minimal" | "low" | "medium" | "high" | "xhigh"
 export type Usage = { inputTokens: number; outputTokens: number };
 
 export type CliAgentOptions = {
-  /** GTM_AGENT_BACKEND; else whichever binary is on PATH, claude first. */
+  /** REVBOUND_AGENT_BACKEND; else whichever binary is on PATH, claude first. */
   backend?: CliBackend;
   instructions: string;
   prompt: string;
@@ -33,7 +33,7 @@ export type CliAgentResult = { value: unknown; costUsd: number; modelCalls: numb
 
 /** Everything the CLIs need to find their own login and config; nothing of the app's. CLAUDE* is never passed. */
 const KEEP = /^(PATH|HOME|USER|LOGNAME|SHELL|TMPDIR|TMP|TEMP|TERM|COLORTERM|TZ|LANG|LANGUAGE|LC_[A-Z_]+|XDG_[A-Z_]+|DBUS_SESSION_BUS_ADDRESS|SSH_AUTH_SOCK|SYSTEMROOT|SystemRoot|APPDATA|LOCALAPPDATA|USERPROFILE|HOMEDRIVE|HOMEPATH|CODEX_HOME|HTTPS?_PROXY|https?_proxy|NO_PROXY|no_proxy|SSL_CERT_FILE|SSL_CERT_DIR|NODE_EXTRA_CA_CERTS)$/;
-const NOTICE = Symbol.for("gtm.planLimitsNotice");
+const NOTICE = Symbol.for("revbound.planLimitsNotice");
 
 /** Neither CLI has "none" or "minimal" for its default models; both take low, medium, high, xhigh and max. */
 const effort = (r: Reasoning) => (r === "none" || r === "minimal" ? "low" : r);
@@ -67,9 +67,9 @@ export function codexArgs(o: CliAgentOptions, last: string, schema?: string): { 
     if (s.allow) args.push("-c", `mcp_servers.${n}.enabled_tools=${JSON.stringify(s.allow)}`);
     for (const [header, v] of Object.entries(mcpAuth(s))) {
       const bearer = header.toLowerCase() === "authorization" && v.startsWith("Bearer ");
-      env[`GTM_MCP_KEY_${i}`] = bearer ? v.slice(7) : v;
-      args.push("-c", bearer ? `mcp_servers.${n}.bearer_token_env_var="GTM_MCP_KEY_${i}"`
-        : `mcp_servers.${n}.env_http_headers={ ${JSON.stringify(header)} = "GTM_MCP_KEY_${i}" }`);
+      env[`REVBOUND_MCP_KEY_${i}`] = bearer ? v.slice(7) : v;
+      args.push("-c", bearer ? `mcp_servers.${n}.bearer_token_env_var="REVBOUND_MCP_KEY_${i}"`
+        : `mcp_servers.${n}.env_http_headers={ ${JSON.stringify(header)} = "REVBOUND_MCP_KEY_${i}" }`);
     }
   });
   return { args, env };
@@ -151,7 +151,7 @@ export async function runAgentCli(o: CliAgentOptions): Promise<CliAgentResult> {
       " Setting AI_GATEWAY_API_KEY, ANTHROPIC_API_KEY or OPENAI_API_KEY moves them to an API.");
   }
   const env: Record<string, string> = Object.fromEntries(Object.entries(process.env).filter((e): e is [string, string] => KEEP.test(e[0]) && e[1] != null));
-  const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "gtm-agent-"));
+  const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "revbound-agent-"));
   const file = (name: string, text: string) => fs.promises.writeFile(path.join(dir, name), text, { mode: 0o600 }).then(() => path.join(dir, name));
   const servers = Object.entries(o.mcp ?? {});
   const secrets = servers.flatMap(([, s]) => Object.values(mcpAuth(s)).map((v) => v.replace(/^Bearer /, "")));
@@ -205,7 +205,7 @@ async function run(cmd: string, args: string[], stdin: string, cwd: string, env:
     child.stdin.on("error", () => undefined);
     child.on("error", (e: NodeJS.ErrnoException) => {
       clearTimeout(timer);
-      if (!done) reject(e.code === "ENOENT" ? new FatalError(`${cmd} is not on PATH; install it and sign in, or set GTM_AGENT_BACKEND`) : e);
+      if (!done) reject(e.code === "ENOENT" ? new FatalError(`${cmd} is not on PATH; install it and sign in, or set REVBOUND_AGENT_BACKEND`) : e);
       done = true;
     });
     child.on("close", (code, signal) => {

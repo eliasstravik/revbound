@@ -3,38 +3,38 @@ import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, re
 import { basename, delimiter, dirname, join, relative, resolve, sep } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { parseArgs } from "node:util";
-import { isGtmProject, packageRoot, readJson } from "./project.js";
+import { isRevboundProject, packageRoot, readJson } from "./project.js";
 
 /** Entries a folder may already hold and still count as empty. */
 const EMPTY_OK = new Set([".git", ".agents", ".claude", "AGENTS.md", "CLAUDE.md"]);
 /** Starter paths init writes itself instead of copying them verbatim. */
-const SPECIAL = new Set(["gitignore", ".gitignore", "package.json", "AGENTS.md", "CLAUDE.md", ".claude/skills", "node_modules", ".next", "gtm.config.ts"]);
+const SPECIAL = new Set(["gitignore", ".gitignore", "package.json", "AGENTS.md", "CLAUDE.md", ".claude/skills", "node_modules", ".next", "revbound.config.ts"]);
 /** Files init restores in an existing project when they are missing (sync restores the shims). */
-const RESTORED = ["public/_gtm/probe.txt", "webhooks/index.ts", "workflows/index.ts", ".env.example", "vercel.json"];
+const RESTORED = ["public/_revbound/probe.txt", "webhooks/index.ts", "workflows/index.ts", ".env.example", "vercel.json"];
 const SKILLS_TARGET = "../.agents/skills";
 
 const USAGE = "Usage: revbound init [dir] --company <name> [--example]";
 
 /**
  * `revbound init [dir] [--company <name>] [--example] [--package <spec>] [--no-install]`: copies the starter into an empty
- * folder and writes gtm.config.ts with the seven default plugins, or repairs an existing Revbound project (restores missing
+ * folder and writes revbound.config.ts with the seven default plugins, or repairs an existing Revbound project (restores missing
  * wiring, nothing else). Then it installs and runs `revbound sync`. With no dir it repairs the project here, else creates
- * ./gtm-<company>. `--example` (new projects only) adds one small marked example. `--package` (or GTM_PACKAGE_SPEC)
+ * ./revbound-<company>. `--example` (new projects only) adds one small marked example. `--package` (or REVBOUND_PACKAGE_SPEC)
  * replaces the revbound dependency spec; it and `--no-install` are for tests.
  */
 export async function init(args: string[]): Promise<void> {
   const options = { company: { type: "string" }, example: { type: "boolean" }, package: { type: "string" }, "no-install": { type: "boolean" } } as const;
   const { values, positionals } = parseArgs({ args, allowPositionals: true, options });
   if (positionals.length > 1) throw new Error(USAGE);
-  const here = !positionals[0] && isGtmProject(process.cwd());
+  const here = !positionals[0] && isRevboundProject(process.cwd());
   const company = here ? undefined : values.company?.trim() || (positionals[0] ? undefined : await askCompany());
   const dir = resolve(positionals[0] ?? (here ? "." : projectFolder(company!)));
   const starter = join(packageRoot(), "starter");
-  const fresh = !isGtmProject(dir);
+  const fresh = !isRevboundProject(dir);
   if (values.example && !fresh) throw new Error(`${dir} is already a Revbound project; --example is only for a new one.`);
   const repaired = fresh ? [] : repair(dir, starter);
   let backend: string | undefined;
-  if (fresh) backend = create(dir, starter, values.package ?? process.env.GTM_PACKAGE_SPEC, company ?? basename(dir).replace(/^gtm-/, ""));
+  if (fresh) backend = create(dir, starter, values.package ?? process.env.REVBOUND_PACKAGE_SPEC, company ?? basename(dir).replace(/^revbound-/, ""));
   if (values.example) cpSync(join(packageRoot(), "example"), dir, { recursive: true });
   const installed = values["no-install"] ? false : (fresh || !existsSync(join(dir, "node_modules"))) ? install(dir) : true;
   if (values["no-install"]) console.log("Skipped npm install (--no-install); run `npm install`, then `npx revbound sync`.");
@@ -45,7 +45,7 @@ export async function init(args: string[]): Promise<void> {
   const rel = relative(process.cwd(), dir) || ".";
   console.log(fresh ? `\nCreated a Revbound project in ${rel}.`
     : `\n${rel} is already a Revbound project: ${repaired.join("; ") || "nothing to restore"}; generated files are current.`);
-  if (fresh) console.log(backend ? `AI steps run on your local ${backend} login (GTM_AGENT_BACKEND in .env.local).`
+  if (fresh) console.log(backend ? `AI steps run on your local ${backend} login (REVBOUND_AGENT_BACKEND in .env.local).`
     : "AI steps need a provider key or AI Gateway here: no claude or codex is on PATH (`npx revbound docs ai`).");
   if (values.example) console.log("Added the example: workflows/example-import.ts (`npx revbound run example-import`), its table and context/example-icp.md; the workflow file says how to remove it.");
   console.log(`Next:${rel === "." ? "" : `\n  cd ${rel}`}
@@ -54,20 +54,20 @@ export async function init(args: string[]): Promise<void> {
   then fill in context/company.md`);
 }
 
-/** The folder a company's project gets by default: `gtm-<company>`, lowercase and hyphenated ("Acme Inc" → gtm-acme-inc). */
+/** The folder a company's project gets by default: `revbound-<company>`, lowercase and hyphenated ("Acme Inc" → revbound-acme-inc). */
 function projectFolder(company: string): string {
   const slug = company.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "").replace(/^gtm-/, "");
-  if (!slug || slug === "gtm") throw new Error(`"${company}" gives no folder name; pass the company's name, for example --company Acme.`);
-  return `gtm-${slug}`;
+    .replace(/^-+|-+$/g, "").replace(/^revbound-/, "");
+  if (!slug || slug === "revbound") throw new Error(`"${company}" gives no folder name; pass the company's name, for example --company Acme.`);
+  return `revbound-${slug}`;
 }
 
 /** Asks for the company name on a terminal; elsewhere (an agent, CI) the error names the flag. */
 async function askCompany(): Promise<string> {
-  if (!process.stdin.isTTY) throw new Error(`Name the company: revbound init --company Acme creates ./gtm-acme (or give a folder). ${USAGE}`);
+  if (!process.stdin.isTTY) throw new Error(`Name the company: revbound init --company Acme creates ./revbound-acme (or give a folder). ${USAGE}`);
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {
-    const answer = (await rl.question("Company name (the project goes in ./gtm-<company>): ")).trim();
+    const answer = (await rl.question("Company name (the project goes in ./revbound-<company>): ")).trim();
     if (!answer) throw new Error(`No company name given. ${USAGE}`);
     return answer;
   } finally {
@@ -108,7 +108,7 @@ function create(dir: string, starter: string, spec: string | undefined, company:
   const claude = join(dir, "CLAUDE.md");
   const text = existsSync(claude) ? readFileSync(claude, "utf8") : "";
   if (!/^@AGENTS\.md\s*$/m.test(text)) writeFileSync(claude, `@AGENTS.md\n${text ? `\n${text}` : ""}`);
-  writeFileSync(join(dir, "gtm.config.ts"), readFileSync(join(starter, "gtm.config.ts"), "utf8").replace('company: "Company"', () => `company: ${JSON.stringify(company)}`));
+  writeFileSync(join(dir, "revbound.config.ts"), readFileSync(join(starter, "revbound.config.ts"), "utf8").replace('company: "Company"', () => `company: ${JSON.stringify(company)}`));
   const companyFile = join(dir, "context", "company.md");
   writeFileSync(companyFile, readFileSync(companyFile, "utf8").replace(/^# .*$/m, () => `# ${company}`));
   const pkg = readJson(join(starter, "package.json"));
@@ -117,7 +117,7 @@ function create(dir: string, starter: string, spec: string | undefined, company:
   writeFileSync(join(dir, "package.json"), `${JSON.stringify(pkg, null, 2)}\n`);
   linkSkills(dir, true);
   const backend = localBackend();
-  if (backend) writeFileSync(join(dir, ".env.local"), `GTM_AGENT_BACKEND=${backend}\n`, { flag: "wx", mode: 0o600 });
+  if (backend) writeFileSync(join(dir, ".env.local"), `REVBOUND_AGENT_BACKEND=${backend}\n`, { flag: "wx", mode: 0o600 });
   return backend;
 }
 

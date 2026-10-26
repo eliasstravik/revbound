@@ -19,7 +19,7 @@ export async function suite({ url, concurrent }) {
   const provideDb = (await dist("plugins/database/provide.js")).default;
   const provideMdm = (await dist("plugins/mdm/provide.js")).default;
   const folder = (p) => path.join(REPO, "src", "plugins", p, "migrations");
-  await applyPlan({ sets: [{ id: "database", schema: "gtm", folder: folder("database") }, { id: "mdm", schema: "gtm_mdm", folder: folder("mdm") }], destructive: [] }, url);
+  await applyPlan({ sets: [{ id: "database", schema: "revbound", folder: folder("database") }, { id: "mdm", schema: "revbound_mdm", folder: folder("mdm") }], destructive: [] }, url);
   const database = provideDb({});
   const mdm = provideMdm({ manifest: { plugins: [], connections: [] }, plugin: "mdm", options: {}, has: () => true, get: () => database, module: async () => ({}) });
   const client = new pg.Client({ connectionString: url });
@@ -42,7 +42,7 @@ export async function suite({ url, concurrent }) {
     assert.equal((await mdm.findCompany({ ids: { hubspot: "42" } })).id, a.id);
     assert.equal((await mdm.findCompany({ domain: `http://${d}:8080` })).id, a.id);
     assert.equal(await mdm.findCompany({ domain: fresh() }), null);
-    assert.equal((await q("select count(*)::int as n from gtm_mdm.companies where domain = $1", [d]))[0].n, 1);
+    assert.equal((await q("select count(*)::int as n from revbound_mdm.companies where domain = $1", [d]))[0].n, 1);
   });
 
   test("people match on email or LinkedIn profile, link to their company, and a job change moves the link", async () => {
@@ -144,7 +144,7 @@ export async function suite({ url, concurrent }) {
     const all = await mdm.known(p);
     assert.deepEqual([all.email.value, all.email.source, all.linkedin.source, all["id:crm"].value], [`jane@${d}`, "email-vendor", "crawler", "7"], "the first email stays the known one");
     assert.deepEqual(await mdm.stale(p, ["email", "linkedin", "id:crm"]), []);
-    await q("update gtm_mdm.keys set created_at = now() - interval '40 days' where record_id = $1 and key = 'email'", [p.id]);
+    await q("update revbound_mdm.keys set created_at = now() - interval '40 days' where record_id = $1 and key = 'email'", [p.id]);
     assert.deepEqual(await mdm.stale(p, ["email", "linkedin"], { maxAgeDays: 30 }), ["email"]);
   });
 
@@ -158,7 +158,7 @@ export async function suite({ url, concurrent }) {
     assert.deepEqual(await mdm.stale(c, ["industry", "funding", "employees"]), ["employees"]);
     assert.deepEqual(await mdm.stale(c, ["constructor", "toString", "industry"]), ["constructor", "toString"], "names an object inherits are unknown too");
     assert.deepEqual(Object.keys(await mdm.known(c, ["industry", "nope"])), ["industry"]);
-    await q("update gtm_mdm.fields set set_at = now() - interval '40 days' where record_id = $1 and field = 'industry'", [c.id]);
+    await q("update revbound_mdm.fields set set_at = now() - interval '40 days' where record_id = $1 and field = 'industry'", [c.id]);
     assert.deepEqual(await mdm.stale(c, ["industry", "funding"], { maxAgeDays: 30 }), ["industry"]);
     assert.deepEqual(await mdm.stale(c, ["industry", "funding"], { maxAgeDays: 60 }), []);
     await mdm.upsertCompany({ id: c.id, fields: { industry: "Fintech" } }, by("vendor"));

@@ -16,10 +16,10 @@ export default async function checks(ctx: CheckCtx): Promise<CheckResult[]> {
       await assertNotProduction(async (sql) => (await client.query(sql)).rows, u).finally(() => client.end());
       return u;
     });
-    out.push({ level: "info", message: `Database: ${databaseIdentity(url)}${local ? " (local PGlite in .gtm/)" : ""}` });
+    out.push({ level: "info", message: `Database: ${databaseIdentity(url)}${local ? " (local PGlite in .revbound/)" : ""}` });
     if (!local) return out;
     // The URL is stable only when `revbound dev` serves it; a short-lived server's lock is gone by now.
-    const lock = readJson(join(ctx.dir, ".gtm", "db.lock"));
+    const lock = readJson(join(ctx.dir, ".revbound", "db.lock"));
     const live = lock?.dev && lock.port === Number(new URL(url).port) && typeof lock.pid === "number" && alive(lock.pid);
     out.push({ level: "info", message: live ? `DATABASE_URL: ${url} (served by \`revbound dev\` while it runs)` : "DATABASE_URL: the local database has a URL only while `npm run dev` runs; run check again then to print it" });
   } catch (error) {

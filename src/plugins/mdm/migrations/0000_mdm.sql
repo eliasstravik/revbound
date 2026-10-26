@@ -1,31 +1,31 @@
 -- mdm: one de-duplicated set of companies, people and signals, the keys they match on, and where each field came from.
 -- `keys`, `fields` and `signals` name their record by (record_type, record_id), so a later record type reuses them.
-create table gtm_mdm.companies (
+create table revbound_mdm.companies (
   id uuid primary key,
   name text,
   domain text,                         -- the first domain it was matched on; every one is in keys
   linkedin text,
   data jsonb not null default '{}',    -- enriched fields; where each came from is in fields
-  merged_into uuid references gtm_mdm.companies(id),  -- set on a record folded into another; its id then finds that one
+  merged_into uuid references revbound_mdm.companies(id),  -- set on a record folded into another; its id then finds that one
   merged_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create table gtm_mdm.people (
+create table revbound_mdm.people (
   id uuid primary key,
   name text,
   email text,
   linkedin text,
   title text,
-  company_id uuid references gtm_mdm.companies(id),  -- where the person works now
+  company_id uuid references revbound_mdm.companies(id),  -- where the person works now
   data jsonb not null default '{}',
-  merged_into uuid references gtm_mdm.people(id),
+  merged_into uuid references revbound_mdm.people(id),
   merged_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 -- Each normalized key belongs to one record: email, domain, linkedin, or id:<system>.
-create table gtm_mdm.keys (
+create table revbound_mdm.keys (
   record_type text not null,
   key text not null,
   value text not null,
@@ -37,7 +37,7 @@ create table gtm_mdm.keys (
   primary key (record_type, key, value)
 );
 -- The latest value of every field written to a record, who wrote it and when.
-create table gtm_mdm.fields (
+create table revbound_mdm.fields (
   record_type text not null,
   record_id uuid not null,
   field text not null,
@@ -48,7 +48,7 @@ create table gtm_mdm.fields (
   set_at timestamptz not null default now(),
   primary key (record_id, field)
 );
-create table gtm_mdm.signals (
+create table revbound_mdm.signals (
   id uuid primary key,
   record_type text not null,
   record_id uuid not null,
@@ -63,9 +63,9 @@ create table gtm_mdm.signals (
   updated_at timestamptz not null default now(),
   unique (record_id, type, key)
 );
-create index on gtm_mdm.keys (record_id);
-create index on gtm_mdm.people (company_id);
-create index on gtm_mdm.people (created_at, id);
-create index on gtm_mdm.companies (created_at, id);
-create index on gtm_mdm.signals (occurred_at, id);
-create index on gtm_mdm.signals (type, occurred_at);
+create index on revbound_mdm.keys (record_id);
+create index on revbound_mdm.people (company_id);
+create index on revbound_mdm.people (created_at, id);
+create index on revbound_mdm.companies (created_at, id);
+create index on revbound_mdm.signals (occurred_at, id);
+create index on revbound_mdm.signals (type, occurred_at);

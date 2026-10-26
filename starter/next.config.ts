@@ -1,5 +1,5 @@
-import { withGtm } from "revbound/next";
-import manifest from "./gtm/manifest";
-import transforms, { trace } from "./gtm/next";
+import { withRevbound } from "revbound/next";
+import manifest from "./_revbound/manifest";
+import transforms, { trace } from "./_revbound/next";
 
-export default withGtm({}, { manifest, transforms, trace });
+export default withRevbound({}, { manifest, transforms, trace });

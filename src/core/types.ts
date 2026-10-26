@@ -11,7 +11,7 @@ export type Method = "GET" | "POST";
 export type Capability = "spends" | "sends" | "writesPeople";
 
 export type RouteDecl = {
-  /** Under /api/gtm/: fixed segments, `:param` segments and a final `*`. */
+  /** Under /api/revbound/: fixed segments, `:param` segments and a final `*`. */
   path: string;
   methods: Method[];
   access: Access;
@@ -25,7 +25,7 @@ export type ViewDecl = { path: string; title: string; nav?: { label: string; ord
 export type TabDecl = { id: string; title: string; order?: number; component: Code };
 export type CliDecl = { name: string; describe: string; run: Code };
 
-export interface GtmPlugin {
+export interface RevboundPlugin {
   /** Unique, kebab-case; also the binding-file and alias name. */
   name: string;
   api: 1;
@@ -35,9 +35,9 @@ export interface GtmPlugin {
   needs?: string[];
   uses?: string[];
   capabilities?: Capability[];
-  /** Helpers company code imports via `#gtm/<name>`: `from` exports `bind(rt)`, `step` the step-side `run(ctx, op, args)`. */
+  /** Helpers company code imports via `#revbound/<name>`: `from` exports `bind(rt)`, `step` the step-side `run(ctx, op, args)`. */
   runtime?: { from: Code; exports: string[]; step?: Code };
-  /** Own Postgres schema; default "gtm_" + name (snake_case). */
+  /** Own Postgres schema; default "revbound_" + name (snake_case). */
   schema?: string;
   /** Folder of `NNNN_name.sql` migrations, as a package path or a project path. */
   migrations?: string;
@@ -56,7 +56,7 @@ export interface GtmPlugin {
   /** Default export: (ctx) => Promise<CheckResult[]>. */
   checks?: Code;
   trace?: string[];
-  /** Default export: (cfg: NextConfig) => NextConfig, applied by withGtm. */
+  /** Default export: (cfg: NextConfig) => NextConfig, applied by withRevbound. */
   next?: Code;
   /** Default export: (ctx) => Promise<DevHandle | void>, run by `revbound dev` before the app starts. */
   dev?: Code;
@@ -68,9 +68,9 @@ export interface GtmPlugin {
   options?: unknown;
 }
 
-export type GtmConfig = {
+export type RevboundConfig = {
   company: string;
-  plugins: GtmPlugin[];
+  plugins: RevboundPlugin[];
   acknowledge?: { customLedger?: boolean; destructive?: string[] };
 };
 
@@ -84,7 +84,7 @@ export type ManifestRoute = Omit<RouteDecl, "handler"> & { plugin: string; key: 
 export type ManifestView = Omit<ViewDecl, "component"> & { plugin: string };
 export type ManifestTab = Omit<TabDecl, "component"> & { plugin: string };
 
-/** What `revbound sync` writes to gtm/manifest.ts: plain data the proxy, the routes and the console read. */
+/** What `revbound sync` writes to _revbound/manifest.ts: plain data the proxy, the routes and the console read. */
 export type Manifest = {
   api: 1;
   version: string;
@@ -100,7 +100,7 @@ export type Manifest = {
   acknowledge: { customLedger: boolean; destructive: string[] };
 };
 
-/** A plugin's slot map (gtm/slots/<plugin>.ts): its providers, each with its own map, and its project modules. */
+/** A plugin's slot map (_revbound/slots/<plugin>.ts): its providers, each with its own map, and its project modules. */
 export type SlotMap = {
   plugin: string;
   slots: Record<string, { plugin: string; provide: unknown; map: { default: SlotMap } }>;

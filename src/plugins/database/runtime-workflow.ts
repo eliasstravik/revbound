@@ -1,4 +1,4 @@
-/** `#gtm/database` in workflow scope (the `workflow` export condition): no pg, and db() says where it runs. */
+/** `#revbound/database` in workflow scope (the `workflow` export condition): no pg, and db() says where it runs. */
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { Runtime } from "revbound";
 

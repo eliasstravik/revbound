@@ -1,4 +1,4 @@
-/** What `#gtm/ledger` exports: action(), the company-facing helper for paid calls. Workflow-safe: no Node imports. */
+/** What `#revbound/ledger` exports: action(), the company-facing helper for paid calls. Workflow-safe: no Node imports. */
 import type { Runtime } from "revbound";
 
 export type ActionOptions<T> = {

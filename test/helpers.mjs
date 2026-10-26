@@ -22,16 +22,16 @@ export function cleanEnv(extra = {}) {
   return { PATH: process.env.PATH, HOME: process.env.HOME, NEXT_TELEMETRY_DISABLED: "1", EVE_TELEMETRY_DISABLED: "1", ...extra };
 }
 
-/** A fresh work folder under GTM_TEST_DIR (default: the OS temp dir). */
+/** A fresh work folder under REVBOUND_TEST_DIR (default: the OS temp dir). */
 export function makeWorkDir() {
-  const base = process.env.GTM_TEST_DIR ?? os.tmpdir();
+  const base = process.env.REVBOUND_TEST_DIR ?? os.tmpdir();
   fs.mkdirSync(base, { recursive: true });
-  return fs.mkdtempSync(path.join(base, "gtm-acceptance-"));
+  return fs.mkdtempSync(path.join(base, "revbound-acceptance-"));
 }
 
 let logs = null;
 let seq = 0;
-/** Where every command's output is written (GTM_TEST_LOGS, else <work>/logs). */
+/** Where every command's output is written (REVBOUND_TEST_LOGS, else <work>/logs). */
 export function setLogDir(dir) {
   logs = dir;
   fs.mkdirSync(dir, { recursive: true });
@@ -273,11 +273,11 @@ export function listeningSockets(pids) {
   return sockets;
 }
 
-/** Packs the package: GTM_TEST_TARBALL if set, else a copy of this repo (its node_modules linked) built and packed. */
+/** Packs the package: REVBOUND_TEST_TARBALL if set, else a copy of this repo (its node_modules linked) built and packed. */
 export async function packPackage(work) {
-  if (process.env.GTM_TEST_TARBALL) return path.resolve(process.env.GTM_TEST_TARBALL);
+  if (process.env.REVBOUND_TEST_TARBALL) return path.resolve(process.env.REVBOUND_TEST_TARBALL);
   const copy = path.join(work, "pkg-src");
-  const skip = new Set(["node_modules", "dist", ".git", ".gtm"]);
+  const skip = new Set(["node_modules", "dist", ".git", ".revbound"]);
   fs.cpSync(REPO, copy, {
     recursive: true, verbatimSymlinks: true,
     filter: (src) => {
@@ -307,7 +307,7 @@ export async function extractCli(tarball, work) {
 }
 
 /** Snapshot of a project tree: relative path → content hash, "dir", or "-> <link target>". */
-export function snapshot(dir, skip = ["node_modules", ".next", ".gtm", ".workflow-data", ".eve", ".vercel", ".turbo", ".swc"]) {
+export function snapshot(dir, skip = ["node_modules", ".next", ".revbound", ".workflow-data", ".eve", ".vercel", ".turbo", ".swc"]) {
   const out = new Map();
   const walk = (rel) => {
     for (const e of fs.readdirSync(path.join(dir, rel), { withFileTypes: true })) {

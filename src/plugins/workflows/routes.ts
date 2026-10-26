@@ -24,7 +24,7 @@ export async function list(_req: Request, ctx: RouteCtx): Promise<Response> {
 
 /**
  * POST /start/<name> (automation) with `{ input?, preview?, approve?: { maxUsd, note? } }` → { runId, rootId, sdkRunId }.
- * `x-gtm-client: cli` marks a start from `revbound run`. A refusal answers 403 with the ledger's reason.
+ * `x-revbound-client: cli` marks a start from `revbound run`. A refusal answers 403 with the ledger's reason.
  */
 export async function start(req: Request, ctx: RouteCtx): Promise<Response> {
   const text = (await req.text()).trim();
@@ -36,7 +36,7 @@ export async function start(req: Request, ctx: RouteCtx): Promise<Response> {
     throw new HttpError(400, "approve needs maxUsd, a positive number of dollars (--approve --max-usd <n>).");
   }
   const r = await ctx.get("workflows").start(ctx.params.name, body.input, {
-    trigger: req.headers.get("x-gtm-client") === "cli" ? "cli" : "http", preview: body.preview === true,
+    trigger: req.headers.get("x-revbound-client") === "cli" ? "cli" : "http", preview: body.preview === true,
     ...(approve && { approve: { maxUsd: approve.maxUsd as number, ...(typeof approve.note === "string" && { note: approve.note }) } }),
   });
   if (!r.ok) return refused(r);

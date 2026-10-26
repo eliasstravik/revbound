@@ -5,7 +5,7 @@
 export const BYPASS = "x-vercel-protection-bypass";
 const SET_BYPASS_COOKIE = "x-vercel-set-bypass-cookie";
 /** Served from `public/`, outside the proxy's matcher; requested by the fail-closed probe. */
-export const PROBE_PATH = "/_gtm/probe.txt";
+export const PROBE_PATH = "/_revbound/probe.txt";
 /** Statuses that show Vercel's login stands in front of an anonymous request. */
 export const PROTECTED_STATUSES = [301, 302, 303, 307, 308, 401, 403];
 

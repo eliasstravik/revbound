@@ -21,11 +21,11 @@ export function loopback(req: Request): boolean {
   return !site || site === "same-origin" || site === "none";
 }
 
-/** Locally: a loopback or GTM_ALLOWED_HOSTS host, and no cross-site write. */
+/** Locally: a loopback or REVBOUND_ALLOWED_HOSTS host, and no cross-site write. */
 function localHost(req: Request, env: Env): Verdict {
   const host = requestHost(req);
   if (![...LOOPBACK_HOSTS, ...allowedHosts(env)].includes(host.replace(/:\d+$/, ""))) {
-    return no(403, "This host is not allowed. To admit a private hostname, add it to GTM_ALLOWED_HOSTS.");
+    return no(403, "This host is not allowed. To admit a private hostname, add it to REVBOUND_ALLOWED_HOSTS.");
   }
   if (req.method === "GET" || req.method === "HEAD") return OK;
   const site = req.headers.get("sec-fetch-site"), origin = req.headers.get("origin");

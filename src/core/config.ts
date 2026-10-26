@@ -1,12 +1,12 @@
-/** Reading gtm.config.ts (CLI only, through jiti) and finding the files plugins name. */
+/** Reading revbound.config.ts (CLI only, through jiti) and finding the files plugins name. */
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createJiti } from "jiti";
-import type { GtmConfig, GtmPlugin } from "./types.js";
+import type { RevboundConfig, RevboundPlugin } from "./types.js";
 import { packageRoot } from "./project.js";
 
-export const CONFIG = "gtm.config.ts";
+export const CONFIG = "revbound.config.ts";
 export const PACKAGE = "revbound";
 /** The seven default plugins, in the order `revbound init` writes them. */
 export const BASE = ["database", "ledger", "workflows", "ai", "context", "connections", "console"] as const;
@@ -18,35 +18,35 @@ export function projectJiti(dir: string) {
   return createJiti(pathToFileURL(join(dir, "package.json")).href, { moduleCache: false, fsCache: false, interopDefault: true });
 }
 
-/** The project's gtm.config.ts, loaded fresh. */
-export async function loadConfig(dir: string): Promise<GtmConfig> {
+/** The project's revbound.config.ts, loaded fresh. */
+export async function loadConfig(dir: string): Promise<RevboundConfig> {
   const file = join(dir, CONFIG);
   if (!existsSync(file)) throw new Error(`${CONFIG} is missing. Run \`npx ${PACKAGE} init\` in a new folder, or restore it from git.`);
-  let config: GtmConfig;
+  let config: RevboundConfig;
   try {
-    config = (await projectJiti(dir).import(file, { default: true })) as GtmConfig;
+    config = (await projectJiti(dir).import(file, { default: true })) as RevboundConfig;
   } catch (error) {
     throw new Error(`${CONFIG} does not load: ${(error as Error).message}`);
   }
   if (!config || typeof config.company !== "string" || !Array.isArray(config.plugins)) {
-    throw new Error(`${CONFIG} must \`export default defineGtm({ company, plugins: [...] })\`.`);
+    throw new Error(`${CONFIG} must \`export default defineRevbound({ company, plugins: [...] })\`.`);
   }
   for (const [i, p] of config.plugins.entries()) {
     if (!p || typeof p !== "object" || typeof p.name !== "string") throw new Error(`${CONFIG}: plugins[${i}] is not a plugin (call the plugin function, e.g. database()).`);
-    if (p.api !== 1) throw new Error(`The ${p.name} plugin speaks plugin API ${JSON.stringify(p.api)}; this Revbound speaks API 1. Install a version of it made for this gtm.`);
+    if (p.api !== 1) throw new Error(`The ${p.name} plugin speaks plugin API ${JSON.stringify(p.api)}; this Revbound speaks API 1. Install a version of it made for this revbound.`);
   }
   return config;
 }
 
-/** A fresh base plugin from the installed package, as `gtm.config.ts` would get it with default options. */
-export async function basePlugin(dir: string, name: string): Promise<GtmPlugin | undefined> {
+/** A fresh base plugin from the installed package, as `revbound.config.ts` would get it with default options. */
+export async function basePlugin(dir: string, name: string): Promise<RevboundPlugin | undefined> {
   if (!(BASE as readonly string[]).includes(name)) return undefined;
   return firstParty(dir, name);
 }
 
 /** A default or optional plugin of the installed package, with default options. */
-export async function firstParty(dir: string, name: string): Promise<GtmPlugin | undefined> {
-  const mod = (await projectJiti(dir).import(`${PACKAGE}/${name}`)) as Record<string, () => GtmPlugin>;
+export async function firstParty(dir: string, name: string): Promise<RevboundPlugin | undefined> {
+  const mod = (await projectJiti(dir).import(`${PACKAGE}/${name}`)) as Record<string, () => RevboundPlugin>;
   return mod[name]?.();
 }
 

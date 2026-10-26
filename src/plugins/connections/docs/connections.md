@@ -30,8 +30,8 @@ npx revbound connections delete APOLLO_API_KEY
   `$` written as `\$`, which Next's env loading reads back unchanged. The file is written whole and renamed into
   place; other entries are kept. The dev server picks it up within seconds.
 - Values must be one line, not contain both `'` and `` ` ``, and not end in `\`.
-- Never these names: `DATABASE_URL*`, `POSTGRES_*`, `PG*`, `CRON_SECRET`, `GTM_*`, `VERCEL_*`, `NEON_*`. Revbound, Vercel
-  or an integration sets those.
+- Never these names: `DATABASE_URL*`, `POSTGRES_*`, `PG*`, `CRON_SECRET`, `REVBOUND_*`, `VERCEL_*`, `NEON_*`. Revbound,
+  Vercel or an integration sets those.
 - A key set in the shell that started `revbound dev` wins over `.env.local`; its row says so.
 - **Agents can read local keys.** `.env.local` sits in the project folder, and coding agents working there can read
   files in it even when ignore files exclude them. Keep production keys out of `.env.local`, and use keys with the

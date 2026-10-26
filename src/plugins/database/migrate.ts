@@ -23,12 +23,12 @@ function refuseDestructive(pending: { id: string; sql: string }[], acknowledged:
   const bad = pending.filter((m) => risky(m.sql) && !acknowledged.includes(m.id)).map((m) => m.id);
   if (!bad.length) return;
   throw new Error(`revbound migrate refused on production: ${bad.join(", ")} may lose data (DROP, RENAME, TRUNCATE, ALTER … TYPE or DELETE). ` +
-    `After a yes in chat and a Neon backup branch, add ${bad.map((b) => `"${b}"`).join(", ")} to acknowledge.destructive in gtm.config.ts (\`npx revbound docs data\`).`);
+    `After a yes in chat and a Neon backup branch, add ${bad.map((b) => `"${b}"`).join(", ")} to acknowledge.destructive in revbound.config.ts (\`npx revbound docs data\`).`);
 }
 
 /**
  * Applies every plugin's migrations in plan order (each set in one transaction holding the migrate lock, bookkept in
- * `<schema>.__gtm_migrations`), then the company's db/migrations with Drizzle. Hosted production refuses unacknowledged
+ * `<schema>.__revbound_migrations`), then the company's db/migrations with Drizzle. Hosted production refuses unacknowledged
  * destructive migrations first. Returns how many were applied.
  */
 export async function applyPlan(plan: MigrationPlan, url: string): Promise<number> {
@@ -42,15 +42,15 @@ export async function applyPlan(plan: MigrationPlan, url: string): Promise<numbe
       await client.query("begin");
       try {
         // A transaction-scoped advisory lock also holds through Neon's pooler, where a session lock can stay stuck.
-        await client.query("select pg_advisory_xact_lock(hashtext('gtm-migrate'))");
+        await client.query("select pg_advisory_xact_lock(hashtext('revbound-migrate'))");
         await client.query(`create schema if not exists ${ident(set.schema)}`);
-        await client.query(`create table if not exists ${ident(set.schema)}.__gtm_migrations (id text primary key, applied_at timestamptz not null default now())`);
-        const done = new Set((await client.query(`select id from ${ident(set.schema)}.__gtm_migrations`)).rows.map((r) => r.id));
+        await client.query(`create table if not exists ${ident(set.schema)}.__revbound_migrations (id text primary key, applied_at timestamptz not null default now())`);
+        const done = new Set((await client.query(`select id from ${ident(set.schema)}.__revbound_migrations`)).rows.map((r) => r.id));
         const pending = pluginMigrations(set.id, set.folder).filter((m) => !done.has(m.id)).map((m) => ({ ...m, sql: readFileSync(m.file, "utf8") }));
         if (production) refuseDestructive(pending, plan.destructive);
         for (const m of pending) {
           await client.query(m.sql);
-          await client.query(`insert into ${ident(set.schema)}.__gtm_migrations (id) values ($1)`, [m.id]);
+          await client.query(`insert into ${ident(set.schema)}.__revbound_migrations (id) values ($1)`, [m.id]);
         }
         await client.query("commit");
         applied += pending.length;
@@ -72,7 +72,7 @@ export async function stamp(url: string): Promise<void> {
   const client = new pg.Client({ connectionString: url });
   await client.connect();
   try {
-    await client.query("insert into gtm.meta (key, value) values ('production', $1) on conflict (key) do update set value = excluded.value", [databaseIdentity(url)]);
+    await client.query("insert into revbound.meta (key, value) values ('production', $1) on conflict (key) do update set value = excluded.value", [databaseIdentity(url)]);
   } finally {
     await client.end();
   }
@@ -93,7 +93,7 @@ const ANALYZE_FILLED = `do $$ declare t regclass; filled boolean; begin
 async function applyCompany(client: pg.Client, folder: string, production: boolean, acknowledged: string[]): Promise<number> {
   await client.query("begin");
   try {
-    await client.query("select pg_advisory_xact_lock(hashtext('gtm-migrate'))");
+    await client.query("select pg_advisory_xact_lock(hashtext('revbound-migrate'))");
     const journal: { entries: { tag: string; when: number }[] } = JSON.parse(readFileSync(join(folder, "meta", "_journal.json"), "utf8"));
     const exists = (await client.query("select to_regclass('drizzle.__drizzle_migrations') as t")).rows[0].t;
     const last = exists ? (await client.query("select created_at from drizzle.__drizzle_migrations order by created_at desc limit 1")).rows[0] : undefined;

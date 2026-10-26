@@ -7,7 +7,7 @@ import type { PGlite } from "@electric-sql/pglite";
 import pg from "pg";
 import { value } from "revbound/kit";
 
-/** `.gtm/db.lock`. `dev` marks a `revbound dev` server, which other commands share; short-lived servers are waited for. */
+/** `.revbound/db.lock`. `dev` marks a `revbound dev` server, which other commands share; short-lived servers are waited for. */
 type Lock = { pid: number; port: number; dataDir: string; dev?: boolean };
 export type LocalDatabase = { url: string; stop(): Promise<void> };
 
@@ -18,8 +18,8 @@ const PG_MAJOR = "18";
 export const localUrl = (port: number) => `postgres://postgres:postgres@127.0.0.1:${port}/postgres?sslmode=disable`;
 
 function paths(dir: string) {
-  const gtm = join(realpathSync(dir), ".gtm");
-  return { gtm, lock: join(gtm, "db.lock"), id: join(gtm, "db.id"), data: join(gtm, "pglite"), version: join(gtm, "pglite-version") };
+  const revbound = join(realpathSync(dir), ".revbound");
+  return { revbound, lock: join(revbound, "db.lock"), id: join(revbound, "db.id"), data: join(revbound, "pglite"), version: join(revbound, "pglite-version") };
 }
 const sleep = (ms: number) => new Promise((done) => setTimeout(done, ms));
 const read = (file: string) => { try { return readFileSync(file, "utf8").trim(); } catch { return undefined; } };
@@ -74,33 +74,33 @@ export async function startDevDatabase(dir: string): Promise<LocalDatabase> {
   return serve(dir, true);
 }
 
-/** Runs `fn` holding `.gtm/migrate.lock`: on PGlite every connection shares one session, so advisory locks never block. */
+/** Runs `fn` holding `.revbound/migrate.lock`: on PGlite every connection shares one session, so advisory locks never block. */
 export async function withMigrateLock<T>(dir: string, fn: () => Promise<T>): Promise<T> {
-  const file = join(paths(dir).gtm, "migrate.lock");
+  const file = join(paths(dir).revbound, "migrate.lock");
   mkdirSync(dirname(file), { recursive: true });
   for (const deadline = Date.now() + 120_000; !take(file, { pid: process.pid }, (l) => !alive(l.pid)); await sleep(100)) {
-    if (Date.now() > deadline) throw new Error("Another revbound migrate holds .gtm/migrate.lock; delete it only if no Revbound process is running.");
+    if (Date.now() > deadline) throw new Error("Another revbound migrate holds .revbound/migrate.lock; delete it only if no Revbound process is running.");
   }
   try { return await fn(); } finally { release(file); }
 }
 
-/** Takes `.gtm/db.lock` (returns undefined), or with `share` returns a live `revbound dev` lock. */
+/** Takes `.revbound/db.lock` (returns undefined), or with `share` returns a live `revbound dev` lock. */
 async function acquire(dir: string, share: boolean): Promise<Lock | undefined> {
   const p = paths(dir);
-  mkdirSync(p.gtm, { recursive: true });
+  mkdirSync(p.revbound, { recursive: true });
   for (const deadline = Date.now() + 60_000; ; await sleep(200)) {
-    // Stale: its process is gone, or the project folder was copied with its .gtm/.
+    // Stale: its process is gone, or the project folder was copied with its .revbound/.
     if (take(p.lock, { pid: process.pid, port: 0, dataDir: p.data }, (l) => !alive(l.pid) || l.dataDir !== p.data)) return undefined;
     const lock = parse(read(p.lock));
     if (lock?.dev && (await accepts(lock.port))) {
       if (share) return lock;
       throw new Error(`revbound dev is already running for this project (pid ${lock.pid}, database on 127.0.0.1:${lock.port}).`);
     }
-    if (Date.now() > deadline) throw new Error(`Another Revbound process${lock ? ` (pid ${lock.pid})` : ""} holds .gtm/db.lock. Wait for it to finish; delete .gtm/db.lock only if no Revbound process is running.`);
+    if (Date.now() > deadline) throw new Error(`Another Revbound process${lock ? ` (pid ${lock.pid})` : ""} holds .revbound/db.lock. Wait for it to finish; delete .revbound/db.lock only if no Revbound process is running.`);
   }
 }
 
-/** Opens `.gtm/pglite` and serves it on a free 127.0.0.1 port (at most 10 sockets); the caller holds the lock. */
+/** Opens `.revbound/pglite` and serves it on a free 127.0.0.1 port (at most 10 sockets); the caller holds the lock. */
 async function serve(dir: string, dev: boolean): Promise<LocalDatabase> {
   const p = paths(dir);
   try {
@@ -111,9 +111,9 @@ async function serve(dir: string, dev: boolean): Promise<LocalDatabase> {
     const db = await PGlite.create(p.data);
     if (!found) writeFileSync(p.version, `${versionOf("@electric-sql/pglite")} ${versionOf("@electric-sql/pglite-socket")}\n`);
     // Same DDL as migrations/0000 (idempotent with it), so the local id exists before any migration runs.
-    await db.exec("create schema if not exists gtm; create table if not exists gtm.meta (key text primary key not null, value text not null);");
-    await db.query("insert into gtm.meta (key, value) values ('local_id', $1) on conflict (key) do nothing", [read(p.id) || randomBytes(16).toString("hex")]);
-    const id = (await db.query<{ value: string }>("select value from gtm.meta where key = 'local_id'")).rows[0].value;
+    await db.exec("create schema if not exists revbound; create table if not exists revbound.meta (key text primary key not null, value text not null);");
+    await db.query("insert into revbound.meta (key, value) values ('local_id', $1) on conflict (key) do nothing", [read(p.id) || randomBytes(16).toString("hex")]);
+    const id = (await db.query<{ value: string }>("select value from revbound.meta where key = 'local_id'")).rows[0].value;
     if (read(p.id) !== id) writeFileSync(p.id, `${id}\n`);
     const queue = queueFor(db);
     const sockets = new Set<Socket>();
@@ -193,24 +193,24 @@ function queueFor(db: PGlite) {
 function refuseOtherMajor(found: string, written: string | undefined): never {
   const [pglite, socket] = written?.split(/\s+/) ?? [];
   throw new Error([
-    `.gtm/pglite holds a Postgres ${found} database${pglite ? ` (PGlite ${pglite})` : ""}; this Revbound's PGlite ${versionOf("@electric-sql/pglite")} runs Postgres ${PG_MAJOR} and cannot open it.`,
-    "It is development data. To start fresh: rm -rf .gtm/pglite .gtm/pglite-version",
+    `.revbound/pglite holds a Postgres ${found} database${pglite ? ` (PGlite ${pglite})` : ""}; this Revbound's PGlite ${versionOf("@electric-sql/pglite")} runs Postgres ${PG_MAJOR} and cannot open it.`,
+    "It is development data. To start fresh: rm -rf .revbound/pglite .revbound/pglite-version",
     "To keep it, dump it with the old version, then restore it into a new database:",
-    `  npx -y @electric-sql/pglite-socket@${socket ?? `<the version for Postgres ${found}>`} --db=.gtm/pglite --port=54329   (stop it after the dump)`,
-    `  pg_dump --data-only --exclude-schema=gtm --exclude-schema=drizzle "${localUrl(54329)}" > local.sql`,
-    "  mv .gtm/pglite .gtm/pglite-old && rm .gtm/pglite-version && npm run dev   (new database, migrations applied)",
+    `  npx -y @electric-sql/pglite-socket@${socket ?? `<the version for Postgres ${found}>`} --db=.revbound/pglite --port=54329   (stop it after the dump)`,
+    `  pg_dump --data-only --exclude-schema=revbound --exclude-schema=drizzle "${localUrl(54329)}" > local.sql`,
+    "  mv .revbound/pglite .revbound/pglite-old && rm .revbound/pglite-version && npm run dev   (new database, migrations applied)",
     '  psql "<the DATABASE_URL `npx revbound check` prints>" -f local.sql',
   ].join("\n"));
 }
 
-/** Refuses a live server whose `gtm.meta` local_id differs from `.gtm/db.id` (not this project's database). */
+/** Refuses a live server whose `revbound.meta` local_id differs from `.revbound/db.id` (not this project's database). */
 async function checkId(dir: string, port: number): Promise<void> {
   const client = new pg.Client({ connectionString: localUrl(port) });
   await client.connect();
-  const rows = await client.query("select value from gtm.meta where key = 'local_id'")
+  const rows = await client.query("select value from revbound.meta where key = 'local_id'")
     .then((r) => r.rows, () => []).finally(() => client.end());
   if (!rows[0] || rows[0].value !== read(paths(dir).id)) {
-    throw new Error(`The database on 127.0.0.1:${port} named in .gtm/db.lock is not this project's (.gtm/db.id differs). Stop the revbound dev serving it; delete .gtm/db.lock only if no Revbound process is running.`);
+    throw new Error(`The database on 127.0.0.1:${port} named in .revbound/db.lock is not this project's (.revbound/db.id differs). Stop the revbound dev serving it; delete .revbound/db.lock only if no Revbound process is running.`);
   }
 }
 

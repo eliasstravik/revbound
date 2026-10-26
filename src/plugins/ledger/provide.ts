@@ -10,7 +10,7 @@ import type { Admission, Ctx, LedgerRun, LedgerSlotV1, Limits, Reservation, Rese
 /** The 403 every refused start of an approval-required workflow opens with. */
 export const NEEDS_YES = "This workflow needs a person's yes. Run a preview, show the person the sample and the cost, and ask Yes/No in chat. " +
   "Only after a yes, run it again with `--approve --max-usd`.";
-const LOCK = sql`select pg_advisory_xact_lock(hashtext('gtm-budget'))`;
+const LOCK = sql`select pg_advisory_xact_lock(hashtext('revbound-budget'))`;
 const FINAL: RunStatus[] = ["completed", "failed", "cancelled", "unknown", "refused", "start_failed"];
 const SPENT = sql`coalesce(sum(coalesce(cost_usd, reserved_usd)), 0)::float8`;
 const DEFAULTS = { perRunUsd: 25, perWorkflowMonthUsd: 300, projectMonthUsd: 1000 };
@@ -41,10 +41,10 @@ function toRun(r: Record<string, any>): LedgerRun {
 }
 const RUN = sql`select r.*, coalesce(c.cost, 0) as cost_usd, coalesce(c.reserved, 0) as reserved_usd, coalesce(c.calls, 0)::int as calls,
   coalesce(c.unmetered, 0)::int as unmetered
-  from gtm_ledger.runs r left join lateral (select sum(coalesce(a.cost_usd, a.reserved_usd))::float8 as cost,
+  from revbound_ledger.runs r left join lateral (select sum(coalesce(a.cost_usd, a.reserved_usd))::float8 as cost,
     sum(a.reserved_usd) filter (where a.outcome = 'reserved')::float8 as reserved, count(*) filter (where a.outcome <> 'blocked') as calls,
     count(*) filter (where a.outcome <> 'blocked' and a.cost_usd is null and a.reserved_usd is null) as unmetered
-    from gtm_ledger.actions a where a.run_id = r.id) c on true`;
+    from revbound_ledger.actions a where a.run_id = r.id) c on true`;
 
 /** `text` with every value of a declared connection replaced by [redacted], cut to 500 characters. */
 function redact(ctx: Ctx, text: string): string {
@@ -88,18 +88,18 @@ export default function provide(ctx: Ctx): LedgerSlotV1 {
     return r ? toRun(r) : null;
   };
   const getTree = async (rootId: string, tx?: Exec) => (await rows(sql`${RUN} where r.root_run_id = ${rootId} order by r.started_at, r.id`, tx)).map(toRun);
-  const monthSpend = (where: SQL, tx: Exec) => one(sql`select ${SPENT} as usd from gtm_ledger.actions where ${where}
+  const monthSpend = (where: SQL, tx: Exec) => one(sql`select ${SPENT} as usd from revbound_ledger.actions where ${where}
     and created_at >= date_trunc('month', now() at time zone 'UTC') at time zone 'UTC'`, tx).then((r) => Number(r.usd));
   const refuse = async (tx: Exec, base: { id: string; workflow: string; trigger: string; preview: boolean; hash: string; parent?: string | null; root?: string }, reason: string): Promise<Admission> => {
-    await tx.execute(sql`insert into gtm_ledger.runs (id, workflow, trigger, preview, input_hash, parent_run_id, root_run_id, status, reason, finished_at)
+    await tx.execute(sql`insert into revbound_ledger.runs (id, workflow, trigger, preview, input_hash, parent_run_id, root_run_id, status, reason, finished_at)
       values (${base.id}, ${base.workflow}, ${base.trigger}, ${base.preview}, ${base.hash}, ${base.parent ?? null}, ${base.root ?? base.id}, 'refused', ${redact(ctx, reason)}, now())`);
     return { ok: false, reason, runId: base.id };
   };
   /** A preview counts as completed when its root completed and nothing in its tree is still admitted or running. */
-  const completedPreview = async (workflow: string, hash: string, hours: number, tx: Exec) => one(sql`select p.id from gtm_ledger.runs p
+  const completedPreview = async (workflow: string, hash: string, hours: number, tx: Exec) => one(sql`select p.id from revbound_ledger.runs p
     where p.workflow = ${workflow} and p.input_hash = ${hash} and p.preview and p.parent_run_id is null and p.status = 'completed'
       and p.started_at >= now() - make_interval(hours => ${hours})
-      and not exists (select 1 from gtm_ledger.runs c where c.root_run_id = p.id and c.status in ('admitted', 'running'))
+      and not exists (select 1 from revbound_ledger.runs c where c.root_run_id = p.id and c.status in ('admitted', 'running'))
     order by p.started_at desc limit 1`, tx);
 
   const slot: LedgerSlotV1 = {
@@ -113,7 +113,7 @@ export default function provide(ctx: Ctx): LedgerSlotV1 {
         const limits = await limitsFor(workflow);
         // Before the lock: copy final statuses of the latest preview's tree from the SDK.
         if (request.approve && !request.parent) {
-          const latest = await one(sql`select id from gtm_ledger.runs where workflow = ${workflow} and input_hash = ${hash} and preview
+          const latest = await one(sql`select id from revbound_ledger.runs where workflow = ${workflow} and input_hash = ${hash} and preview
             and parent_run_id is null order by started_at desc limit 1`);
           if (latest) for (const r of await getTree(latest.id)) if (!FINAL.includes(r.status)) await slot.refreshRun(r.id);
         }
@@ -127,11 +127,11 @@ export default function provide(ctx: Ctx): LedgerSlotV1 {
           if (request.parent) {
             parent = await getRun(request.parent.runId, tx);
             if (!parent) return refuse(tx, base, `fanOut: the parent run ${request.parent.runId} is not in the ledger.`);
-            const existing = await one(sql`select id, sdk_run_id, workflow, input_hash, status from gtm_ledger.runs where child_key = ${request.parent.childKey}`, tx);
+            const existing = await one(sql`select id, sdk_run_id, workflow, input_hash, status from revbound_ledger.runs where child_key = ${request.parent.childKey}`, tx);
             if (existing && (existing.workflow !== workflow || existing.input_hash !== hash)) return refuse(tx, base, `fanOut: the child key ${request.parent.childKey} already started another child.`);
             if (existing?.status === "start_failed" && existing.sdk_run_id == null) {
               // Its start failed: a retry starts the same child again.
-              await tx.execute(sql`update gtm_ledger.runs set status = 'admitted', reason = null, finished_at = null, started_at = now() where id = ${existing.id}`);
+              await tx.execute(sql`update revbound_ledger.runs set status = 'admitted', reason = null, finished_at = null, started_at = now() where id = ${existing.id}`);
               const top = parent.rootRunId === parent.id ? parent : await getRun(parent.rootRunId, tx);
               return { ok: true, runId: existing.id, rootId: parent.rootRunId, preview: parent.preview, approved: top?.approvedMaxUsd != null };
             }
@@ -142,7 +142,7 @@ export default function provide(ctx: Ctx): LedgerSlotV1 {
             const treeLimits = await limitsFor(root?.workflow ?? workflow);
             if (limits.approval.required && root?.approvedMaxUsd == null && !preview) return refuse(tx, base, NEEDS_YES);
             if (preview) {
-              const children = Number((await one(sql`select count(*) as n from gtm_ledger.runs where root_run_id = ${parent.rootRunId} and parent_run_id is not null and status <> 'refused'`, tx)).n);
+              const children = Number((await one(sql`select count(*) as n from revbound_ledger.runs where root_run_id = ${parent.rootRunId} and parent_run_id is not null and status <> 'refused'`, tx)).n);
               if (children >= treeLimits.approval.previewItems) return refuse(tx, base, `A preview starts at most ${treeLimits.approval.previewItems} children. Size previews with currentRun().preview.`);
             }
           } else if (limits.approval.required && !preview) {
@@ -164,7 +164,7 @@ export default function provide(ctx: Ctx): LedgerSlotV1 {
           if (wf >= limits.perMonthUsd) return refuse(tx, base, `${workflow} has spent $${wf.toFixed(2)} of its $${limits.perMonthUsd} this month.`);
           if (all >= limits.projectMonthUsd) return refuse(tx, base, `The project has spent $${all.toFixed(2)} of its $${limits.projectMonthUsd} this month.`);
           const rootId = parent ? parent.rootRunId : id;
-          await tx.execute(sql`insert into gtm_ledger.runs (id, workflow, trigger, preview, input_hash, approved_max_usd, approval_note, approved_by_preview,
+          await tx.execute(sql`insert into revbound_ledger.runs (id, workflow, trigger, preview, input_hash, approved_max_usd, approval_note, approved_by_preview,
               parent_run_id, root_run_id, child_key, status)
             values (${id}, ${workflow}, ${base.trigger}, ${preview}, ${hash}, ${approved}, ${note}, ${byPreview}, ${parent?.id ?? null}, ${rootId},
               ${request.parent?.childKey ?? null}, 'admitted')`);
@@ -176,13 +176,13 @@ export default function provide(ctx: Ctx): LedgerSlotV1 {
     },
 
     async started(runId, sdkId) {
-      await db().execute(sql`update gtm_ledger.runs set sdk_run_id = ${sdkId}, status = case when status = 'admitted' then 'running' else status end
+      await db().execute(sql`update revbound_ledger.runs set sdk_run_id = ${sdkId}, status = case when status = 'admitted' then 'running' else status end
         where id = ${runId} and (sdk_run_id is null or sdk_run_id = ${sdkId})`);
     },
 
     async startFailed(runId, error) {
       const reason = redact(ctx, `The run did not start: ${error instanceof Error ? error.message : String(error)}`);
-      await db().execute(sql`update gtm_ledger.runs set status = 'start_failed', reason = ${reason}, finished_at = now() where id = ${runId} and status = 'admitted'`);
+      await db().execute(sql`update revbound_ledger.runs set status = 'start_failed', reason = ${reason}, finished_at = now() where id = ${runId} and status = 'admitted'`);
     },
 
     async refreshRun(runId) {
@@ -192,11 +192,11 @@ export default function provide(ctx: Ctx): LedgerSlotV1 {
       const sdk = await w.getRun(row.sdkRunId, { values: true }).catch(() => undefined);
       if (sdk === undefined) return row; // the SDK could not be asked; try again later
       if (sdk === null) {
-        await db().execute(sql`update gtm_ledger.runs set status = 'unknown', reason = 'The Workflow SDK no longer has this run.', finished_at = now()
+        await db().execute(sql`update revbound_ledger.runs set status = 'unknown', reason = 'The Workflow SDK no longer has this run.', finished_at = now()
           where id = ${runId} and status in ('admitted', 'running')`);
       } else if (SDK_STATUS[sdk.status] !== "running") {
         const reason = sdk.status === "failed" ? redact(ctx, sdk.error ?? "failed") : null;
-        await db().execute(sql`update gtm_ledger.runs set status = ${SDK_STATUS[sdk.status]}, reason = coalesce(${reason}, reason),
+        await db().execute(sql`update revbound_ledger.runs set status = ${SDK_STATUS[sdk.status]}, reason = coalesce(${reason}, reason),
           finished_at = coalesce(${sdk.completedAt}::timestamptz, now()) where id = ${runId} and status in ('admitted', 'running')`);
       }
       return getRun(runId);
@@ -205,30 +205,30 @@ export default function provide(ctx: Ctx): LedgerSlotV1 {
     async reserve(action) {
       try {
         // Before the lock: the run Revbound admitted for this SDK run, else the Revbound id its attributes claim.
-        let row = await one(sql`select id from gtm_ledger.runs where sdk_run_id = ${action.sdkRunId}`);
+        let row = await one(sql`select id from revbound_ledger.runs where sdk_run_id = ${action.sdkRunId}`);
         const sdk = row ? null : await workflows()?.getRun(action.sdkRunId).catch(() => null);
-        const claimed = sdk?.attributes?.gtm_run_id;
+        const claimed = sdk?.attributes?.revbound_run_id;
         return await db().transaction(async (tx): Promise<Reservation> => {
           await tx.execute(LOCK);
           if (!row && claimed && /^[0-9a-f-]{36}$/i.test(claimed)) {
-            const c = await one(sql`select id, sdk_run_id from gtm_ledger.runs where id = ${claimed}`, tx);
+            const c = await one(sql`select id, sdk_run_id from revbound_ledger.runs where id = ${claimed}`, tx);
             if (c && c.sdk_run_id == null) {
-              await tx.execute(sql`update gtm_ledger.runs set sdk_run_id = ${action.sdkRunId}, status = case when status = 'admitted' then 'running' else status end where id = ${claimed}`);
+              await tx.execute(sql`update revbound_ledger.runs set sdk_run_id = ${action.sdkRunId}, status = case when status = 'admitted' then 'running' else status end where id = ${claimed}`);
               row = c;
             }
           }
           if (!row) {
             // No Revbound metadata, or it belongs to another SDK run (a re-run that copied attributes): its own external root.
             const ext = randomUUID();
-            await tx.execute(sql`insert into gtm_ledger.runs (id, sdk_run_id, workflow, trigger, root_run_id, status)
+            await tx.execute(sql`insert into revbound_ledger.runs (id, sdk_run_id, workflow, trigger, root_run_id, status)
               values (${ext}, ${action.sdkRunId}, ${sdk?.workflow ?? "unknown"}, 'external', ${ext}, 'running') on conflict (sdk_run_id) do nothing`);
-            row = await one(sql`select id from gtm_ledger.runs where sdk_run_id = ${action.sdkRunId}`, tx);
+            row = await one(sql`select id from revbound_ledger.runs where sdk_run_id = ${action.sdkRunId}`, tx);
           }
           const run = (await getRun(row!.id, tx))!, root = run.rootRunId === run.id ? run : (await getRun(run.rootRunId, tx))!;
           const est = action.estimateUsd;
           const block = async (reason: string): Promise<Reservation> => {
             // A refusal keeps no idempotency key, so it never stands in for the key's real attempts.
-            const b = await one(sql`insert into gtm_ledger.actions (run_id, root_run_id, workflow, plugin, kind, target, keys, outcome, detail)
+            const b = await one(sql`insert into revbound_ledger.actions (run_id, root_run_id, workflow, plugin, kind, target, keys, outcome, detail)
               values (${run.id}, ${root.id}, ${run.workflow}, ${action.plugin}, ${action.kind}, ${action.target ?? null}, ${JSON.stringify(action.keys ?? {})}::jsonb,
                 'blocked', ${redactJson(ctx, { ...action.detail, reason, estimateUsd: est, idempotencyKey: action.idempotencyKey })}::jsonb) returning id`, tx);
             return { ok: false, reason, id: String(b.id) };
@@ -239,7 +239,7 @@ export default function provide(ctx: Ctx): LedgerSlotV1 {
           // (a crash mid-call) runs again against it, never above it; after `failed` the key's next attempt row reserves
           // and counts again. Any other call (another run, another step, or the same attempt at once) never borrows it.
           const key = action.idempotencyKey;
-          const last = await one(sql`select id, run_id, outcome, attempt, reserved_usd::float8 as reserved, detail->'holder' as holder from gtm_ledger.actions
+          const last = await one(sql`select id, run_id, outcome, attempt, reserved_usd::float8 as reserved, detail->'holder' as holder from revbound_ledger.actions
             where idempotency_key = ${key} order by attempt desc limit 1`, tx);
           if (last?.outcome === "ok") return { ok: true, id: String(last.id), runId: run.id, rootId: root.id, repeat: "ok" };
           if (last?.outcome === "reserved" || last?.outcome === "unknown") {
@@ -247,10 +247,10 @@ export default function provide(ctx: Ctx): LedgerSlotV1 {
             const held = last.holder as ReserveRequest["holder"] | null, by = action.holder;
             if (!held || !by || held.step !== by.step || !(by.attempt > held.attempt)) return block(`The key ${key} is in use by another call that has not finished; give each call its own key.`);
             if (est != null && est > Number(last.reserved ?? 0)) return block(`The estimate ($${est}) is above this key's open reservation ($${Number(last.reserved ?? 0)}).`);
-            await tx.execute(sql`update gtm_ledger.actions set detail = detail || ${JSON.stringify({ holder: by })}::jsonb where id = ${last.id}`);
+            await tx.execute(sql`update revbound_ledger.actions set detail = detail || ${JSON.stringify({ holder: by })}::jsonb where id = ${last.id}`);
             return { ok: true, id: String(last.id), runId: run.id, rootId: root.id, repeat: "reserved" };
           }
-          const tree = await one(sql`select ${SPENT} as usd, count(*) filter (where outcome <> 'blocked') as calls from gtm_ledger.actions where root_run_id = ${root.id}`, tx);
+          const tree = await one(sql`select ${SPENT} as usd, count(*) filter (where outcome <> 'blocked') as calls from revbound_ledger.actions where root_run_id = ${root.id}`, tx);
           const treeUsd = Number(tree.usd);
           if (root.preview) {
             const a = rootLimits.approval;
@@ -259,14 +259,14 @@ export default function provide(ctx: Ctx): LedgerSlotV1 {
             if (est != null && treeUsd + est > a.previewMaxUsd) return block(`The preview would pass its $${a.previewMaxUsd} cap ($${treeUsd.toFixed(4)} spent).`);
           }
           if (est != null) {
-            const runUsd = Number((await one(sql`select ${SPENT} as usd from gtm_ledger.actions where run_id = ${run.id}`, tx)).usd);
+            const runUsd = Number((await one(sql`select ${SPENT} as usd from revbound_ledger.actions where run_id = ${run.id}`, tx)).usd);
             if (runUsd + est > limits.perRunUsd) return block(`This run would pass its $${limits.perRunUsd} budget ($${runUsd.toFixed(4)} spent).`);
             if (root.approvedMaxUsd != null && treeUsd + est > root.approvedMaxUsd) return block(`The approved total of $${root.approvedMaxUsd} would be passed ($${treeUsd.toFixed(4)} spent).`);
             const wf = await monthSpend(sql`workflow = ${run.workflow}`, tx), all = await monthSpend(sql`true`, tx);
             if (wf + est > limits.perMonthUsd) return block(`${run.workflow} would pass its $${limits.perMonthUsd} monthly budget ($${wf.toFixed(2)} spent).`);
             if (all + est > limits.projectMonthUsd) return block(`The project would pass its $${limits.projectMonthUsd} monthly budget ($${all.toFixed(2)} spent).`);
           }
-          const r = await one(sql`insert into gtm_ledger.actions (run_id, root_run_id, workflow, plugin, kind, target, keys, reserved_usd, outcome, detail, idempotency_key, attempt)
+          const r = await one(sql`insert into revbound_ledger.actions (run_id, root_run_id, workflow, plugin, kind, target, keys, reserved_usd, outcome, detail, idempotency_key, attempt)
             values (${run.id}, ${root.id}, ${run.workflow}, ${action.plugin}, ${action.kind}, ${action.target ?? null}, ${JSON.stringify(action.keys ?? {})}::jsonb,
               ${est}, 'reserved', ${redactJson(ctx, { ...action.detail, ...(action.holder && { holder: action.holder }) })}::jsonb, ${key}, ${(last?.attempt ?? 0) + 1}) returning id`, tx);
           return { ok: true, id: String(r.id), runId: run.id, rootId: root.id };
@@ -281,7 +281,7 @@ export default function provide(ctx: Ctx): LedgerSlotV1 {
         // A cost that is not a number of $0 or more is never recorded: the call's reservation stays what it spent.
         const c = actual.costUsd, cost = typeof c === "number" && Number.isFinite(c) && c >= 0 ? c : null;
         const detail = { ...actual.detail, ...(c != null && cost === null && { invalidCostUsd: String(c) }) };
-        await db().execute(sql`update gtm_ledger.actions set cost_usd = coalesce(${cost}::numeric, cost_usd), outcome = ${actual.outcome ?? "ok"},
+        await db().execute(sql`update revbound_ledger.actions set cost_usd = coalesce(${cost}::numeric, cost_usd), outcome = ${actual.outcome ?? "ok"},
           detail = detail || ${redactJson(ctx, detail)}::jsonb where id = ${Number(reservationId)} and outcome in ('reserved', 'unknown')`);
       } catch (error) {
         console.error(`[revbound] ledger: could not settle action ${reservationId}; reconcile will (${(error as Error).message})`);
@@ -289,47 +289,47 @@ export default function provide(ctx: Ctx): LedgerSlotV1 {
     },
 
     async reconcile(o = {}) {
-      const go = await one(sql`update gtm_ledger.meta set value = now()::text where key = 'reconcile_at'
+      const go = await one(sql`update revbound_ledger.meta set value = now()::text where key = 'reconcile_at'
         and (${o.force === true} or value::timestamptz < now() - interval '60 seconds') returning 1 as ok`);
       if (!go) return { ran: false };
       const w = workflows();
       let linked = 0, external = 0, refreshed = 0;
       if (w) {
         // 1. SDK runs since the cursor (with an overlap): link those Revbound started, record the rest as external.
-        const cursor = (await one(sql`select value from gtm_ledger.meta where key = 'reconcile_cursor'`)).value as string;
+        const cursor = (await one(sql`select value from revbound_ledger.meta where key = 'reconcile_cursor'`)).value as string;
         const since = cursor === "-infinity" ? cursor : new Date(Date.parse(cursor) - 5 * 60_000).toISOString();
         const runs = await w.listRuns(since);
         for (const r of runs) {
-          const known = await one(sql`select id from gtm_ledger.runs where sdk_run_id = ${r.sdkRunId}`);
+          const known = await one(sql`select id from revbound_ledger.runs where sdk_run_id = ${r.sdkRunId}`);
           if (known) continue;
-          const claimed = r.attributes.gtm_run_id;
-          const c = claimed && /^[0-9a-f-]{36}$/i.test(claimed) ? await one(sql`select id, sdk_run_id from gtm_ledger.runs where id = ${claimed}`) : undefined;
+          const claimed = r.attributes.revbound_run_id;
+          const c = claimed && /^[0-9a-f-]{36}$/i.test(claimed) ? await one(sql`select id, sdk_run_id from revbound_ledger.runs where id = ${claimed}`) : undefined;
           if (c && c.sdk_run_id == null) { await slot.started(c.id, r.sdkRunId); linked += 1; continue; }
           const ext = randomUUID(), status = SDK_STATUS[r.status];
-          const ins = await rows(sql`insert into gtm_ledger.runs (id, sdk_run_id, workflow, trigger, root_run_id, status, started_at, finished_at)
+          const ins = await rows(sql`insert into revbound_ledger.runs (id, sdk_run_id, workflow, trigger, root_run_id, status, started_at, finished_at)
             values (${ext}, ${r.sdkRunId}, ${r.workflow}, 'external', ${ext}, ${status}, ${r.createdAt}, ${status === "running" ? null : r.completedAt ?? r.createdAt})
             on conflict (sdk_run_id) do nothing returning id`);
           external += ins.length;
         }
         const newest = runs.reduce((m, r) => (r.createdAt > m ? r.createdAt : m), cursor === "-infinity" ? "" : cursor);
-        if (newest) await db().execute(sql`update gtm_ledger.meta set value = ${newest} where key = 'reconcile_cursor'`);
+        if (newest) await db().execute(sql`update revbound_ledger.meta set value = ${newest} where key = 'reconcile_cursor'`);
         // 2. Statuses of up to 50 running rows, in turn: each pass goes on from where the last one stopped (by id, wrapping).
-        const after = (await one(sql`select value from gtm_ledger.meta where key = 'refresh_cursor'`))?.value ?? "";
-        const open = sql`select id from gtm_ledger.runs where status = 'running' and sdk_run_id is not null`;
+        const after = (await one(sql`select value from revbound_ledger.meta where key = 'refresh_cursor'`))?.value ?? "";
+        const open = sql`select id from revbound_ledger.runs where status = 'running' and sdk_run_id is not null`;
         let turn = await rows(sql`${open} and id::text > ${after} order by id limit 50`);
         if (turn.length < 50) turn = [...turn, ...(await rows(sql`${open} and id::text <= ${after} order by id limit ${50 - turn.length}`))];
         for (const r of turn) {
           await slot.refreshRun(r.id);
           refreshed += 1;
         }
-        if (turn.length) await db().execute(sql`insert into gtm_ledger.meta values ('refresh_cursor', ${String(turn.at(-1)!.id)})
+        if (turn.length) await db().execute(sql`insert into revbound_ledger.meta values ('refresh_cursor', ${String(turn.at(-1)!.id)})
           on conflict (key) do update set value = excluded.value`);
       }
       // 3. Admitted rows that never got an SDK run.
-      const timedOut = (await rows(sql`update gtm_ledger.runs set status = 'start_failed', reason = 'The run never started (no SDK run after 10 minutes).', finished_at = now()
+      const timedOut = (await rows(sql`update revbound_ledger.runs set status = 'start_failed', reason = 'The run never started (no SDK run after 10 minutes).', finished_at = now()
         where status = 'admitted' and sdk_run_id is null and started_at < now() - interval '10 minutes' returning id`)).length;
       // 4. Reservations on runs that ended stay counted, as unknown.
-      const settled = (await rows(sql`update gtm_ledger.actions a set outcome = 'unknown' from gtm_ledger.runs r
+      const settled = (await rows(sql`update revbound_ledger.actions a set outcome = 'unknown' from revbound_ledger.runs r
         where a.run_id = r.id and a.outcome = 'reserved' and r.status not in ('admitted', 'running') returning a.id`)).length;
       return { ran: true, linked, external, refreshed, timedOut, settled };
     },

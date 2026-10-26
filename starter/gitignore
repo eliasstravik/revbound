@@ -1,5 +1,5 @@
 .env*.local
-.gtm/
+.revbound/
 .workflow-data/
 .vercel/
 .next/

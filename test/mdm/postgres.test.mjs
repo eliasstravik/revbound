@@ -1,12 +1,12 @@
-/** The mdm suite on real Postgres: GTM_TEST_PG_URL (CI's service container), in a fresh database. Skipped without it. */
+/** The mdm suite on real Postgres: REVBOUND_TEST_PG_URL (CI's service container), in a fresh database. Skipped without it. */
 import { test } from "node:test";
 import pg from "pg";
 import { suite } from "./suite.mjs";
 
-const base = process.env.GTM_TEST_PG_URL;
-if (!base) test("mdm on Postgres", { skip: "set GTM_TEST_PG_URL to a Postgres 16 server" }, () => {});
+const base = process.env.REVBOUND_TEST_PG_URL;
+if (!base) test("mdm on Postgres", { skip: "set REVBOUND_TEST_PG_URL to a Postgres 16 server" }, () => {});
 else {
-  const name = `gtm_mdm_test_${Date.now().toString(36)}`, admin = new pg.Client({ connectionString: base });
+  const name = `revbound_mdm_test_${Date.now().toString(36)}`, admin = new pg.Client({ connectionString: base });
   await admin.connect();
   await admin.query(`create database ${name}`);
   await admin.end();

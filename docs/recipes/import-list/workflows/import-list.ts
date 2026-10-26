@@ -1,4 +1,4 @@
-import { db } from "#gtm/database";
+import { db } from "#revbound/database";
 import { companies } from "../db/schema";
 
 type Company = { name: string; domain: string };

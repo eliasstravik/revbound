@@ -13,7 +13,7 @@ const USAGE = "Usage: revbound connections list | set <NAME> | delete <NAME> (se
 
 /** Names Revbound, Vercel or an integration set; `set` refuses them. */
 export function refusedName(name: string): boolean {
-  return /^(DATABASE_URL|POSTGRES_|PG|GTM_|VERCEL_|NEON_)|^CRON_SECRET$/.test(name.toUpperCase());
+  return /^(DATABASE_URL|POSTGRES_|PG|REVBOUND_|VERCEL_|NEON_)|^CRON_SECRET$/.test(name.toUpperCase());
 }
 
 /** The value rules: one line, at most 32 KB, not both ' and `, no trailing backslash (so @next/env reads it back as is). */
@@ -27,7 +27,7 @@ export function checkValue(v: string): string | undefined {
 
 /** Written beside the file and renamed over it (a crash never leaves half a file); the temp name is gitignored (.env*.local). */
 function writeAtomic(dir: string, text: string): void {
-  const temp = join(dir, `.env.gtm-${randomUUID()}.local`), file = join(dir, ".env.local");
+  const temp = join(dir, `.env.revbound-${randomUUID()}.local`), file = join(dir, ".env.local");
   writeFileSync(temp, text, { mode: 0o600, flag: "wx" });
   try { renameSync(temp, file); chmodSync(file, 0o600); } catch (error) { rmSync(temp, { force: true }); throw error; }
 }

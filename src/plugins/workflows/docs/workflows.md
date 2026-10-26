@@ -5,10 +5,10 @@ asks for one: `npx revbound docs recipes`.
 
 ## The registry
 
-`workflows/index.ts` exports `workflows = { <name>: workflowFn }` (typed `satisfies Registry`, from
-`revbound`). The key is the workflow's name everywhere: `npx revbound run <name>`, `/api/gtm/start/<name>`,
-`/api/gtm/cron/<name>`, `fanOut()` and the console. Revbound starts only registered workflows; `npx revbound check` reports a
-broken registry. An entry can also be an object:
+`workflows/index.ts` exports `workflows = { <name>: workflowFn }` (typed `satisfies Registry`, from `revbound`). The key
+is the workflow's name everywhere: `npx revbound run <name>`, `/api/revbound/start/<name>`, `/api/revbound/cron/<name>`,
+`fanOut()` and the console. Revbound starts only registered workflows; `npx revbound check` reports a broken registry.
+An entry can also be an object:
 
 ```ts
 export const workflows = {
@@ -43,14 +43,14 @@ The console's workflow page has a tab per plugin: Diagram, Runs (from the ledger
 ## Results and runs
 
 - A workflow writes its lasting results to the company's own tables in `public` through `db()` (docs: data).
-- The ledger records every run, child and refused start in Postgres (`gtm_ledger.runs`), with costs and approvals,
+- The ledger records every run, child and refused start in Postgres (`revbound_ledger.runs`), with costs and approvals,
   long after the Workflow SDK's own run store forgets them. A run's steps, inputs and errors are in the SDK's run
   inspector: **Open in Workflow** locally, **Open in Vercel** hosted.
-- Schedules: `vercel.json` crons whose path is `/api/gtm/cron/<name>`. Vercel Cron runs them in production only, with
-  `CRON_SECRET`. A cron run gets no input. A schedule of an approval-required workflow also needs its approval
+- Schedules: `vercel.json` crons whose path is `/api/revbound/cron/<name>`. Vercel Cron runs them in production only,
+  with `CRON_SECRET`. A cron run gets no input. A schedule of an approval-required workflow also needs its approval
   committed in the registry (docs: ledger). Locally nothing fires on its own; start it with `npx revbound run <name>`.
 
-## Helpers from `#gtm/workflows`
+## Helpers from `#revbound/workflows`
 
 - `fanOut(items, "<child workflow>", { batchSize = 20 })` (workflow scope) starts the child once per item, one step
   per batch, and returns the child run ids without waiting. Children write their results to the company's tables. A
@@ -70,8 +70,9 @@ Runs never pause for people, and the console has no start or approve buttons. Fo
    the root's return value, each child's return value and the tree's total cost.
 2. Show the sample and the cost in this chat and ask Yes/No with the question tool, naming the workflow, the input
    and the cost cap.
-3. Only after a yes: `npx revbound run <workflow> --input '<json>' --approve --max-usd <n> [--note "<what was approved>"]`.
-   It is accepted only when a completed preview of the same input exists from the last `previewWithinHours` (24).
+3. Only after a yes:
+   `npx revbound run <workflow> --input '<json>' --approve --max-usd <n> [--note "<what was approved>"]`. It is accepted
+   only when a completed preview of the same input exists from the last `previewWithinHours` (24).
 
 Cost quotes: a local preview on `claude`/`codex` measures plan usage, not dollars ("plan usage, not metered"). Quote a
 hosted run as the hosted model's price × the preview's usage, or run a small preview with `--prod`. A schedule's yes
@@ -83,9 +84,9 @@ quotes cost per run × runs per month.
 npx revbound run <workflow> [--input '<json>'] [--preview] [--approve --max-usd <n> [--note <text>]] [--prod] [--no-wait]
 ```
 
-- Default: `POST http://127.0.0.1:$GTM_PORT/api/gtm/start/<workflow>`, so `npm run dev` must be running.
-- `--prod`: the same on `GTM_PRODUCTION_URL` with the `x-vercel-protection-bypass` header set to `GTM_BYPASS_SECRET`
-  (docs: deploy).
+- Default: `POST http://127.0.0.1:$REVBOUND_PORT/api/revbound/start/<workflow>`, so `npm run dev` must be running.
+- `--prod`: the same on `REVBOUND_PRODUCTION_URL` with the `x-vercel-protection-bypass` header set to
+  `REVBOUND_BYPASS_SECRET` (docs: deploy).
 - It prints the run's status, return value, error and cost as JSON and exits non-zero unless it completed. A refusal
   prints the ledger's reason (a 403).
 - Start and run status answer only on `127.0.0.1`/`localhost` locally, and only with the automation bypass hosted.
@@ -98,7 +99,8 @@ per run when each row calls `agent()` with tools, about 100 when rows are plain 
 
 ## Scope rules
 
-- `db()` (`#gtm/database`) only inside `"use step"` bodies and route handlers; in workflow code itself it throws.
-- `agent()` (`#gtm/ai`) only in workflow scope, never inside a `"use step"` body; it makes its own steps (docs: ai).
-- `action()` (`#gtm/ledger`) only inside a `"use step"` body (docs: ledger).
+- `db()` (`#revbound/database`) only inside `"use step"` bodies and route handlers; in workflow code itself it throws.
+- `agent()` (`#revbound/ai`) only in workflow scope, never inside a `"use step"` body; it makes its own steps (docs:
+  ai).
+- `action()` (`#revbound/ledger`) only inside a `"use step"` body (docs: ledger).
 - `fanOut()` in workflow scope; `currentRun()` anywhere in a run.

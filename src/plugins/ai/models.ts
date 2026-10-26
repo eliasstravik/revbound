@@ -1,8 +1,8 @@
 import { isHosted, jwtClaims, value } from "revbound/kit";
 
 /**
- * The one place that names models. The default follows the family the person runs locally (GTM_AGENT_BACKEND),
- * so a hosted copy stays with it: claude -> the newest Claude Haiku, anything else -> GPT-6 Luna. GTM_MODEL (or
+ * The one place that names models. The default follows the family the person runs locally (REVBOUND_AGENT_BACKEND),
+ * so a hosted copy stays with it: claude -> the newest Claude Haiku, anything else -> GPT-6 Luna. REVBOUND_MODEL (or
  * `model` on a stage) always wins and is a Gateway id ("anthropic/claude-sonnet-5.5").
  * Checked 2026-10-19 against https://ai-gateway.vercel.sh/v1/models and the providers' model lists.
  */
@@ -18,14 +18,14 @@ export type CliBackend = "claude" | "codex";
 /** Where one agent() stage runs; an API-key route carries the provider's own model id. */
 export type Route = { kind: "gateway"; model: string } | { kind: Family; id: string } | { kind: "cli"; cli?: CliBackend };
 
-/** The default for GTM_AGENT_BACKEND: claude, else codex (GPT-6 Luna). */
+/** The default for REVBOUND_AGENT_BACKEND: claude, else codex (GPT-6 Luna). */
 export function preferred(): Default {
-  return value("GTM_AGENT_BACKEND")?.trim().toLowerCase() === "claude" ? "claude" : "codex";
+  return value("REVBOUND_AGENT_BACKEND")?.trim().toLowerCase() === "claude" ? "claude" : "codex";
 }
 
-/** The Gateway model for a stage: its own `model`, else GTM_MODEL, else the default that follows GTM_AGENT_BACKEND. */
+/** The Gateway model for a stage: its own `model`, else REVBOUND_MODEL, else the default that follows REVBOUND_AGENT_BACKEND. */
 export function gatewayModel(model?: string): string {
-  return model?.trim() || value("GTM_MODEL")?.trim() || MODELS[preferred()].gateway;
+  return model?.trim() || value("REVBOUND_MODEL")?.trim() || MODELS[preferred()].gateway;
 }
 
 /** A Gateway id as its own provider names it: "anthropic/claude-sonnet-5.5" -> anthropic "claude-sonnet-5-5". */
@@ -51,7 +51,7 @@ export function chooseBackend(o: { name: string; model?: string; custom?: boolea
   }
   const keys = { anthropic: value("ANTHROPIC_API_KEY"), openai: value("OPENAI_API_KEY") };
   if (keys.anthropic || keys.openai) {
-    const named = o.model?.trim() || value("GTM_MODEL")?.trim();
+    const named = o.model?.trim() || value("REVBOUND_MODEL")?.trim();
     if (named) {
       const { family, id } = providerModel(named);
       if (!keys[family]) throw new Error(`Agent ${o.name}: ${named} needs ${family === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY"} (or AI_GATEWAY_API_KEY)`);
@@ -62,16 +62,16 @@ export function chooseBackend(o: { name: string; model?: string; custom?: boolea
     return { kind: pick.family, id: pick.provider };
   }
   if (o.custom) throw new Error(`Agent ${o.name}: ${NEEDS_API}`);
-  const wanted = value("GTM_AGENT_BACKEND")?.trim().toLowerCase();
+  const wanted = value("REVBOUND_AGENT_BACKEND")?.trim().toLowerCase();
   return { kind: "cli", cli: wanted === "claude" || wanted === "codex" ? wanted : undefined };
 }
 
 /**
- * The model a CLI gets: the stage's `model` (else GTM_MODEL) as that CLI names it, when it is the CLI's family
+ * The model a CLI gets: the stage's `model` (else REVBOUND_MODEL) as that CLI names it, when it is the CLI's family
  * (anthropic for claude, openai for codex); otherwise undefined, and the CLI uses its own default.
  */
 export function cliModel(backend: CliBackend, model?: string): string | undefined {
-  const named = model?.trim() || value("GTM_MODEL")?.trim();
+  const named = model?.trim() || value("REVBOUND_MODEL")?.trim();
   if (!named) return undefined;
   try {
     const { family, id } = providerModel(named);

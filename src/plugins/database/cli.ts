@@ -1,13 +1,13 @@
 /** `revbound migrate`: the plugins' migrations in needs order, then the company's db/migrations. */
 import { join } from "node:path";
-import type { GtmConfig, MigrationPlan } from "revbound";
+import type { RevboundConfig, MigrationPlan } from "revbound";
 import { byNeeds, type CliCtx, filePath, loadEnv, schemaOf } from "revbound/cli";
 import { PRODUCTION_DATABASE, environment, isHosted, value } from "revbound/kit";
 import { withDatabase, withMigrateLock } from "./localdb.js";
 import { applyPlan, stamp } from "./migrate.js";
 
 /** What revbound migrate applies for this project. */
-export function migrationPlan(dir: string, config: GtmConfig): MigrationPlan {
+export function migrationPlan(dir: string, config: RevboundConfig): MigrationPlan {
   const sets = byNeeds(config.plugins).flatMap((p) => {
     const folder = p.migrations && filePath(dir, p.migrations);
     return folder ? [{ id: p.name, schema: schemaOf(p), folder }] : [];
@@ -15,8 +15,8 @@ export function migrationPlan(dir: string, config: GtmConfig): MigrationPlan {
   return { sets, company: join(dir, "db", "migrations"), destructive: config.acknowledge?.destructive ?? [] };
 }
 
-/** Migrates `url`: locally under .gtm/migrate.lock (PGlite shares one session, so advisory locks never block). */
-export async function migrate(dir: string, config: GtmConfig, url: string): Promise<void> {
+/** Migrates `url`: locally under .revbound/migrate.lock (PGlite shares one session, so advisory locks never block). */
+export async function migrate(dir: string, config: RevboundConfig, url: string): Promise<void> {
   const run = async () => {
     const applied = await applyPlan(migrationPlan(dir, config), url);
     if (environment() === "production") await stamp(url);

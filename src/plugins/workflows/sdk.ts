@@ -80,10 +80,10 @@ export async function lastRuns(workflows: Registry): Promise<Map<string, SdkRun>
   return out;
 }
 
-/** Workflow name → schedule: vercel.json crons on /api/gtm/cron/<name> unless hosted, then GTM_CRONS baked at build. */
+/** Workflow name → schedule: vercel.json crons on /api/revbound/cron/<name> unless hosted, then REVBOUND_CRONS baked at build. */
 export function schedules(): Map<string, string> {
-  // process.env.GTM_CRONS literally, so the value the next transform inlines at build time is the one read.
-  const crons: ReturnType<typeof cronSchedules> = isHosted() ? JSON.parse(process.env.GTM_CRONS ?? "[]") : cronSchedules();
+  // process.env.REVBOUND_CRONS literally, so the value the next transform inlines at build time is the one read.
+  const crons: ReturnType<typeof cronSchedules> = isHosted() ? JSON.parse(process.env.REVBOUND_CRONS ?? "[]") : cronSchedules();
   const map = new Map<string, string>();
   for (const { workflow: w, schedule } of crons) map.set(w, map.has(w) ? `${map.get(w)}; ${schedule}` : schedule);
   return map;

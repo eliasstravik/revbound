@@ -1,8 +1,9 @@
 # Plugins
 
-Everything in a Revbound project is a plugin listed in `gtm.config.ts`. There is no runtime plugin kernel: plugins are
-plain data whose code fields are module specifiers, and `revbound sync` turns the list into committed files under `gtm/`
-that the app imports. The fixed core is wiring only: sync, `revbound check`, the access check and the CLI shell.
+Everything in a Revbound project is a plugin listed in `revbound.config.ts`. There is no runtime plugin kernel: plugins
+are plain data whose code fields are module specifiers, and `revbound sync` turns the list into committed files under
+`_revbound/` that the app imports. The fixed core is wiring only: sync, `revbound check`, the access check and the CLI
+shell.
 
 ## The defaults
 
@@ -18,9 +19,9 @@ that the app imports. The fixed core is wiring only: sync, `revbound check`, the
 | `connections` | none | the Connections view, `revbound connections` |
 | `console` | none | the console's frame, its page, its 404 |
 
-Delete a line to remove a plugin, then run `npx revbound sync`; `npx revbound check` names any plugin that still needs it. The
-smallest working set is `database`, `ledger` and `workflows`. Without `console`, sync writes a plain layout and a
-`notFound()` page. Without `context`, `agent({ skills })` still reads `.agents/skills`.
+Delete a line to remove a plugin, then run `npx revbound sync`; `npx revbound check` names any plugin that still needs
+it. The smallest working set is `database`, `ledger` and `workflows`. Without `console`, sync writes a plain layout and
+a `notFound()` page. Without `context`, `agent({ skills })` still reads `.agents/skills`.
 
 ## Optional plugins
 
@@ -28,7 +29,7 @@ These ship in the package too, but no project gets them until it adds one with `
 
 | Plugin | Provides / needs | What it does |
 | --- | --- | --- |
-| `mdm` | provides `mdm`; needs `database`, the ledger; uses `workflows`; writes people | one de-duplicated set of people, companies and signals, where each field came from, `#gtm/mdm`, People, Companies, Signals (docs: mdm) |
+| `mdm` | provides `mdm`; needs `database`, the ledger; uses `workflows`; writes people | one de-duplicated set of people, companies and signals, where each field came from, `#revbound/mdm`, People, Companies, Signals (docs: mdm) |
 
 ## Adding and changing plugins
 
@@ -40,9 +41,9 @@ npx revbound eject <name>                                         # copies a def
 npx revbound diff <name>                                          # what changed upstream since the eject
 ```
 
-`add` and `remove` never edit `gtm.config.ts`; `eject` only flips that plugin's import to `./plugins/<name>` and syncs.
-It keeps a pristine copy and the version in `plugins/<name>/.gtm-eject/`; your own edits are
-`git diff --no-index plugins/<name>/.gtm-eject/src plugins/<name>`. An ejected or custom `ledger` needs
+`add` and `remove` never edit `revbound.config.ts`; `eject` only flips that plugin's import to `./plugins/<name>` and
+syncs. It keeps a pristine copy and the version in `plugins/<name>/.revbound-eject/`; your own edits are
+`git diff --no-index plugins/<name>/.revbound-eject/src plugins/<name>`. An ejected or custom `ledger` needs
 `acknowledge: { customLedger: true }` and stops getting the package's safety fixes.
 
 ## Writing a plugin
@@ -59,8 +60,8 @@ export function notes() {
     name: "notes",
     api: 1,
     needs: ["database"],
-    migrations: "./plugins/notes/migrations",          // NNNN_name.sql, in schema gtm_notes
-    tables: [{ schema: "gtm_notes", name: "notes", label: "Notes" }],
+    migrations: "./plugins/notes/migrations",          // NNNN_name.sql, in schema revbound_notes
+    tables: [{ schema: "revbound_notes", name: "notes", label: "Notes" }],
     routes: [{ path: "notes", methods: ["GET"], access: "session", handler: "./plugins/notes/route" }],
     views: [{ path: "notes", title: "Notes", nav: { label: "Notes", order: 60 }, component: "./plugins/notes/view" }],
     runtime: { from: "./plugins/notes/runtime", exports: ["note"] },
@@ -74,9 +75,9 @@ export function notes() {
 | `provides`, `provide` | a slot (`database`, `ledger`, `workflows` or your own) and its implementation `(ctx) => Slot` |
 | `needs`, `uses` | slots it requires (and migration order), slots it calls only when present |
 | `capabilities` | `spends`, `sends`, `writesPeople`; any of them requires the ledger |
-| `runtime` | helpers company code imports as `#gtm/<name>`: `from` exports `bind(rt)` and a type `Api`; `step` exports `run(manifest, map, op, args)`, reached only inside generated steps |
-| `schema`, `migrations`, `tables` | its own Postgres schema (default `gtm_<name>`), its SQL migrations, tables or views shown in Data |
-| `routes` | under `/api/gtm/`, each with an access mode (below) |
+| `runtime` | helpers company code imports as `#revbound/<name>`: `from` exports `bind(rt)` and a type `Api`; `step` exports `run(manifest, map, op, args)`, reached only inside generated steps |
+| `schema`, `migrations`, `tables` | its own Postgres schema (default `revbound_<name>`), its SQL migrations, tables or views shown in Data |
+| `routes` | under `/api/revbound/`, each with an access mode (below) |
 | `views`, `workflowTabs` | console pages (with an optional nav item) and tabs on a workflow's page |
 | `connections` | environment variable names it reads, with labels |
 | `cli` | `revbound <name>` commands; `run` default-exports `(args, ctx) => Promise<void>` |
@@ -94,33 +95,34 @@ get `{ workflow, manifest }`. Shared pieces come from `revbound/ui` (`useApi`, `
 
 | Mode | Hosted | Local |
 | --- | --- | --- |
-| `session` (GET only) | Vercel Authentication; any bypass credential is refused | loopback or a `GTM_ALLOWED_HOSTS` host |
+| `session` (GET only) | Vercel Authentication; any bypass credential is refused | loopback or a `REVBOUND_ALLOWED_HOSTS` host |
 | `automation` | the automation bypass secret, in the header | loopback, same-origin |
 | `cron` | `Authorization: Bearer $CRON_SECRET`; refused when unset | the same |
-| `signature` | the sender's own bypass secret (`secret`: its variable, e.g. `GTM_HOOK_{name}_BYPASS`), never the automation one; the handler is built with `webhook()` | loopback |
+| `signature` | the sender's own bypass secret (`secret`: its variable, e.g. `REVBOUND_HOOK_{name}_BYPASS`), never the automation one; the handler is built with `webhook()` | loopback |
 | `local` | refused | loopback only, never an allowed host |
-| `tailnet` | refused | loopback, or a same-origin request on a `GTM_ALLOWED_HOSTS` host that Tailscale Serve marks with a login (never Funnel) |
+| `tailnet` | refused | loopback, or a same-origin request on a `REVBOUND_ALLOWED_HOSTS` host that Tailscale Serve marks with a login (never Funnel) |
 
 An `/api/*` path no plugin declares is refused, and pages always get the session rule.
 
 ### Slots and binding files
 
-Cross-plugin behavior goes only through slots: `ctx.get("ledger").reserve(…)`, never an import of another plugin's
-code (type imports are fine). The slot interfaces are `DatabaseSlotV1`, `LedgerSlotV1` and `WorkflowsSlotV1`, from
-`revbound`; an optional plugin's comes with it (`MdmSlotV1` from `revbound/mdm`). A replacement for a default keeps its `name` and at least its `runtime.exports`; a slot plugin
-can be swapped for any plugin that provides the same slot interface.
+Cross-plugin behavior goes only through slots: `ctx.get("ledger").reserve(…)`, never an import of another plugin's code
+(type imports are fine). The slot interfaces are `DatabaseSlotV1`, `LedgerSlotV1` and `WorkflowsSlotV1`, from
+`revbound`; an optional plugin's comes with it (`MdmSlotV1` from `revbound/mdm`). A replacement for a default keeps its
+`name` and at least its `runtime.exports`; a slot plugin can be swapped for any plugin that provides the same slot
+interface.
 
-For a plugin with `runtime`, sync writes `gtm/<name>.ts`: workflow-safe wrappers around `bind(rt)`, plus generated
+For a plugin with `runtime`, sync writes `_revbound/<name>.ts`: workflow-safe wrappers around `bind(rt)`, plus generated
 `"use step"` functions that dynamic-import the plugin's step module and its slot map. Generated files make no
 top-level calls, so nothing heavy reaches workflow code except inside a step. `package.json` `"imports"` maps
-`#gtm/<name>` to it and `tsconfig.json` mirrors it.
+`#revbound/<name>` to it and `tsconfig.json` mirrors it.
 
 ## The entry rule for the defaults
 
-A plugin joins the default list only when most new companies would use it in week one; it works under `revbound dev` with
-no new account; the base holds a vendor-neutral slot, never a named vendor; it owns its schema, declares its routes
-with access rules, depends only on slot interfaces and binding files, and removing it fails `revbound check` with a clear
-needs error; every send, spend and write about people goes through the ledger; it shipped as an optional plugin for a
-minor release and passes the acceptance tests; it supplies state, durable execution, credentials, records or limits,
-not a workaround for today's models; and maintainers accept the upkeep within its line budget. An addition changes only
-what `init` writes; existing projects opt in with `revbound add`. A removal never uninstalls anything.
+A plugin joins the default list only when most new companies would use it in week one; it works under `revbound dev`
+with no new account; the base holds a vendor-neutral slot, never a named vendor; it owns its schema, declares its routes
+with access rules, depends only on slot interfaces and binding files, and removing it fails `revbound check` with a
+clear needs error; every send, spend and write about people goes through the ledger; it shipped as an optional plugin
+for a minor release and passes the acceptance tests; it supplies state, durable execution, credentials, records or
+limits, not a workaround for today's models; and maintainers accept the upkeep within its line budget. An addition
+changes only what `init` writes; existing projects opt in with `revbound add`. A removal never uninstalls anything.

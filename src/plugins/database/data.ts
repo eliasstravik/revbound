@@ -146,7 +146,7 @@ function csvCell(v: unknown): string {
 
 /**
  * GET /data/<table>/csv or /json (with view()'s filters, sort and columns) → up to 10,000 rows / 5 MB as a download; when
- * capped, `x-gtm-truncated: 1` and, in CSV, a final `# truncated`.
+ * capped, `x-revbound-truncated: 1` and, in CSV, a final `# truncated`.
  */
 export async function exported(req: Request, ctx: RouteCtx): Promise<Response> {
   const { table: name, format } = ctx.params, p = new URL(req.url).searchParams;
@@ -170,6 +170,6 @@ export async function exported(req: Request, ctx: RouteCtx): Promise<Response> {
   });
   const body = format === "csv" ? `${lines.join("\n")}\n${truncated ? "# truncated\n" : ""}` : `[${lines.join(",\n")}]\n`;
   const headers = { "content-type": format === "csv" ? "text/csv; charset=utf-8" : "application/json", "cache-control": "no-store",
-    "content-disposition": `attachment; filename="${name.replace(/[^\w.-]/g, "_")}.${format}"`, ...(truncated && { "x-gtm-truncated": "1" }) };
+    "content-disposition": `attachment; filename="${name.replace(/[^\w.-]/g, "_")}.${format}"`, ...(truncated && { "x-revbound-truncated": "1" }) };
   return new Response(body, { headers });
 }

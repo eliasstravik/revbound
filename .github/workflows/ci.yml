@@ -38,7 +38,7 @@ jobs:
 
       - name: The ledger and mdm on Postgres 16 and on PGlite
         env:
-          GTM_TEST_PG_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+          REVBOUND_TEST_PG_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
         run: node --test test/ledger/*.test.mjs test/mdm/*.test.mjs
 
       - name: Line budgets
@@ -46,9 +46,9 @@ jobs:
 
       - name: Pack
         run: |
-          mkdir -p /tmp/gtm-ci
-          npm pack --pack-destination /tmp/gtm-ci
-          ls -l /tmp/gtm-ci
+          mkdir -p /tmp/revbound-ci
+          npm pack --pack-destination /tmp/revbound-ci
+          ls -l /tmp/revbound-ci
 
       # The checks run inside a network sandbox that allows only the npm registry. The runner itself must keep
       # talking to GitHub, so the tests run as a separate user whose outbound traffic is limited to loopback (the app,
@@ -57,36 +57,36 @@ jobs:
       # (Vercel, Neon, model providers, telemetry) but is not a hostname filter.
       - name: Network sandbox for the test user (npm registry only)
         run: |
-          sudo useradd --create-home gtmtest
-          uid=$(id -u gtmtest)
-          sudo iptables -N GTMTEST
-          sudo iptables -I OUTPUT 1 -m owner --uid-owner "$uid" -j GTMTEST
-          sudo iptables -A GTMTEST -o lo -j ACCEPT
+          sudo useradd --create-home revboundtest
+          uid=$(id -u revboundtest)
+          sudo iptables -N REVBOUNDTEST
+          sudo iptables -I OUTPUT 1 -m owner --uid-owner "$uid" -j REVBOUNDTEST
+          sudo iptables -A REVBOUNDTEST -o lo -j ACCEPT
           for ns in $(awk '/^nameserver/ {print $2}' /etc/resolv.conf | grep -v ':'); do
-            sudo iptables -A GTMTEST -d "$ns" -p udp --dport 53 -j ACCEPT
-            sudo iptables -A GTMTEST -d "$ns" -p tcp --dport 53 -j ACCEPT
+            sudo iptables -A REVBOUNDTEST -d "$ns" -p udp --dport 53 -j ACCEPT
+            sudo iptables -A REVBOUNDTEST -d "$ns" -p tcp --dport 53 -j ACCEPT
           done
-          for i in 1 2 3; do getent ahostsv4 registry.npmjs.org | awk '{print $1}'; done | sort -u > /tmp/gtm-ci/registry-ips
-          while read -r ip; do sudo iptables -A GTMTEST -d "$ip" -p tcp --dport 443 -j ACCEPT; done < /tmp/gtm-ci/registry-ips
-          sudo iptables -A GTMTEST -j REJECT
-          sudo ip6tables -N GTMTEST
-          sudo ip6tables -I OUTPUT 1 -m owner --uid-owner "$uid" -j GTMTEST
-          sudo ip6tables -A GTMTEST -o lo -j ACCEPT
-          sudo ip6tables -A GTMTEST -j REJECT
+          for i in 1 2 3; do getent ahostsv4 registry.npmjs.org | awk '{print $1}'; done | sort -u > /tmp/revbound-ci/registry-ips
+          while read -r ip; do sudo iptables -A REVBOUNDTEST -d "$ip" -p tcp --dport 443 -j ACCEPT; done < /tmp/revbound-ci/registry-ips
+          sudo iptables -A REVBOUNDTEST -j REJECT
+          sudo ip6tables -N REVBOUNDTEST
+          sudo ip6tables -I OUTPUT 1 -m owner --uid-owner "$uid" -j REVBOUNDTEST
+          sudo ip6tables -A REVBOUNDTEST -o lo -j ACCEPT
+          sudo ip6tables -A REVBOUNDTEST -j REJECT
           # The test user reads the checkout (test/, node_modules/) and writes only under /tmp.
           d="$GITHUB_WORKSPACE"; while [ "$d" != "/" ]; do sudo chmod o+x "$d"; d=$(dirname "$d"); done
-          sudo -u gtmtest curl -fsS -o /dev/null --max-time 20 https://registry.npmjs.org/ && echo "registry: reachable"
-          if sudo -u gtmtest curl -sS -o /dev/null --max-time 10 https://api.vercel.com/; then echo "sandbox is open" && exit 1; fi
+          sudo -u revboundtest curl -fsS -o /dev/null --max-time 20 https://registry.npmjs.org/ && echo "registry: reachable"
+          if sudo -u revboundtest curl -sS -o /dev/null --max-time 10 https://api.vercel.com/; then echo "sandbox is open" && exit 1; fi
           echo "other hosts: blocked"
 
       - name: Acceptance against the tarball
         run: |
-          sudo -u gtmtest -H env "PATH=$PATH" "GTM_TEST_TARBALL=$(ls /tmp/gtm-ci/*.tgz)" \
-            GTM_TEST_DIR=/tmp/gtm-work GTM_TEST_LOGS=/tmp/gtm-logs \
+          sudo -u revboundtest -H env "PATH=$PATH" "REVBOUND_TEST_TARBALL=$(ls /tmp/revbound-ci/*.tgz)" \
+            REVBOUND_TEST_DIR=/tmp/revbound-work REVBOUND_TEST_LOGS=/tmp/revbound-logs \
             node --test --test-reporter=spec test/acceptance.test.mjs
 
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: acceptance-logs
-          path: /tmp/gtm-logs
+          path: /tmp/revbound-logs

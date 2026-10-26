@@ -2,9 +2,9 @@
 // console's Data view shows. `npx revbound run example-import` saves three sample companies.
 //
 // To remove the example before anything reached production: delete this file and context/example-icp.md, empty
-// the registry in workflows/index.ts and db/schema.ts back to `export {}`, delete db/migrations/, and delete .gtm/
+// the registry in workflows/index.ts and db/schema.ts back to `export {}`, delete db/migrations/, and delete .revbound/
 // (the local database) so the table goes too.
-import { db } from "#gtm/database";
+import { db } from "#revbound/database";
 import { exampleCompanies } from "../db/schema";
 
 type Company = { name: string; domain: string };

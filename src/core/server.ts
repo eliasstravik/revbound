@@ -5,22 +5,22 @@ import { HttpError, json } from "../kit/http.js";
 import { decodePath, find } from "../kit/patterns.js";
 import type { Handler, Manifest, SlotMap } from "./types.js";
 
-/** What gtm/routes.ts maps each route key (`<plugin>:<path>`) to: its handler module and its plugin's slot map. */
+/** What _revbound/routes.ts maps each route key (`<plugin>:<path>`) to: its handler module and its plugin's slot map. */
 export type Handlers = Record<string, { load: () => Promise<{ default: Handler }>; map: () => Promise<{ default: SlotMap }> }>;
 type NextHandler = (req: Request, ctx: { params: Promise<{ path?: string[] }> }) => Promise<Response>;
 
 /**
- * The handlers behind app/api/gtm/[...path]/route.ts: the declared route for the path, its access mode checked again
+ * The handlers behind app/api/revbound/[...path]/route.ts: the declared route for the path, its access mode checked again
  * behind the proxy, then its handler with the plugin's context. Responses are never cached; errors are `{ error }`.
  */
-export function gtmRoutes(manifest: Manifest, handlers: Handlers): { GET: NextHandler; POST: NextHandler } {
+export function revboundRoutes(manifest: Manifest, handlers: Handlers): { GET: NextHandler; POST: NextHandler } {
   const handle: NextHandler = async (req, next) => {
     try {
       const path = decodePath(((await next.params).path ?? []).join("/"));
       const method = req.method === "HEAD" ? "GET" : req.method;
       // The route for this method; a path with routes for other methods only answers 405.
       const hit = path && (find(manifest.routes, path, (r) => (r.methods as string[]).includes(method)) ?? find(manifest.routes, path));
-      if (!path || !hit) throw new HttpError(404, `No such endpoint: /api/gtm/${(path ?? []).join("/")}`);
+      if (!path || !hit) throw new HttpError(404, `No such endpoint: /api/revbound/${(path ?? []).join("/")}`);
       if (!(hit.item.methods as string[]).includes(method)) throw new HttpError(405, `${req.method} is not allowed here.`);
       const verdict = routeAccess(hit.item.access, req, secretName(hit.item.secret, hit.params));
       if (!verdict.ok) throw new HttpError(verdict.status, verdict.error);

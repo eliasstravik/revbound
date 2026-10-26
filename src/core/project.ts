@@ -15,7 +15,7 @@ export function readJson<T = any>(path: string): T | undefined {
 }
 
 /** True when `dir` holds a Revbound project: a package.json that depends on revbound. */
-export function isGtmProject(dir: string): boolean {
+export function isRevboundProject(dir: string): boolean {
   const pkg = readJson(join(dir, "package.json"));
   return Boolean(pkg?.dependencies?.["revbound"] ?? pkg?.devDependencies?.["revbound"]);
 }
@@ -23,8 +23,8 @@ export function isGtmProject(dir: string): boolean {
 /** The nearest folder at or above `from` that holds a Revbound project (package.json depending on revbound). */
 export function findProject(from = process.cwd()): string {
   for (let dir = resolve(from); ; dir = dirname(dir)) {
-    if (isGtmProject(dir)) return dir;
-    if (dirname(dir) === dir) throw new Error("No Revbound project here. Create one with `npx revbound init --company <name>` (makes ./gtm-<company>).");
+    if (isRevboundProject(dir)) return dir;
+    if (dirname(dir) === dir) throw new Error("No Revbound project here. Create one with `npx revbound init --company <name>` (makes ./revbound-<company>).");
   }
 }
 
@@ -34,8 +34,8 @@ export function loadEnv(dir: string, dev: boolean): Env {
   return process.env;
 }
 
-const BEGIN = "<!-- BEGIN:gtm -->";
-const END = "<!-- END:gtm -->";
+const BEGIN = "<!-- BEGIN:revbound -->";
+const END = "<!-- END:revbound -->";
 
 /** The managed AGENTS.md block, markers included, or undefined when `text` has none. */
 export function extractBlock(text: string): string | undefined {

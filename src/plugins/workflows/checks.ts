@@ -52,12 +52,12 @@ export default async function checks(ctx: CheckCtx): Promise<CheckResult[]> {
   try { JSON.parse(readFileSync(join(ctx.dir, "vercel.json"), "utf8")); crons = cronSchedules(ctx.dir); } catch { err("vercel.json is not valid JSON."); }
   for (const c of crons) {
     const e = registry[c.workflow];
-    if (!e) err(`vercel.json schedules /api/gtm/cron/${c.workflow}, which is not in workflows/index.ts.`, "register the workflow or remove the cron");
+    if (!e) err(`vercel.json schedules /api/revbound/cron/${c.workflow}, which is not in workflows/index.ts.`, "register the workflow or remove the cron");
     else if (typeof e !== "function" && e.approval?.required && !e.schedule) warn(`vercel.json schedules ${c.workflow}, which needs approval and has no schedule approval, so its cron starts are refused.`);
   }
   try {
     const hooks = (await load(opts.webhooks ?? "./webhooks", "webhooks")) as Record<string, unknown> | undefined;
-    for (const [name, h] of Object.entries(hooks ?? {})) if (!isBranded(h)) err(`webhooks/index.ts: ${name} is not built with webhook() from #gtm/workflows.`, "wrap it in webhook({ verify, dedupe, onEvent })");
+    for (const [name, h] of Object.entries(hooks ?? {})) if (!isBranded(h)) err(`webhooks/index.ts: ${name} is not built with webhook() from #revbound/workflows.`, "wrap it in webhook({ verify, dedupe, onEvent })");
   } catch (error) {
     err(`webhooks/index.ts does not load: ${(error as Error).message}`, "export const webhooks = { <name>: webhook({ … }) } (`npx revbound docs webhooks`)");
   }

@@ -13,7 +13,7 @@ export function database() {
     api: 1,
     provides: ["database"],
     provide: `${P}/provide`,
-    schema: "gtm",
+    schema: "revbound",
     runtime: { from: `${P}/runtime`, exports: ["db"] },
     migrations: `${SRC}/migrations`,
     routes: [
@@ -27,7 +27,7 @@ export function database() {
     workflowTabs: [{ id: "data", title: "Data", order: 30, component: `${P}/tab` }],
     cli: [{ name: "migrate", describe: "apply database migrations (the plugins', then db/migrations)", run: `${P}/cli` }],
     agents: `- \`db/schema.ts\`: the company's Drizzle tables, schema \`public\` (plugins keep their own schemas). After a change:
-  \`npm run db:generate\`, then \`npx revbound migrate\`. Use \`db()\` from \`#gtm/database\` inside \`"use step"\` functions only
+  \`npm run db:generate\`, then \`npx revbound migrate\`. Use \`db()\` from \`#revbound/database\` inside \`"use step"\` functions only
   (docs: data).`,
     docs: { data: `${SRC}/docs/data.md` },
     checks: `${P}/checks`,
