@@ -29,7 +29,7 @@
 .tabs a { display: flex; align-items: center; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap; }
 .tabs a:hover { color: var(--text); text-decoration: none; }
 .tabs a[aria-current] { color: var(--text); border-bottom-color: var(--text); }
-.tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; margin-left: 6px; padding: 0 5px; border-radius: 9999px; font-size: 11px; font-weight: 600; color: var(--failed); background: color-mix(in srgb, var(--failed) 12%, var(--bg)); }
+.tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; margin-left: 6px; padding: 0 5px; border-radius: 9999px; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--failed); background: color-mix(in srgb, var(--failed) 12%, var(--bg)); }
 .main.fill > .connections-view { flex: 1; min-height: 0; overflow: auto; }
 .diagram-summary { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 12px 24px; border-bottom: 1px solid var(--border); }
 .diagram-summary > div { display: flex; flex-direction: column; gap: 4px; }

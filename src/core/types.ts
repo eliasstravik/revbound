@@ -22,7 +22,8 @@ export type RouteDecl = {
 
 /** `nav.count`: a session route answering { count }, shown as a badge; `fill`: the view scrolls its own table under a fixed toolbar. */
 export type ViewDecl = { path: string; title: string; nav?: { label: string; order: number; count?: string }; fill?: boolean; component: Code };
-export type TabDecl = { id: string; title: string; order?: number; component: Code };
+/** `count`: a session route answering { count } for `?workflow=<name>`, shown as a badge on the tab when above zero. */
+export type TabDecl = { id: string; title: string; order?: number; count?: string; component: Code };
 export type CliDecl = { name: string; describe: string; run: Code };
 
 export interface RevboundPlugin {

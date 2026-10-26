@@ -19,7 +19,7 @@ export function connections() {
       { path: "connections/missing", methods: ["GET"], access: "session", handler: `${P}/routes#missing` },
     ],
     views: [{ path: "connections", title: "Connections", nav: { label: "Connections", order: 50, count: "connections/missing" }, component: `${P}/view` }],
-    workflowTabs: [{ id: "connections", title: "Connections", order: 40, component: `${P}/tab` }],
+    workflowTabs: [{ id: "connections", title: "Connections", order: 40, count: "connections/missing", component: `${P}/tab` }],
     cli: [{ name: "connections", describe: "list, set or delete local keys in .env.local (values from a hidden prompt or stdin)", run: `${P}/cli` }],
     agents: `- \`.env.example\`: every connection name, with a one-line comment above it. Never ask for a key's value in chat: the person adds it on the
   console's Connections page (locally and on the production domain), or with \`npx revbound connections set <NAME>\` (a hidden prompt) locally.`,

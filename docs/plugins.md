@@ -80,7 +80,7 @@ export function notes() {
 | `runtime` | helpers company code imports as `#revbound/<name>`: `from` exports `bind(rt)` and a type `Api`; `step` exports `run(manifest, map, op, args)`, reached only inside generated steps |
 | `schema`, `migrations`, `tables` | its own Postgres schema (default `revbound_<name>`), its SQL migrations, tables or views shown in Data |
 | `routes` | under `/api/revbound/`, each with an access mode (below) |
-| `views`, `workflowTabs` | console pages (with an optional nav item) and tabs on a workflow's page |
+| `views`, `workflowTabs` | console pages (with an optional nav item) and tabs on a workflow's page, each with an optional `count` route for a badge |
 | `connections` | environment variable names it reads, with labels |
 | `cli` | `revbound <name>` commands; `run` default-exports `(args, ctx) => Promise<void>` |
 | `agents`, `skills`, `docs` | an AGENTS.md line, skill folders installed as `.agents/skills/<plugin>-<skill>`, `revbound docs` topics |
