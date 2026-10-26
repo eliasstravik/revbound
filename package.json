@@ -1,6 +1,6 @@
 {
   "name": "revbound",
-  "version": "0.0.5",
+  "version": "0.0.6-rc.1",
   "description": "The open-source agent plugin that runs your GTM: workflows your agent writes, run on Vercel, with a record of every run and dollar and a console for your team.",
   "license": "MIT",
   "repository": {

@@ -97,9 +97,9 @@ The live project is the same repo as one Vercel Pro project with Neon from the V
 Authentication on all deployments. Follow [docs/deploy.md](docs/deploy.md); `npx revbound check --prod` says what is
 missing.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Feliasstravik%2Frevbound%2Ftree%2Fv0.0.5%2Fstarter&project-name=gtm-company&repository-name=gtm-company&stores=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%7D%5D)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Feliasstravik%2Frevbound%2Ftree%2Fv0.0.6-rc.1%2Fstarter&project-name=gtm-company&repository-name=gtm-company&stores=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%7D%5D)
 
-The button deploys the starter at `v0.0.5`; name the project `gtm-<company>`. The console fails closed ("Turn on
+The button deploys the starter at `v0.0.6-rc.1`; name the project `gtm-<company>`. The console fails closed ("Turn on
 Vercel Authentication → All Deployments") until production protection is on.
 
 ## Roadmap

@@ -1,11 +1,20 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "revbound",
-  "version": "0.0.5",
+  "version": "0.0.6-rc.1",
   "description": "The open-source agent plugin that runs your GTM: your agent builds the workflows, Revbound runs them on Vercel with a record of every run and dollar, and a console for your team.",
-  "author": { "name": "Elias Stråvik" },
+  "author": {
+    "name": "Elias Stråvik"
+  },
   "homepage": "https://github.com/eliasstravik/revbound",
   "repository": "https://github.com/eliasstravik/revbound",
   "license": "MIT",
-  "keywords": ["revbound", "gtm", "go-to-market", "nextjs", "vercel", "workflows"]
+  "keywords": [
+    "revbound",
+    "gtm",
+    "go-to-market",
+    "nextjs",
+    "vercel",
+    "workflows"
+  ]
 }
