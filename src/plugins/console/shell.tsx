@@ -41,13 +41,12 @@ export function Shell({ manifest, children }: { manifest: Manifest; children: Re
     if (seen.current !== pathname) reload();
     seen.current = pathname;
   }, [pathname, reload]);
-  // The tab says where you are ("Data · Acme"); the html element carries the environment for the local top rule.
+  // The tab shows only the company ("Acme"); the html element carries the environment for the local top rule.
   useEffect(() => {
     if (!info) return;
-    const title = view?.path.includes(":") ? decodeURIComponent(parts.at(-1) ?? "") : view?.title;
-    document.title = title ? `${title} · ${info.company}` : info.company;
+    document.title = info.company;
     document.documentElement.dataset.environment = info.environment;
-  }, [pathname, view, info]);
+  }, [info]);
   // A new deployment brings new page code: reload for it, but never under an open dialog or menu (the next read retries).
   useEffect(() => {
     const next = info?.deployment;
