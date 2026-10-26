@@ -49,6 +49,11 @@ export function project(files = {}) {
   }
   fs.symlinkSync(REPO, path.join(modules, "revbound"));
   write(dir, { "revbound.config.ts": config(), ...files });
+  // Without the agent plugin, vercel.json drops its eve service, as docs: plugins says to.
+  if (!/\bagent\(/.test(read(dir, "revbound.config.ts")) && !("vercel.json" in files)) {
+    const { services, rewrites, ...rest } = JSON.parse(read(dir, "vercel.json"));
+    write(dir, { "vercel.json": `${JSON.stringify(rest, null, 2)}\n` });
+  }
   return dir;
 }
 

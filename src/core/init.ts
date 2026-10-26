@@ -17,7 +17,7 @@ const USAGE = "Usage: revbound init [dir] --company <name> [--example]";
 
 /**
  * `revbound init [dir] [--company <name>] [--example] [--package <spec>] [--no-install]`: copies the starter into an empty
- * folder and writes revbound.config.ts with the seven default plugins, or repairs an existing Revbound project (restores missing
+ * folder and writes revbound.config.ts with the eight default plugins, or repairs an existing Revbound project (restores missing
  * wiring, nothing else). Then it installs and runs `revbound sync`. With no dir it repairs the project here, else creates
  * ./revbound-<company>. `--example` (new projects only) adds one small marked example. `--package` (or REVBOUND_PACKAGE_SPEC)
  * replaces the revbound dependency spec; it and `--no-install` are for tests.
@@ -115,6 +115,7 @@ function create(dir: string, starter: string, spec: string | undefined, company:
   pkg.name = basename(dir).toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^[._-]+/, "") || pkg.name;
   pkg.dependencies["revbound"] = spec ?? readJson(join(packageRoot(), "package.json")).version;
   writeFileSync(join(dir, "package.json"), `${JSON.stringify(pkg, null, 2)}\n`);
+  mkdirSync(join(dir, ".agents", "skills"), { recursive: true });
   linkSkills(dir, true);
   const backend = localBackend();
   if (backend) writeFileSync(join(dir, ".env.local"), `REVBOUND_AGENT_BACKEND=${backend}\n`, { flag: "wx", mode: 0o600 });

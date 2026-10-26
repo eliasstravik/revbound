@@ -14,6 +14,7 @@
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import http from "node:http";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import {
@@ -108,11 +109,11 @@ after(async () => {
   for (const name of fs.readdirSync(s.work)) if (name !== "logs") fs.rmSync(path.join(s.work, name), { recursive: true, force: true });
 });
 
-test("init --company Acme makes ./revbound-acme with the seven defaults; the build runs revbound check first and passes; revbound check passes with no env", { timeout: 40 * MIN }, async () => {
+test("init --company Acme makes ./revbound-acme with the eight defaults; the build runs revbound check first and passes; revbound check passes with no env", { timeout: 40 * MIN }, async () => {
   assertOk(await init(["--company", "Acme"]), "revbound init --company Acme");
   s.dir = path.join(s.work, "revbound-acme");
   const config = read("revbound.config.ts");
-  for (const p of ["database()", "ledger({", "workflows({", "ai()", "context()", "connections()", "console()"]) assert.ok(config.includes(p), `revbound.config.ts lists ${p}`);
+  for (const p of ["database()", "ledger({", "workflows({", "ai()", "context()", "connections()", "console()", "agent()"]) assert.ok(config.includes(p), `revbound.config.ts lists ${p}`);
   assert.match(config, /company: "Acme"/);
   assert.deepEqual(JSON.parse(read("vercel.json")).crons, [{ path: "/api/revbound/ledger/reconcile", schedule: "0 * * * *" }]);
   for (const f of ["_revbound/manifest.ts", "_revbound/routes.ts", "_revbound/views.tsx", "_revbound/next.ts", "_revbound/database.ts", "_revbound/ai.ts", "_revbound/slots/ai.ts", "proxy.ts", "app/layout.tsx"]) assert.ok(exists(f), f);
@@ -138,7 +139,7 @@ test("revbound dev: 127.0.0.1 only; every console view and its API answers; buil
   await startDev();
   const sockets = listeningSockets(processTree(s.dev.pid, s.dir));
   assert.deepEqual(sockets.filter((x) => x.address !== "127.0.0.1" && x.address !== "::ffff:127.0.0.1"), [], JSON.stringify(sockets));
-  for (const p of ["/", "/context", "/workflows", "/runs", "/data", "/connections", "/icon.svg"]) assert.equal((await get(p)).status, 200, p);
+  for (const p of ["/", "/chat", "/context", "/workflows", "/runs", "/data", "/connections", "/icon.svg"]) assert.equal((await get(p)).status, 200, p);
   assert.equal((await get("/no-such-view")).status, 404);
   assert.deepEqual(await json("/api/revbound/shell"), { company: "Acme", environment: "local", deployment: null });
   assert.equal((await json("/api/revbound/context")).groups[0].files[0].path, "context/company.md");
@@ -694,4 +695,96 @@ export async function eventAttendees(input: { leads: Lead[] }) {
   assertOk(await revbound(["check"], { dir }), "revbound check while dev runs");
   await stopDev();
   assertOk(await npm(["run", "build"], { dir }), "npm run build with mdm");
+});
+
+/**
+ * Reads a chat session's NDJSON stream through the app until `done(events)` holds (or the time runs out), as the console's
+ * Chat page does. Returns every event so far.
+ */
+function follow(sessionId, done, { timeout = 4 * MIN } = {}) {
+  return new Promise((resolve, reject) => {
+    const events = [];
+    let rest = "";
+    const req = http.request({ host: "127.0.0.1", port: PORT, path: `/eve/v1/session/${sessionId}/stream`, headers: { host: `127.0.0.1:${PORT}` } }, (res) => {
+      res.on("data", (chunk) => {
+        rest += chunk;
+        const lines = rest.split("\n");
+        rest = lines.pop();
+        for (const line of lines) if (line.trim()) events.push(JSON.parse(line));
+        if (done(events)) { req.destroy(); resolve(events); }
+      });
+      res.on("end", () => resolve(events));
+    });
+    req.setTimeout(timeout, () => { req.destroy(); reject(new Error(`the chat stream did not reach its end in time; events: ${events.map((e) => e.type).join(", ")}`)); });
+    req.on("error", (error) => (error.code === "ECONNRESET" ? resolve(events) : reject(error)));
+    req.end();
+  });
+}
+
+test("the console chat: a fresh project's agent answers, edits a workflow here, never sees keys, and starts a run only after the asker's yes", { timeout: 40 * MIN }, async () => {
+  assertOk(await init(["--company", "Chat", "--example"]), "revbound init --example");
+  const dir = path.join(s.work, "revbound-chat");
+  assert.match(read("revbound.config.ts", dir), /agent\(\)/);
+  assert.equal(fs.readlinkSync(file("agent/skills", dir)), "../.agents/skills");
+  write(".env.local", `${exists(".env.local", dir) ? read(".env.local", dir) : ""}ACCEPTANCE_SECRET=never-shown-0123456789\n`, dir);
+  s.dir = dir;
+  await startDev(dir, { REVBOUND_AGENT_BACKEND: "claude" });
+  assert.equal((await get("/chat")).status, 200);
+  assert.ok(await poll(async () => (await get("/eve/v1/health")).status === 200, { timeout: 4 * MIN, every: 2000 }), "the agent's dev server answers through the app");
+  const page = { origin: `http://127.0.0.1:${PORT}`, "sec-fetch-site": "same-origin" };
+  const say = async (message, sessionId) => {
+    const r = await get(sessionId ? `/eve/v1/session/${sessionId}` : "/eve/v1/session", { method: "POST", body: { message }, headers: page });
+    assert.equal(r.status < 300, true, `${message}: ${r.status} ${r.text.slice(0, 300)}`);
+    return r.json().sessionId ?? sessionId;
+  };
+  const turnEnds = (n) => (events) => events.filter((e) => e.type === "turn.completed" || e.type === "turn.failed").length >= n;
+  const replies = (events) => events.filter((e) => e.type === "message.completed").map((e) => e.data.message);
+
+  // Only the console's own rule opens it.
+  refused(await get("/eve/v1/session", { method: "POST", body: { message: "hi" }, host: "evil.test" }), "the chat on a foreign host");
+  refused(await get("/eve/v1/session", { method: "POST", body: { message: "hi" }, headers: { origin: "http://evil.test", "sec-fetch-site": "cross-site" } }), "the chat from another site");
+  refused(await get("/eve/v1/session", { method: "POST", body: { message: "hi" }, host: BOX }), "the chat on a host that is not allowed");
+
+  const id = await say("hello");
+  assert.deepEqual(replies(await follow(id, turnEnds(1))), ["Hello from the project's agent."]);
+
+  await say("please edit the workflow registry", id);
+  assert.match(replies(await follow(id, turnEnds(2))).at(-1), /Edited workflows\/index\.ts/);
+  assert.match(read("workflows/index.ts", dir), /\/\/ edited by the chat agent/, "a local edit lands in the project folder");
+
+  await say("show me the keys", id);
+  const keys = await follow(id, turnEnds(3));
+  const seen = JSON.stringify(keys);
+  for (const secret of ["never-shown-0123456789", "REVBOUND_AGENT_BACKEND="]) {
+    const at = seen.indexOf(secret);
+    assert.equal(at, -1, `the key file stays hidden, but the stream has: ${seen.slice(Math.max(0, at - 300), at + 100)}`);
+  }
+  assert.match(replies(keys).at(-1), /No such file|not found|ENOENT/i);
+
+  // On a laptop the preview waits for a yes too: it runs code the agent may have just edited.
+  await say("run the example import", id);
+  const runs = async () => (await json("/api/revbound/ledger/runs")).data.filter((r) => r.workflow === "example-import");
+  const asked = async (n, prompt) => {
+    const events = await follow(id, (all) => all.filter((e) => e.type === "input.requested").length >= n);
+    const request = events.filter((e) => e.type === "input.requested")[n - 1].data.requests[0];
+    assert.equal(request.kind, "tool-approval");
+    assert.match(request.prompt, prompt);
+    return request;
+  };
+  const approve = async (request) => {
+    const yes = await get(`/eve/v1/session/${id}`, { method: "POST", body: { inputResponses: [{ requestId: request.requestId, optionId: "approve" }] }, headers: page });
+    assert.ok(yes.status < 300, yes.text);
+  };
+  const preview = await asked(1, /^Preview example-import\?/);
+  assert.deepEqual(await runs(), [], "nothing runs before the yes");
+  await approve(preview);
+  const real = await asked(2, /^Run example-import, spending at most \$1\.00\?/);
+  assert.deepEqual((await runs()).map((r) => r.preview), [true], "the preview ran after its yes; the real run waits for its own");
+  await approve(real);
+  const done = await follow(id, turnEnds(4));
+  assert.match(replies(done).at(-1), /^Started run [0-9a-f-]{36}\./);
+  const started = (await runs()).find((r) => !r.preview);
+  assert.equal(started.approvedMaxUsd, 1);
+  assert.equal(started.approvalNote, "Yes in chat from local");
+  await stopDev();
 });

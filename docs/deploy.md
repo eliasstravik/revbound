@@ -27,7 +27,12 @@ step with the vendors' own CLIs and dashboards. Our conventions:
    refuse it. Redeploy once after creating it.
 10. **One separate, labeled bypass secret per webhook sender**, never the one above, stored as
     `REVBOUND_HOOK_<NAME>_BYPASS` so its route accepts it and no other (docs: webhooks).
-11. **`npx revbound check --prod`** before calling it live: production must answer with Vercel's login, the project must
+11. **The chat agent** (docs: agent) deploys with the app as its own eve service in the same project, on AI Gateway
+    through OIDC: keep `services` and `rewrites` in `vercel.json` as the starter has them, and set the project's
+    Framework Preset to **Services** (Project Settings → Build and Deployment). It starts runs with the automation bypass secret from step 9, so turn that on even without laptops.
+    For its pull requests, create the GitHub connector once: `vercel connect create github --name revbound`, finish it
+    in the browser and install the app on this project's repository only. Chat apps: `npx revbound agent add slack`.
+12. **`npx revbound check --prod`** before calling it live: production must answer with Vercel's login, the project must
     have no Exceptions or Shareable Links, system variables exposed and `CRON_SECRET` set. It also prints every
     `acknowledge` entry in revbound.config.ts.
 

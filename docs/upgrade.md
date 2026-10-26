@@ -1,5 +1,14 @@
 # Upgrade
 
+## From revbound 0.0.7
+
+New projects get the chat agent as an eighth default plugin (docs: agent). An existing project keeps working without
+it; to add it, run `npx revbound add agent` and follow what it prints (install eve, add the `agent()` line, sync, add
+the `services` and `rewrites` that `revbound check` prints to `vercel.json`, and set the Vercel project's Framework
+Preset to Services). Keep
+`.agents/skills` to skill folders only (`revbound check` lists anything else, such as a `.gitkeep`), and add `.eve/` and
+`.output/` to `.gitignore` if the check asks.
+
 ## From revbound 0.0.6
 
 Every remaining `gtm` name is now `revbound`, with no fallback: an old project fails `revbound check` and its build

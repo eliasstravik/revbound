@@ -8,6 +8,7 @@ import { ai } from "revbound/ai";
 import { context } from "revbound/context";
 import { connections } from "revbound/connections";
 import { console } from "revbound/console"; // shadows the global console in this file only
+import { agent } from "revbound/agent";
 
 export default defineRevbound({
   company: "Company",
@@ -19,6 +20,7 @@ export default defineRevbound({
     context(),
     connections(),
     console(),
+    agent(),
   ],
   // acknowledge: { customLedger: true, destructive: ["company:0012"] },  // only when needed (`npx revbound docs ledger`)
 });

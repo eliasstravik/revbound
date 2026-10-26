@@ -8,8 +8,8 @@ import { packageRoot } from "./project.js";
 
 export const CONFIG = "revbound.config.ts";
 export const PACKAGE = "revbound";
-/** The seven default plugins, in the order `revbound init` writes them. */
-export const BASE = ["database", "ledger", "workflows", "ai", "context", "connections", "console"] as const;
+/** The eight default plugins, in the order `revbound init` writes them. */
+export const BASE = ["database", "ledger", "workflows", "ai", "context", "connections", "console", "agent"] as const;
 /** First-party plugins that ship in the package but join a project only through `revbound add <name>`. */
 export const OPTIONAL = ["mdm"] as const;
 

@@ -2,8 +2,8 @@
 import { spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
-import { CONFIG, loadConfig, OPTIONAL, PACKAGE, packageDir, projectJiti } from "./config.js";
-import { findProject, readJson } from "./project.js";
+import { BASE, CONFIG, loadConfig, OPTIONAL, PACKAGE, packageDir, projectJiti } from "./config.js";
+import { findProject, packageRoot, readJson } from "./project.js";
 import { listFiles, schemaOf, sync } from "./sync.js";
 import type { RevboundPlugin } from "./types.js";
 
@@ -17,12 +17,16 @@ export async function add(args: string[]): Promise<void> {
   const [spec] = args;
   if (!spec || args.length > 1) throw new Error(`Usage: revbound add <${OPTIONAL.join(" | ")} | npm package[@version] | git url#<commit>>`);
   const own = spec.startsWith(`${PACKAGE}/`) ? spec.slice(PACKAGE.length + 1) : spec;
-  if ((OPTIONAL as readonly string[]).includes(own)) {
+  if ([...OPTIONAL, ...BASE].includes(own as never)) {
     const dir = findProject();
     if ((await loadConfig(dir)).plugins.some((p) => p.name === own)) return void console.log(`${own} is already in ${CONFIG}.`);
-    console.log(`${own} ships with ${PACKAGE}; nothing to install. Add these lines to ${CONFIG}, then run \`npx revbound sync\` and \`npx revbound migrate\`:\n`);
+    // The agent runs on eve, which the project installs itself, at the versions this release is tested with.
+    const deps = own === "agent" ? ["eve", "just-bash"].map((d) => `${d}@${readJson(join(packageRoot(), "package.json"))?.devDependencies?.[d]}`) : [];
+    if (deps.length) console.log(`${own} ships with ${PACKAGE} and runs on eve. Install it first:\n\n  npm install ${deps.join(" ")}\n`);
+    console.log(`${deps.length ? "Then add" : `${own} ships with ${PACKAGE}; nothing to install. Add`} these lines to ${CONFIG}, then run \`npx revbound sync\` and \`npx revbound migrate\`:\n`);
     console.log(`  import { ${own} } from "${PACKAGE}/${own}";`);
     console.log(`  ${own}(),   // in plugins: [...]`);
+    if (own === "agent") console.log("\nThen give vercel.json the agent's service and routes (`npx revbound check` prints them) and, deployed, set the\nVercel project's Framework Preset to Services (`npx revbound docs agent`).");
     return;
   }
   const git = /^(git\+|github:|gitlab:|bitbucket:|https?:\/\/.*\.git|git@)/.test(spec) || /^[\w-]+\/[\w.-]+(#.*)?$/.test(spec);

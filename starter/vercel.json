@@ -1,3 +1,16 @@
 {
-  "crons": [{ "path": "/api/revbound/ledger/reconcile", "schedule": "0 * * * *" }]
+  "crons": [{ "path": "/api/revbound/ledger/reconcile", "schedule": "0 * * * *" }],
+  "services": {
+    "web": { "root": ".", "framework": "nextjs" },
+    "eve": {
+      "root": "agent",
+      "framework": "eve",
+      "outputDirectory": ".vercel/output",
+      "buildCommand": "cd .. && export EVE_INTERNAL_BUILD_OUTPUT_DIRECTORY=agent/.vercel/output && export EVE_INTERNAL_HOST_BUILD_OUTPUT_DIRECTORY=.vercel/output && node node_modules/eve/bin/eve.js build"
+    }
+  },
+  "rewrites": [
+    { "source": "/eve/v1/(.*)", "destination": { "service": "eve" } },
+    { "source": "/(.*)", "destination": { "service": "web" } }
+  ]
 }

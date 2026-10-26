@@ -2,7 +2,7 @@
 
 A Revbound project is one Next.js app in one repo and one Vercel project per company, all three named
 `revbound-<company>` (`revbound-acme`). `npx revbound init --company Acme` creates `./revbound-acme` in the current
-folder, writes `revbound.config.ts` with the seven default plugins, installs, and runs `revbound sync`. Inside a
+folder, writes `revbound.config.ts` with the eight default plugins, installs, and runs `revbound sync`. Inside a
 Revbound project, `init` with no folder repairs it. `init` writes the base files only: no workflows, tables or context
 beyond `company.md`. For demos and tests, `init --example` also adds one small example (the `example-import` workflow,
 its `example_companies` table and migration, and `context/example-icp.md`), each marked as an example.
@@ -12,6 +12,7 @@ its `example_companies` table and migration, and `context/example-icp.md`), each
 | `revbound.config.ts` | the plugin list (`defineRevbound({ company, plugins })`); read only by the CLI | company |
 | `_revbound/` | what `revbound sync` generates from it: `manifest.ts`, `routes.ts`, `views.tsx`, `next.ts`, `slots/<plugin>.ts`, `<plugin>.ts` binding files | sync |
 | `proxy.ts`, `app/layout.tsx`, `app/[[...path]]/page.tsx`, `app/api/revbound/[...path]/route.ts` | shims that import only `_revbound/` | sync |
+| `agent/` | the chat agent's eve folder (docs: agent); `agent/skills` links to `.agents/skills` | sync |
 | `AGENTS.md` | the company's instructions, plus the managed block (`<!-- BEGIN:revbound -->` … `<!-- END:revbound -->`) | company + sync |
 | `CLAUDE.md` | `@AGENTS.md` | company |
 | `context/` | Markdown, any shape (docs: context) | company |
@@ -19,15 +20,16 @@ its `example_companies` table and migration, and `context/example-icp.md`), each
 | `webhooks/index.ts` | inbound webhooks built with `webhook()` (docs: webhooks) | company |
 | `db/schema.ts`, `db/migrations/` | the company's Drizzle tables in schema `public` (docs: data) | company |
 | `plugins/<name>/` | local and ejected plugins (docs: plugins) | company |
-| `.agents/skills/` | the company's own skills; `<plugin>-<skill>` folders are installed by sync | company + sync |
+| `.agents/skills/` | the company's own skills, one folder each and nothing else (the chat agent loads every entry as a skill); `<plugin>-<skill>` folders are installed by sync | company + sync |
 | `.claude/skills` | symlink to `../.agents/skills`, how Claude Code sees the skills | company |
 | `.env.example` | every connection name with a one-line comment (docs: connections) | company |
-| `vercel.json` | crons: workflow schedules and the ledger's hourly reconcile | company |
+| `vercel.json` | crons: workflow schedules and the ledger's hourly reconcile; the app and the chat agent as two services | company |
 | `next.config.ts` | `withRevbound({}, { manifest, transforms, trace })`, reading `_revbound/manifest.ts` and `_revbound/next.ts` | company |
 | `public/_revbound/probe.txt` | `revbound-probe-v1`; the fail-closed check requests it | company |
 | `package.json` | scripts; `"imports"` maps `#revbound/<plugin>` to `./_revbound/<plugin>.ts` (sync writes it) | company + sync |
 
-Gitignored: `.env*.local`, `.revbound/` (local database), `.workflow-data/`, `.vercel/`, `.next/`, `node_modules/`.
+Gitignored: `.env*.local`, `.revbound/` (local database), `.workflow-data/`, `.eve/` and `.output/` (the agent's local
+state and build), `.vercel/`, `.next/`, `node_modules/`.
 `_revbound/` and the shims are committed, so a deploy builds exactly what was reviewed.
 
 ## Where things go
@@ -53,8 +55,8 @@ Gitignored: `.env*.local`, `.revbound/` (local database), `.workflow-data/`, `.v
   Keep it under 90 words …
   ```
 - Lasting results live in the company's tables in `public`, not in run history. The ledger keeps runs and costs.
-- Reserved first path segments: `api`, `_revbound`, `_next`, `.well-known`, and every view path (`context`, `workflows`,
-  `runs`, `data`, `connections` by default).
+- Reserved first path segments: `api`, `_revbound`, `_next`, `.well-known`, `eve`, and every view path (`chat`,
+  `context`, `workflows`, `runs`, `data`, `connections` by default).
 
 ## Keeping the layout
 

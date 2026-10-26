@@ -5,9 +5,10 @@
 `npm run dev` (`npx revbound dev`) needs no account: it runs `revbound sync`, serves the project's own PGlite database
 on 127.0.0.1 (docs: data), applies pending migrations, starts the ledger's one-minute reconcile, and runs `next dev`
 with the Workflow SDK's local world. It re-syncs when `revbound.config.ts`, `.env.example` or a local plugin changes. AI
-steps run on your own `claude` or `codex` login (docs: ai). The console is `http://127.0.0.1:$REVBOUND_PORT/` (default
-3000), with no login. Anything under `revbound dev` or `next dev` is never "hosted", whatever the env files say; the CLI
-loads env files exactly as Next does. Local data is development data and never moves to production.
+steps run on your own `claude` or `codex` login (docs: ai). It also starts the chat agent's eve dev server on 127.0.0.1
+(its log lines start with `[agent]`), so the console's Chat page works at once, on the same login (docs: agent). The
+console is `http://127.0.0.1:$REVBOUND_PORT/` (default 3000), with no login. Anything under `revbound dev` or
+`next dev` is never "hosted", whatever the env files say; the CLI loads env files exactly as Next does. Local data is development data and never moves to production.
 
 ## Switching to real services
 
@@ -30,8 +31,10 @@ Host kept.
 
 **Anyone on that private network gets in without a login** and reads Context, Workflows, Runs, Data and Connections.
 Nothing there writes: `session` routes are read-only, and `automation` and `local` routes (start, run status, the run
-inspector) answer only on `127.0.0.1`/`localhost`, so nobody else runs stages on the owner's subscription. Run workflows
-on this machine with `npx revbound run`. Open database also works on this machine's own Tailscale name, for the
+inspector) answer only on `127.0.0.1`/`localhost`, so nobody else runs stages on the owner's subscription. The Chat
+page is the one exception, and only for a Tailscale login Serve puts on the request (never Funnel): it answers on this
+computer's own AI login, as that person, whose yes alone starts their runs. Run workflows on this machine with
+`npx revbound run`. Open database also works on this machine's own Tailscale name, for the
 Tailscale login that presses it only (docs: data).
 
 ## `REVBOUND_BASE_PATH`
