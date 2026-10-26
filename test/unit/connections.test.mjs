@@ -156,6 +156,6 @@ test("hosted: the badge's release route says live once the redeploy serves, fail
   await hosted(async () => assert.deepEqual(await state(), { release: { state: "updating" } }), { deployment: { readyState: "READY", readySubstate: "STAGED" } });
   await hosted(async () => assert.deepEqual(await state(), { release: { state: "failed", details: "https://vercel.com/acme-team/revbound-acme/dpl_x" } }),
     { deployment: { readyState: "ERROR" } });
-  await hosted(async () => assert.match((await state()).error, /not this project/), { deployment: { projectId: "prj_other" } });
+  await hosted(async () => assert.deepEqual(await state(), { release: null }), { deployment: { projectId: "prj_other" } });
   await hosted(async () => assert.equal((await release(new Request(`https://${HOST}/api/revbound/connections/release?id=../x`))).status, 400));
 });

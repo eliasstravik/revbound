@@ -27,7 +27,7 @@ async function vercel<T>(token: string, path: string, init?: { method?: string; 
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, signal: AbortSignal.timeout(15_000),
   }).catch(() => { throw new Refused("Could not reach Vercel; try again.", 502); });
   const data = (await res.json().catch(() => ({}))) as T & { error?: { code?: string } };
-  if (!res.ok) throw new Refused(`Vercel refused the change (${res.status}${data.error?.code ? ` ${data.error.code}` : ""}).`, 502);
+  if (!res.ok) throw new Refused(`Vercel refused the change (${res.status}${data.error?.code ? ` ${data.error.code}` : ""}).`, res.status === 404 ? 404 : 502);
   return data;
 }
 
@@ -64,14 +64,15 @@ export function settingsUrl(): Promise<string | null> {
 
 /**
  * The state of a redeploy a change started: "failed" (with its inspector link), "live" once it serves production
- * (READY but STAGED or ROLLING is built, not yet serving), else "updating"; null without the token.
+ * (READY but STAGED or ROLLING is built, not yet serving), else "updating"; null without the token, and for a deployment
+ * Vercel doesn't know or another project's, so the badge stops following it.
  */
 export async function releaseState(id: string): Promise<{ state: "updating" | "live" | "failed"; details?: string } | null> {
   const token = value("REVBOUND_VERCEL_TOKEN"), projectId = value("VERCEL_PROJECT_ID");
   if (!token || !projectId) return null;
   const d = await vercel<{ projectId?: string; readyState?: string; readySubstate?: string; inspectorUrl?: string }>(token,
-    `/v13/deployments/${enc(id)}?teamId=${enc(await teamId(token, projectId))}`);
-  insist(d.projectId === projectId, "That is not this project's deployment.", 404);
+    `/v13/deployments/${enc(id)}?teamId=${enc(await teamId(token, projectId))}`).catch((e: Refused) => { if (e.status === 404) return null; throw e; });
+  if (d?.projectId !== projectId) return null;
   const state = d.readyState === "ERROR" || d.readyState === "CANCELED" ? "failed"
     : d.readyState === "READY" && (d.readySubstate ?? "PROMOTED") === "PROMOTED" ? "live" : "updating";
   return { state, ...(state === "failed" && d.inspectorUrl?.startsWith("https://") && { details: d.inspectorUrl }) };
