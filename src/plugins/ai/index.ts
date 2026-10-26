@@ -16,9 +16,9 @@ export function ai() {
     needs: ["workflows", "ledger"],
     capabilities: ["spends"],
     runtime: { from: `${P}/runtime`, step: `${P}/step`, exports: ["agent", "tool"] },
-    agents: `- Every AI call in a workflow, one-shot or tool-using, is \`agent()\` from \`#gtm/ai\` (no \`tools\` for a one-shot extract or
-  score). Never import \`ai\` or \`@ai-sdk/*\` in company code, and never write a model id there: \`GTM_MODEL\` picks the model.
-  Size previews with \`currentRun().preview\` from \`#gtm/workflows\`: a preview may make at most a few calls (docs: ai).`,
+    agents: `- Every AI call in a workflow, one-shot or tool-using, is \`agent()\` from \`#revbound/ai\` (no \`tools\` for a one-shot extract or
+  score). Never import \`ai\` or \`@ai-sdk/*\` in company code, and never write a model id there: \`REVBOUND_MODEL\` picks the model.
+  Size previews with \`currentRun().preview\` from \`#revbound/workflows\`: a preview may make at most a few calls (docs: ai).`,
     docs: { ai: `${SRC}/docs/ai.md` },
   });
 }

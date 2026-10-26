@@ -1,5 +1,5 @@
 /**
- * What `#gtm/workflows` exports: fanOut(), webhook() and currentRun(). Workflow-safe: no Node imports; everything that
+ * What `#revbound/workflows` exports: fanOut(), webhook() and currentRun(). Workflow-safe: no Node imports; everything that
  * reads the World or the ledger runs in this plugin's steps (step.ts).
  */
 import { FatalError } from "workflow";

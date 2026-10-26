@@ -6,14 +6,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 /** next/link is CommonJS: under NodeNext its default import is typed as the module, but bundlers hand over the component. */
 export const Link = NextLink as unknown as typeof NextLink.default;
 
-/** The address of `/api/gtm/<path>` under the app's base path. */
-export const apiUrl = (path: string) => `${process.env.__NEXT_ROUTER_BASEPATH ?? ""}/api/gtm/${path}`;
+/** The address of `/api/revbound/<path>` under the app's base path. */
+export const apiUrl = (path: string) => `${process.env.__NEXT_ROUTER_BASEPATH ?? ""}/api/revbound/${path}`;
 
 /** A page of this project in Vercel's dashboard: Vercel's `/d` link, which asks for the team and project (`path` after them). */
 export const vercelUrl = (path: string, title: string) =>
   `https://vercel.com/d?to=${encodeURIComponent(`/[team]/[project]${path}`)}&title=${encodeURIComponent(title)}`;
 
-/** Calls `/api/gtm/<path>`; throws the API's `{ error }` text (or the HTTP status) on failure. */
+/** Calls `/api/revbound/<path>`; throws the API's `{ error }` text (or the HTTP status) on failure. */
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(apiUrl(path), { cache: "no-store", ...init });
   const body = await res.json().catch(() => null);
@@ -38,7 +38,7 @@ if (typeof window !== "undefined") {
 type State<T> = { key?: string; data?: T; error?: string; at?: number };
 
 /**
- * Reads `/api/gtm/<path>` (nothing while path is null), again on `reload()`, and, when `every` gives a delay for the
+ * Reads `/api/revbound/<path>` (nothing while path is null), again on `reload()`, and, when `every` gives a delay for the
  * last result, after that delay. One read at a time, timed from the last answer, so a slow one is never cut off; a
  * failure retries with backoff up to a minute. The last data stays shown while a new read is in flight.
  */

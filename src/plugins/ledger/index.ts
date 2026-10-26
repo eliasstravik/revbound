@@ -23,10 +23,10 @@ export function ledger(opts: { budgets?: Budgets } = {}) {
     migrations: `${SRC}/migrations`,
     options: { budgets: opts.budgets ?? {} },
     tables: [
-      { schema: "gtm_ledger", name: "runs", label: "Ledger: runs" },
-      { schema: "gtm_ledger", name: "actions", label: "Ledger: actions" },
-      { schema: "gtm_ledger", name: "run_costs", label: "Ledger: cost per run" },
-      { schema: "gtm_ledger", name: "spend_by_workflow_month", label: "Ledger: spend by workflow and month" },
+      { schema: "revbound_ledger", name: "runs", label: "Ledger: runs" },
+      { schema: "revbound_ledger", name: "actions", label: "Ledger: actions" },
+      { schema: "revbound_ledger", name: "run_costs", label: "Ledger: cost per run" },
+      { schema: "revbound_ledger", name: "spend_by_workflow_month", label: "Ledger: spend by workflow and month" },
     ],
     routes: [
       { path: "ledger/reconcile", methods: ["GET"], access: "cron", handler: `${P}/routes#reconcile` },
@@ -35,9 +35,9 @@ export function ledger(opts: { budgets?: Budgets } = {}) {
     ],
     views: [{ path: "runs", title: "Runs", nav: { label: "Runs", order: 25 }, fill: true, component: `${P}/view` }],
     workflowTabs: [{ id: "runs", title: "Runs", order: 20, component: `${P}/view#RunsTab` }],
-    agents: `- The ledger records every run, refused start, cost and approval in Postgres (\`gtm_ledger\`). A workflow with
+    agents: `- The ledger records every run, refused start, cost and approval in Postgres (\`revbound_ledger\`). A workflow with
   \`approval: { required: true }\` spends nothing without a recorded yes, and every paid call outside \`agent()\` goes through
-  \`action()\` from \`#gtm/ledger\` inside a step. A 403 that says "This workflow needs a person's yes" means: preview, show, ask,
+  \`action()\` from \`#revbound/ledger\` inside a step. A 403 that says "This workflow needs a person's yes" means: preview, show, ask,
   then \`--approve\`. You can approve on your own, so never do: the person gives every yes in chat (docs: ledger).`,
     docs: { ledger: `${SRC}/docs/ledger.md` },
     dev: `${P}/dev`,

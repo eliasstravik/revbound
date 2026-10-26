@@ -1,23 +1,24 @@
 # Ledger
 
-The ledger is the company's lasting record in its own Postgres (schema `gtm_ledger`): every run Revbound starts or refuses,
-every metered action and its cost, and every approval. Console: **Runs** (status, cost, approval) and, in Data, the
-`runs` and `actions` tables and the `run_costs` and `spend_by_workflow_month` views.
+The ledger is the company's lasting record in its own Postgres (schema `revbound_ledger`): every run Revbound starts or
+refuses, every metered action and its cost, and every approval. Console: **Runs** (status, cost, approval) and, in Data,
+the `runs` and `actions` tables and the `run_costs` and `spend_by_workflow_month` views.
 
 ## A yes is a record, not a lock
 
 A workflow with `approval: { required: true }` in its registry entry spends nothing unless its root run carries a
 recorded approval:
 
-1. **Preview**: `npx revbound run <workflow> --input … --preview`. No approval needed. Tree-wide limits on every backend:
-   `previewItems` children (default 3; `fanOut` cuts its list first), `previewCalls` calls (default 10), `previewMaxUsd`
-   dollars (default 1). It waits for the whole tree and prints the root's value, each child's value and the total cost.
+1. **Preview**: `npx revbound run <workflow> --input … --preview`. No approval needed. Tree-wide limits on every
+   backend: `previewItems` children (default 3; `fanOut` cuts its list first), `previewCalls` calls (default 10),
+   `previewMaxUsd` dollars (default 1). It waits for the whole tree and prints the root's value, each child's value and
+   the total cost.
 2. **Ask**: show the sample and the cost in chat and ask Yes/No with the question tool, naming the workflow, the input
    and the cost cap.
-3. **Run**: after a yes, `npx revbound run <workflow> --input … --approve --max-usd <n> [--note …] [--prod]` (`<n>` in whole
-   cents, $0.01 or more). Accepted only
-   when a completed preview of the same input (its root completed, no child still going) exists from the last
-   `previewWithinHours` (default 24). The approval records the cap, the note and the preview it rests on.
+3. **Run**: after a yes, `npx revbound run <workflow> --input … --approve --max-usd <n> [--note …] [--prod]` (`<n>` in
+   whole cents, $0.01 or more). Accepted only when a completed preview of the same input (its root completed, no child
+   still going) exists from the last `previewWithinHours` (default 24). The approval records the cap, the note and the
+   preview it rests on.
 4. **Schedules**: quote cost per run × runs per month, ask, then commit `schedule: { approvedUntil: "2026-12-31",
    note: "weekly, about $4 a run" }` next to `budget: { perRunUsd, perMonthUsd }`, in the same change that adds the
    cron to `vercel.json`. The approval is reviewed and deployed through git. A cron start after `approvedUntil` is
@@ -52,7 +53,7 @@ Hosted, set AI Gateway's own budgets in the Vercel dashboard as the outer ceilin
 ## Paid calls outside agent(): action()
 
 ```ts
-import { action } from "#gtm/ledger";
+import { action } from "#revbound/ledger";
 
 async function enrich(domain: string) {
   "use step";
@@ -79,17 +80,17 @@ async function enrich(domain: string) {
 
 - Admit and reserve fail closed: any error refuses. A settle error is logged; the row stays reserved, still counted,
   and reconcile settles it.
-- Reconcile keeps the record complete with one writer: it links SDK runs Revbound started, records runs started elsewhere
-  as `external`, copies final statuses, marks runs whose SDK record is gone `unknown`, fails starts that never
+- Reconcile keeps the record complete with one writer: it links SDK runs Revbound started, records runs started
+  elsewhere as `external`, copies final statuses, marks runs whose SDK record is gone `unknown`, fails starts that never
   happened after 10 minutes, and settles reservations of ended runs as `unknown`. It runs at most once a minute: after
-  each Runs read, hourly through `/api/gtm/ledger/reconcile` (`vercel.json`, needs `CRON_SECRET`), and every minute
+  each Runs read, hourly through `/api/revbound/ledger/reconcile` (`vercel.json`, needs `CRON_SECRET`), and every minute
   under `revbound dev`. `revbound run` refreshes the run it waits on, so watched runs are current within seconds.
 
 ## A custom ledger
 
 The ledger decides what runs and what it may spend, so `revbound check` fails while the ledger slot is anything but the
 package's own `ledger()`: an ejected copy, an edited object or another plugin. Set `acknowledge: { customLedger: true }`
-in gtm.config.ts to accept it; `revbound check --prod` prints the acknowledgment. A custom ledger stops getting the
+in revbound.config.ts to accept it; `revbound check --prod` prints the acknowledgment. A custom ledger stops getting the
 package's safety fixes.
 
 ## Natural keys and deleting them
@@ -98,5 +99,5 @@ Ledger rows hold no secrets and no run inputs (an input hash only). Action rows 
 and companies they were about (`keys`: `email`, `domain`, `linkedin`). To delete a person's keys:
 
 ```sql
-update gtm_ledger.actions set keys = keys - 'email' - 'linkedin' where keys->>'email' = 'person@example.com';
+update revbound_ledger.actions set keys = keys - 'email' - 'linkedin' where keys->>'email' = 'person@example.com';
 ```

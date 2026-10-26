@@ -2,14 +2,14 @@
 
 **The open-source agent plugin that runs your GTM.**
 
-Add it to Claude Code, Codex, Copilot CLI or Cursor and say "set up GTM for Acme". Your agent builds the workflows. Revbound
-runs them on Vercel, keeps a record of every run and dollar, and gives your team a console. Your repo, your keys, and
-every part is a plugin.
+Add it to Claude Code, Codex, Copilot CLI or Cursor and say "set up GTM for Acme". Your agent builds the workflows.
+Revbound runs them on Vercel, keeps a record of every run and dollar, and gives your team a console. Your repo, your
+keys, and every part is a plugin.
 
 ```sh
 npx skills add eliasstravik/revbound -g     # the skill, for any agent
 # then ask your agent: "set up GTM for Acme"
-npm run dev                                 # in ./gtm-acme: the console on http://127.0.0.1:3000
+npm run dev                                 # in ./revbound-acme: the console on http://127.0.0.1:3000
 ```
 
 Or install it as your agent's plugin:
@@ -25,8 +25,8 @@ Or install it as your agent's plugin:
 ## What it is
 
 Revbound doesn't build the "how" of go-to-market work: playbooks, scoring, templates, enrichment waterfalls or vendor
-wrappers. Agents write those, and they get better at it every year. Revbound builds the parts agents plug into, the ones no
-company should have to rebuild:
+wrappers. Agents write those, and they get better at it every year. Revbound builds the parts agents plug into, the ones
+no company should have to rebuild:
 
 - durable execution (Workflow SDK workflows, on Vercel Workflow when live)
 - a place to keep records (the company's own Postgres: PGlite locally, Neon live)
@@ -41,7 +41,7 @@ project, there is no telemetry, and the keys and services are the company's own.
 
 ## Every part is a plugin
 
-`revbound init` writes `gtm.config.ts` with seven default plugins, each one line you can remove or replace:
+`revbound init` writes `revbound.config.ts` with seven default plugins, each one line you can remove or replace:
 
 | Plugin | What it does |
 | --- | --- |
@@ -61,8 +61,8 @@ Optional plugins ship in the package too and join a project with `npx revbound a
 
 A plugin can add tables, console pages and sidebar items, workflow tabs, routes with an access rule, CLI commands,
 skills, AGENTS.md lines, connection names, checks and docs, without editing this package. `revbound sync` turns the list
-into committed files, `revbound check` runs first in every build, and `revbound add`, `remove`, `eject` and `diff` manage
-plugins. See [docs/plugins.md](docs/plugins.md).
+into committed files, `revbound check` runs first in every build, and `revbound add`, `remove`, `eject` and `diff`
+manage plugins. See [docs/plugins.md](docs/plugins.md).
 
 ## A yes is a record
 
@@ -97,9 +97,10 @@ The live project is the same repo as one Vercel Pro project with Neon from the V
 Authentication on all deployments. Follow [docs/deploy.md](docs/deploy.md); `npx revbound check --prod` says what is
 missing.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Feliasstravik%2Frevbound%2Ftree%2Fv0.0.6%2Fstarter&project-name=gtm-company&repository-name=gtm-company&stores=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%7D%5D)
+[![Deploy with
+Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Feliasstravik%2Frevbound%2Ftree%2Fv0.0.6%2Fstarter&project-name=revbound-company&repository-name=revbound-company&stores=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%7D%5D)
 
-The button deploys the starter at `v0.0.6`; name the project `gtm-<company>`. The console fails closed ("Turn on
+The button deploys the starter at `v0.0.6`; name the project `revbound-<company>`. The console fails closed ("Turn on
 Vercel Authentication → All Deployments") until production protection is on.
 
 ## Roadmap
@@ -127,13 +128,13 @@ Not planned: a hosted Revbound service run by this project.
 npm ci
 npm run build && npm run check        # typecheck and unit tests
 npm test                              # unit tests, then the acceptance suite against a packed tarball
-GTM_TEST_PG_URL=postgres://… node --test test/ledger/*.test.mjs test/mdm/*.test.mjs   # the ledger and mdm on real Postgres and on PGlite
+REVBOUND_TEST_PG_URL=postgres://… node --test test/ledger/*.test.mjs test/mdm/*.test.mjs   # the ledger and mdm on real Postgres and on PGlite
 npm run lines                         # line counts per plugin against their budgets
 ```
 
 Releases: `npm run version:bump <x.y.z>` sets one version across the package, the plugin manifests, the starter's pin
-and the Deploy button; [release.yml](.github/workflows/release.yml) publishes a pushed `v<x.y.z>` tag through npm trusted
-publishing after `npm run check` passes.
+and the Deploy button; [release.yml](.github/workflows/release.yml) publishes a pushed `v<x.y.z>` tag through npm
+trusted publishing after `npm run check` passes.
 
 ## License
 

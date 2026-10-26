@@ -5,7 +5,7 @@ import { PRODUCTION_DATABASE, assertNotProduction, isHosted, value } from "revbo
 
 export type { NodePgDatabase };
 
-/** What `#gtm/database` exports. In workflow scope this module is replaced by runtime-workflow.ts (no pg). */
+/** What `#revbound/database` exports. In workflow scope this module is replaced by runtime-workflow.ts (no pg). */
 export type Api = { db: typeof db };
 export const bind = (_rt: Runtime): Api => ({ db });
 
@@ -13,7 +13,7 @@ type Call = (...args: unknown[]) => unknown;
 const KEY: unique symbol = Symbol.for("revbound/db");
 
 /** A pool that runs the production-stamp check once, before its first query or checkout. */
-class GtmPool extends pg.Pool {
+class RevboundPool extends pg.Pool {
   #url: string;
   #checked?: Promise<void>;
 
@@ -60,5 +60,5 @@ export function db(): NodePgDatabase {
       ? "DATABASE_URL is not set in this deployment: connect Neon via the Vercel Marketplace; see `npx revbound docs deploy`."
       : "DATABASE_URL is not set: run the app with `revbound dev` (npm run dev), which serves the local database.");
   }
-  return (store[KEY] = drizzle({ client: new GtmPool(url) }));
+  return (store[KEY] = drizzle({ client: new RevboundPool(url) }));
 }

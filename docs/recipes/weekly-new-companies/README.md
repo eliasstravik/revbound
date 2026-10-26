@@ -26,11 +26,12 @@ scheduled job: a workflow that takes no input, registered by name, plus one cron
 },
 ```
 
-- In `vercel.json`, add to `crons`: `{ "path": "/api/gtm/cron/weekly-new-companies", "schedule": "0 7 * * 1" }`.
+- In `vercel.json`, add to `crons`: `{ "path": "/api/revbound/cron/weekly-new-companies", "schedule": "0 7 * * 1" }`.
 
 ## How to
 
 1. Copy the files, then `npm run db:generate` and `npx revbound migrate`.
 2. Try it locally, where nothing fires on its own: `npx revbound run weekly-new-companies`.
-3. The schedule runs only in production, with `CRON_SECRET` set (`npx revbound docs deploy`). It costs nothing, so its yes is the
-   person asking for the schedule; a schedule that does cost something quotes cost per run × runs per month first.
+3. The schedule runs only in production, with `CRON_SECRET` set (`npx revbound docs deploy`). It costs nothing, so its
+   yes is the person asking for the schedule; a schedule that does cost something quotes cost per run × runs per month
+   first.

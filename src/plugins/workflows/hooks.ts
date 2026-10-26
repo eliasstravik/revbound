@@ -19,7 +19,7 @@ const hooks = brand(async (req: Request, ctx: RouteCtx): Promise<Response> => {
   try { body = JSON.parse(raw); } catch {}
   const key = String(await hook.dedupe(req, body));
   const db = ctx.get("database").db();
-  const claimed = await db.execute(sql`insert into gtm_workflows.webhook_events (hook, dedupe_key, outcome) values (${name}, ${key}, 'claimed') on conflict do nothing returning hook`);
+  const claimed = await db.execute(sql`insert into revbound_workflows.webhook_events (hook, dedupe_key, outcome) values (${name}, ${key}, 'claimed') on conflict do nothing returning hook`);
   if (!claimed.rows.length) return json({ ok: true, duplicate: true });
   let runId: string | null = null;
   try {
@@ -33,10 +33,10 @@ const hooks = brand(async (req: Request, ctx: RouteCtx): Promise<Response> => {
       },
     });
     if (outcome && typeof outcome === "object") runId ??= outcome.runId;
-    await db.execute(sql`update gtm_workflows.webhook_events set outcome = ${outcome === "ignored" ? "ignored" : "handled"}, run_id = ${runId} where hook = ${name} and dedupe_key = ${key}`);
+    await db.execute(sql`update revbound_workflows.webhook_events set outcome = ${outcome === "ignored" ? "ignored" : "handled"}, run_id = ${runId} where hook = ${name} and dedupe_key = ${key}`);
     return json({ ok: true, ...(runId && { runId }) });
   } catch (error) {
-    await db.execute(sql`delete from gtm_workflows.webhook_events where hook = ${name} and dedupe_key = ${key} and outcome = 'claimed'`).catch(() => {});
+    await db.execute(sql`delete from revbound_workflows.webhook_events where hook = ${name} and dedupe_key = ${key} and outcome = 'claimed'`).catch(() => {});
     if (error instanceof HttpError) throw error;
     console.error(`[revbound] webhook ${name} failed`, error);
     throw new HttpError(500, "The webhook failed; the sender may retry.");

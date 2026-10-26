@@ -1,5 +1,5 @@
 /**
- * What `#gtm/mdm` exports: upsert, find, merge and "what is known since when" for people, companies and signals.
+ * What `#revbound/mdm` exports: upsert, find, merge and "what is known since when" for people, companies and signals.
  * Workflow-safe: each call is a step of this plugin's step module, which stamps the run it came from.
  */
 import type { Runtime } from "revbound";

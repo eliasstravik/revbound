@@ -1,4 +1,4 @@
-// Inbound webhooks: { <name>: webhook({ verify, dedupe, onEvent }) }, served at /api/gtm/hooks/<name>
+// Inbound webhooks: { <name>: webhook({ verify, dedupe, onEvent }) }, served at /api/revbound/hooks/<name>
 // (`npx revbound docs webhooks`).
 import type { Webhooks } from "revbound/workflows";
 

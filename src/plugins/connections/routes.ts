@@ -17,7 +17,7 @@ async function rows(ctx: RouteCtx) {
   const registry = await registryOf(ctx);
   const declared = new Map(ctx.manifest.connections.map((c) => [c.name, c]));
   for (const [, w] of Object.entries(registry)) for (const n of w.connections ?? []) if (!declared.has(n)) declared.set(n, { name: n, label: "", plugins: [] });
-  const shell = (value("GTM_SHELL_KEYS") ?? "").split(",");
+  const shell = (value("REVBOUND_SHELL_KEYS") ?? "").split(",");
   return [...declared.values()].map((c) => {
     const set = value(c.name) !== undefined || local.includes(c.name);
     const state: State = hosted && !set && /^AI_GATEWAY_/i.test(c.name) ? "provided" : set ? "set" : "missing";

@@ -1,5 +1,5 @@
 {
-  "name": "gtm-plugin-fixture",
+  "name": "revbound-plugin-fixture",
   "version": "1.0.0",
   "description": "A packed third-party plugin for Revbound's acceptance tests.",
   "type": "module",

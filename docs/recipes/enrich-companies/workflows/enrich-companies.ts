@@ -1,6 +1,6 @@
-import { agent } from "#gtm/ai";
-import { db } from "#gtm/database";
-import { currentRun } from "#gtm/workflows";
+import { agent } from "#revbound/ai";
+import { db } from "#revbound/database";
+import { currentRun } from "#revbound/workflows";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { companies, companyProfiles } from "../db/schema";

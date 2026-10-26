@@ -8,13 +8,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const REPO = fileURLToPath(new URL("../../", import.meta.url));
-const base = process.env.GTM_TEST_DIR ?? os.tmpdir();
+const base = process.env.REVBOUND_TEST_DIR ?? os.tmpdir();
 
-/** The seven default plugins as gtm.config.ts imports them, plus `extra` lines and plugin entries. */
+/** The seven default plugins as revbound.config.ts imports them, plus `extra` lines and plugin entries. */
 export function config({ company = "Acme", imports = "", plugins, acknowledge = "" } = {}) {
   const defaults = ["database()", "ledger({ budgets: { perRunUsd: 25, perWorkflowMonthUsd: 300, projectMonthUsd: 1000 } })",
     'workflows({ registry: "./workflows", webhooks: "./webhooks" })', "ai()", "context()", "connections()", "console()"];
-  return `import { defineGtm, definePlugin } from "revbound";
+  return `import { defineRevbound, definePlugin } from "revbound";
 import { database } from "revbound/database";
 import { ledger } from "revbound/ledger";
 import { workflows } from "revbound/workflows";
@@ -24,7 +24,7 @@ import { connections } from "revbound/connections";
 import { console } from "revbound/console";
 ${imports}
 void definePlugin;
-export default defineGtm({
+export default defineRevbound({
   company: ${JSON.stringify(company)},
   plugins: [${(plugins ?? defaults).join(", ")}],
   ${acknowledge}
@@ -35,7 +35,7 @@ export default defineGtm({
 /** A project folder from the starter, with `files` (path → text) written over it. */
 export function project(files = {}) {
   fs.mkdirSync(base, { recursive: true });
-  const dir = fs.mkdtempSync(path.join(base, "gtm-unit-"));
+  const dir = fs.mkdtempSync(path.join(base, "revbound-unit-"));
   fs.cpSync(path.join(REPO, "starter"), dir, { recursive: true, verbatimSymlinks: true, filter: (src) => !src.endsWith(`${path.sep}gitignore`) });
   fs.copyFileSync(path.join(REPO, "starter", "gitignore"), path.join(dir, ".gitignore"));
   const pkg = JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8"));
@@ -48,7 +48,7 @@ export function project(files = {}) {
     fs.symlinkSync(path.join(REPO, "node_modules", entry), path.join(modules, entry));
   }
   fs.symlinkSync(REPO, path.join(modules, "revbound"));
-  write(dir, { "gtm.config.ts": config(), ...files });
+  write(dir, { "revbound.config.ts": config(), ...files });
   return dir;
 }
 

@@ -7,9 +7,9 @@ type Command = (args: string[]) => Promise<void>;
 
 const USAGE = `revbound: the open-source agent plugin that runs your GTM (npx revbound <command>)
 
-  init [dir] --company <name> [--example]   create a project (default ./gtm-<company>) in an empty folder, or repair one
-  sync                      write gtm/ and the shims from gtm.config.ts
-  dev                       run the console and workflows on 127.0.0.1:$GTM_PORT (default 3000)
+  init [dir] --company <name> [--example]   create a project (default ./revbound-<company>) in an empty folder, or repair one
+  sync                      write _revbound/ and the shims from revbound.config.ts
+  dev                       run the console and workflows on 127.0.0.1:$REVBOUND_PORT (default 3000)
   check [--build] [--prod]  report problems with their fixes (read-only)
   docs [topic]              print the docs of this version
   add <name | npm-or-git>   add a first-party plugin (mdm) or install a plugin package; prints the lines to add
@@ -30,7 +30,7 @@ const core: Record<string, () => Promise<Command>> = {
   diff: async () => (await import("./manage.js")).diff,
 };
 
-/** A plugin's command from gtm.config.ts, with its usage line; undefined outside a project or when none has it. */
+/** A plugin's command from revbound.config.ts, with its usage line; undefined outside a project or when none has it. */
 async function pluginCommand(name: string): Promise<{ run: Command; usage: string[] } | undefined> {
   const [{ findProject }, { loadConfig, projectJiti }] = await Promise.all([import("./project.js"), import("./config.js")]);
   let dir: string;

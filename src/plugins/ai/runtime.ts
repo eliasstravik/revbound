@@ -1,5 +1,5 @@
 /**
- * What `#gtm/ai` exports: agent() and tool(). Workflow scope runs the loop; every model call, tool call, skill read and
+ * What `#revbound/ai` exports: agent() and tool(). Workflow scope runs the loop; every model call, tool call, skill read and
  * CLI stage is one of the ai plugin's steps (step.ts), where each model call is reserved before and settled after.
  * Workflow-safe: no Node imports and no provider clients here.
  */
@@ -31,7 +31,7 @@ export type AgentOptions<T = string> = {
   skills?: string[];
   /** The result the agent must return; plain text when omitted. Use nullable fields, not optional ones, and no string formats. */
   schema?: z.ZodType<T>;
-  /** A Gateway model id; defaults to GTM_MODEL, else the default that follows GTM_AGENT_BACKEND. */
+  /** A Gateway model id; defaults to REVBOUND_MODEL, else the default that follows REVBOUND_AGENT_BACKEND. */
   model?: string;
   reasoning?: Reasoning;
   tools?: AgentTools;

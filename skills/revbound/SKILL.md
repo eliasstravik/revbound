@@ -1,6 +1,6 @@
 ---
 name: revbound
-description: Sets up and maintains a company's go-to-market (GTM) project built on Revbound, the open-source agent plugin that runs GTM work. The project is one Next.js repo and Vercel project named after the company (gtm-acme for Acme) whose gtm.config.ts lists its plugins, with the company's context, workflows, ledger of runs and costs, console and connections. Triggers when someone asks to set up GTM for a company ("set up GTM for Acme", "create gtm-acme"), to add or change the company's context, to build, preview, approve, run or schedule outbound, enrichment, scoring or other GTM workflows, to add, remove or write a plugin, to open the console, to add a connection or API key, to deploy the project to Vercel, and on any work inside a folder whose package.json depends on revbound. Not for unrelated web apps, marketing websites, generic Next.js projects, one-off CRM scripts outside a Revbound project, or changes to the revbound package itself.
+description: Sets up and maintains a company's go-to-market (GTM) project built on Revbound, the open-source agent plugin that runs GTM work. The project is one Next.js repo and Vercel project named after the company (revbound-acme for Acme) whose revbound.config.ts lists its plugins, with the company's context, workflows, ledger of runs and costs, console and connections. Triggers when someone asks to set up GTM for a company ("set up GTM for Acme", "create revbound-acme"), to add or change the company's context, to build, preview, approve, run or schedule outbound, enrichment, scoring or other GTM workflows, to add, remove or write a plugin, to open the console, to add a connection or API key, to deploy the project to Vercel, and on any work inside a folder whose package.json depends on revbound. Not for unrelated web apps, marketing websites, generic Next.js projects, one-off CRM scripts outside a Revbound project, or changes to the revbound package itself.
 ---
 
 # Revbound
@@ -11,9 +11,9 @@ Apply when a person asks to create, change, run or deploy a company's Revbound p
 
 ## Scope
 
-Owns one company's Revbound project, `gtm-<company>`, from `init` through every later change: context, workflows and their
-approvals, plugins, the console, connections and deploy. Company know-how lives in that repo, never in this skill, and
-this skill is never installed into it.
+Owns one company's Revbound project, `revbound-<company>`, from `init` through every later change: context, workflows
+and their approvals, plugins, the console, connections and deploy. Company know-how lives in that repo, never in this
+skill, and this skill is never installed into it.
 
 ## Inputs
 
@@ -32,11 +32,11 @@ this skill is never installed into it.
 Talk by [the interaction rules](references/interaction.md); reproduce [the dialogues](references/interactions.md).
 
 1. Find the project: the nearest folder at or above this one whose `package.json` depends on `revbound`.
-2. With none, run `npx revbound init --company <Company>`, which creates `./gtm-<company>` here with
-   `gtm.config.ts` (the seven default plugins), base files only, installs and syncs; add `--example` only when the
+2. With none, run `npx revbound init --company <Company>`, which creates `./revbound-<company>` here with
+   `revbound.config.ts` (the seven default plugins), base files only, installs and syncs; add `--example` only when the
    person asks for a demo. Run `init . --company <Company>` instead only when this folder is the project's own
-   `gtm-<company>` folder and holds nothing but `.git`, `.agents/`, `.claude/`, `AGENTS.md` or `CLAUDE.md`. Then write
-   only the basics into `context/company.md`: the name as its heading and a short description from what the person
+   `revbound-<company>` folder and holds nothing but `.git`, `.agents/`, `.claude/`, `AGENTS.md` or `CLAUDE.md`. Then
+   write only the basics into `context/company.md`: the name as its heading and a short description from what the person
    said, or a quick look at the company's site when they gave one. Ask what to add next and stop until they answer.
 3. Otherwise read `AGENTS.md`, then the docs topic of the job before changing anything:
 
@@ -53,30 +53,33 @@ Talk by [the interaction rules](references/interaction.md); reproduce [the dialo
    | Inbound webhooks | webhooks |
    | Keep people, companies or signals in one place, or enrich each record once (`npx revbound add mdm`) | mdm |
 
-4. Company code imports plugins only as `#gtm/<plugin>` (`#gtm/database`, `#gtm/ai`, `#gtm/workflows`,
-   `#gtm/ledger`). After changing `gtm.config.ts` or a local plugin, run `npx revbound sync`; never edit `gtm/` or the shims.
-5. Mark every workflow that spends money or acts on people `approval: { required: true }` with a `budget`. Before a
-   real run of one: `npx revbound run <workflow> --input … --preview`, show the sample and the cost in this chat, ask
-   Yes/No with the native question tool naming the workflow, the input and the cost cap, and only after a Yes run it
-   with `--approve --max-usd <cap>`. A schedule's yes (cost per run × runs per month) is committed as
-   `schedule: { approvedUntil, note }` in the same change that adds the cron to `vercel.json`. Never approve on your own.
+4. Company code imports plugins only as `#revbound/<plugin>` (`#revbound/database`, `#revbound/ai`,
+   `#revbound/workflows`, `#revbound/ledger`). After changing `revbound.config.ts` or a local plugin, run
+   `npx revbound sync`; never edit `_revbound/` or the shims.
+5. Mark every workflow that spends money or acts on people `approval: { required: true }` with a `budget`. Before a real
+   run of one: `npx revbound run <workflow> --input … --preview`, show the sample and the cost in this chat, ask Yes/No
+   with the native question tool naming the workflow, the input and the cost cap, and only after a Yes run it with
+   `--approve --max-usd <cap>`. A schedule's yes (cost per run × runs per month) is committed as
+   `schedule: { approvedUntil, note }` in the same change that adds the cron to `vercel.json`. Never approve on your
+   own.
 6. Run `npx revbound check` and fix what it lists; `npx revbound init` inside the project restores missing wiring.
 
 ## Outputs
 
-Changes in the company's `gtm-<company>` repo and, for deploy steps, its Vercel project of the same name.
+Changes in the company's `revbound-<company>` repo and, for deploy steps, its Vercel project of the same name.
 
 ## Exceptions
 
-- `init` refuses an existing non-gtm Next.js app and a non-empty folder; offer a new `gtm-<company>` folder instead.
+- `init` refuses a Next.js app that is not a Revbound project and a non-empty folder; offer a new `revbound-<company>`
+  folder instead.
 - A 403 that says "This workflow needs a person's yes" means step 5: preview, show, ask, then `--approve`.
 - Where this file and the installed docs disagree, the docs win; they match the installed version.
 
 ## QC
 
 - After setup, `context/` holds only `company.md` with the name and a short description until the person asks for more.
-- Every AI call in a workflow is `agent()` from `#gtm/ai`: no `ai` or `@ai-sdk/*` import, no model id in company code
-  (`GTM_MODEL` picks it). Paid calls outside `agent()` go through `action()` from `#gtm/ledger`.
+- Every AI call in a workflow is `agent()` from `#revbound/ai`: no `ai` or `@ai-sdk/*` import, no model id in company
+  code (`REVBOUND_MODEL` picks it). Paid calls outside `agent()` go through `action()` from `#revbound/ledger`.
 - Company code never imports `revbound/<plugin>` subpaths or `start` from `workflow/api`.
 - A company skill is a folder in `.agents/skills/` with a `SKILL.md` (`name`, `description`), created there and not
   through `.claude/skills`.
@@ -86,4 +89,5 @@ Changes in the company's `gtm-<company>` repo and, for deploy steps, its Vercel 
 ## References
 
 [interaction](references/interaction.md) rules and [interactions](references/interactions.md) dialogues; the project's
-`AGENTS.md`; `npx revbound docs [topic]`, where `context` holds the suggested context layout and `plugins` the plugin contract.
+`AGENTS.md`; `npx revbound docs [topic]`, where `context` holds the suggested context layout and `plugins` the plugin
+contract.

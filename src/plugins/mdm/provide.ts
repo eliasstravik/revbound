@@ -13,8 +13,8 @@ type Row = Record<string, any>;
 type Exec = { execute: (q: SQL) => Promise<{ rows: Row[] }> };
 type Db = Exec & { transaction<T>(fn: (tx: Exec) => Promise<T>): Promise<T> };
 
-const LOCK = sql`select pg_advisory_xact_lock(hashtext('gtm-mdm'))`;
-const TABLES: Record<RecordType, SQL> = { person: sql`gtm_mdm.people`, company: sql`gtm_mdm.companies` };
+const LOCK = sql`select pg_advisory_xact_lock(hashtext('revbound-mdm'))`;
+const TABLES: Record<RecordType, SQL> = { person: sql`revbound_mdm.people`, company: sql`revbound_mdm.companies` };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const bad = (message: string) => new MdmInputError(message);
 const iso = (v: unknown) => (v == null ? null : new Date(v as string).toISOString());
@@ -68,7 +68,7 @@ export default function provide(ctx: Ctx): MdmSlotV1 {
   };
 
   const load = async <T extends Person | Company>(type: RecordType, r: Row, tx?: Exec): Promise<T> => {
-    const keys = (await rows(sql`select key, value, source, created_at from gtm_mdm.keys where record_id = ${r.id} order by created_at, key, value`, tx))
+    const keys = (await rows(sql`select key, value, source, created_at from revbound_mdm.keys where record_id = ${r.id} order by created_at, key, value`, tx))
       .map((k) => ({ key: k.key, value: k.value, source: k.source, since: iso(k.created_at)! }));
     const base = { id: r.id, name: r.name, linkedin: r.linkedin, data: r.data ?? {}, keys, createdAt: iso(r.created_at)!, updatedAt: iso(r.updated_at)! };
     return (type === "person" ? { type, ...base, email: r.email, title: r.title, companyId: r.company_id } : { type, ...base, domain: r.domain }) as T;
@@ -78,7 +78,7 @@ export default function provide(ctx: Ctx): MdmSlotV1 {
   const match = async (type: RecordType, input: PersonInput | CompanyInput, keys: [string, string][], tx?: Exec) => {
     const byId = input.id != null ? await resolve(type, input.id, tx) : undefined;
     if (input.id != null && !byId) throw bad(`No ${type} has the id ${input.id}.`);
-    const owned = keys.length ? await rows(sql`select key, value, record_id from gtm_mdm.keys where record_type = ${type}
+    const owned = keys.length ? await rows(sql`select key, value, record_id from revbound_mdm.keys where record_type = ${type}
       and (key, value) in (${sql.join(keys.map(([k, v]) => sql`(${k}, ${v})`), sql`, `)})`, tx) : [];
     const owner = new Map(owned.map((o) => [`${o.key}\n${o.value}`, o.record_id as string]));
     const found = keys.flatMap(([k, v]) => owner.get(`${k}\n${v}`) ?? []);
@@ -89,16 +89,16 @@ export default function provide(ctx: Ctx): MdmSlotV1 {
   /** Adds the keys no other record holds; returns the ones this record now has. */
   const addKeys = async (tx: Exec, type: RecordType, id: string, keys: [string, string][], o: Origin) => {
     if (!keys.length) return new Map<string, string>();
-    await tx.execute(sql`insert into gtm_mdm.keys (record_type, key, value, record_id, source, workflow, run_id) values
+    await tx.execute(sql`insert into revbound_mdm.keys (record_type, key, value, record_id, source, workflow, run_id) values
       ${sql.join(keys.map(([k, v]) => sql`(${type}, ${k}, ${v}, ${id}, ${o.source}, ${o.workflow}, ${o.runId})`), sql`, `)} on conflict do nothing`);
-    const mine = await rows(sql`select key, value from gtm_mdm.keys where record_id = ${id} order by created_at`, tx);
+    const mine = await rows(sql`select key, value from revbound_mdm.keys where record_id = ${id} order by created_at`, tx);
     return new Map(mine.reverse().map((k) => [k.key as string, k.value as string]));
   };
 
   /** Records who set each field and when (the latest write wins). */
   const setFields = async (tx: Exec, type: RecordType, id: string, fields: [string, unknown][], o: Origin) => {
     if (!fields.length) return;
-    await tx.execute(sql`insert into gtm_mdm.fields (record_type, record_id, field, value, source, workflow, run_id) values
+    await tx.execute(sql`insert into revbound_mdm.fields (record_type, record_id, field, value, source, workflow, run_id) values
       ${sql.join(fields.map(([f, v]) => sql`(${type}, ${id}, ${f}, ${json(v)}, ${o.source}, ${o.workflow}, ${o.runId})`), sql`, `)}
       on conflict (record_id, field) do update set value = excluded.value, source = excluded.source, workflow = excluded.workflow,
         run_id = excluded.run_id, set_at = now()`);
@@ -123,11 +123,11 @@ export default function provide(ctx: Ctx): MdmSlotV1 {
       if (p.company && "type" in p.company && p.company.type === "company") company = (await live(p.company, tx)).id;
       else if (p.company) company = (await upsert(tx, "company", p.company as CompanyInput, o)).id;
       named.push(["title", text(p.title)], ["company", company]);
-      await tx.execute(sql`update gtm_mdm.people set name = coalesce(${text(p.name)}, name), title = coalesce(${text(p.title)}, title),
+      await tx.execute(sql`update revbound_mdm.people set name = coalesce(${text(p.name)}, name), title = coalesce(${text(p.title)}, title),
         company_id = coalesce(${company}::uuid, company_id), email = coalesce(email, ${held.get("email") ?? null}),
         linkedin = coalesce(linkedin, ${held.get("linkedin") ?? null}), data = data || ${json(Object.fromEntries(fields))}, updated_at = now() where id = ${id}`);
     } else {
-      await tx.execute(sql`update gtm_mdm.companies set name = coalesce(${text(input.name)}, name), domain = coalesce(domain, ${held.get("domain") ?? null}),
+      await tx.execute(sql`update revbound_mdm.companies set name = coalesce(${text(input.name)}, name), domain = coalesce(domain, ${held.get("domain") ?? null}),
         linkedin = coalesce(linkedin, ${held.get("linkedin") ?? null}), data = data || ${json(Object.fromEntries(fields))}, updated_at = now() where id = ${id}`);
     }
     await setFields(tx, type, id, [...named.filter(([, v]) => v != null), ...fields], o);
@@ -155,9 +155,9 @@ export default function provide(ctx: Ctx): MdmSlotV1 {
     if (only && !only.length) return {};
     const pick = (col: string) => (only ? sql`and ${sql.raw(col)} in (${sql.join(only.map((f) => sql`${String(f)}`), sql`, `)})` : sql``);
     const [keys, fields] = await Promise.all([
-      rows(sql`select distinct on (key) key, value, source, workflow, run_id, created_at from gtm_mdm.keys where record_id = ${r.id} ${pick("key")}
+      rows(sql`select distinct on (key) key, value, source, workflow, run_id, created_at from revbound_mdm.keys where record_id = ${r.id} ${pick("key")}
         order by key, created_at, value`),
-      rows(sql`select field, value, source, workflow, run_id, set_at from gtm_mdm.fields where record_id = ${r.id} ${pick("field")} order by field`),
+      rows(sql`select field, value, source, workflow, run_id, set_at from revbound_mdm.fields where record_id = ${r.id} ${pick("field")} order by field`),
     ]);
     return Object.fromEntries([
       ...keys.map((k) => [k.key, { value: k.value, source: k.source, workflow: k.workflow, runId: k.run_id, setAt: iso(k.created_at)! }]),
@@ -185,11 +185,11 @@ export default function provide(ctx: Ctx): MdmSlotV1 {
       const key = text(input.key) ?? at.toISOString(), data = entries(input.data, "A signal's data");
       return write(async (tx) => {
         const about = await live(input.about, tx), kind = typeOf(input.about);
-        const same = await one(sql`select id from gtm_mdm.signals where record_id = ${about.id} and type = ${type} and key = ${key}`, tx);
+        const same = await one(sql`select id from revbound_mdm.signals where record_id = ${about.id} and type = ${type} and key = ${key}`, tx);
         const r = same
-          ? await one(sql`update gtm_mdm.signals set data = data || ${json(Object.fromEntries(data))}, occurred_at = least(occurred_at, ${at.toISOString()}::timestamptz),
+          ? await one(sql`update revbound_mdm.signals set data = data || ${json(Object.fromEntries(data))}, occurred_at = least(occurred_at, ${at.toISOString()}::timestamptz),
               updated_at = now() where id = ${same.id} returning *`, tx)
-          : await one(sql`insert into gtm_mdm.signals (id, record_type, record_id, type, key, occurred_at, source, workflow, run_id, data)
+          : await one(sql`insert into revbound_mdm.signals (id, record_type, record_id, type, key, occurred_at, source, workflow, run_id, data)
               values (${randomUUID()}, ${kind}, ${about.id}, ${type}, ${key}, ${at.toISOString()}, ${o.source}, ${o.workflow}, ${o.runId}, ${json(Object.fromEntries(data))}) returning *`, tx);
         return { ...toSignal(r!), created: !same };
       });
@@ -198,7 +198,7 @@ export default function provide(ctx: Ctx): MdmSlotV1 {
     async signals(ref, opts = {}) {
       const r = await live(ref), limit = Math.min(Math.max(1, Math.floor(opts.limit ?? 50)), 500);
       const type = opts.type ? sql`and type = ${signalType(opts.type)}` : sql``;
-      return (await rows(sql`select * from gtm_mdm.signals where record_id = ${r.id} ${type} order by occurred_at desc, id limit ${limit}`)).map(toSignal);
+      return (await rows(sql`select * from revbound_mdm.signals where record_id = ${r.id} ${type} order by occurred_at desc, id limit ${limit}`)).map(toSignal);
     },
 
     async merge(keep, drop) {
@@ -207,20 +207,20 @@ export default function provide(ctx: Ctx): MdmSlotV1 {
       return write(async (tx) => {
         const [k, d] = [await live(keep, tx), await live(drop, tx)];
         if (k.id !== d.id) {
-          await tx.execute(sql`update gtm_mdm.keys set record_id = ${k.id} where record_id = ${d.id}`);
-          await tx.execute(sql`update gtm_mdm.fields set record_id = ${k.id} where record_id = ${d.id}
-            and field not in (select field from gtm_mdm.fields where record_id = ${k.id})`);
-          await tx.execute(sql`delete from gtm_mdm.fields where record_id = ${d.id}`);
-          await tx.execute(sql`update gtm_mdm.signals s set record_id = ${k.id}, updated_at = now() where record_id = ${d.id}
-            and not exists (select 1 from gtm_mdm.signals t where t.record_id = ${k.id} and t.type = s.type and t.key = s.key)`);
-          await tx.execute(sql`delete from gtm_mdm.signals where record_id = ${d.id}`);
+          await tx.execute(sql`update revbound_mdm.keys set record_id = ${k.id} where record_id = ${d.id}`);
+          await tx.execute(sql`update revbound_mdm.fields set record_id = ${k.id} where record_id = ${d.id}
+            and field not in (select field from revbound_mdm.fields where record_id = ${k.id})`);
+          await tx.execute(sql`delete from revbound_mdm.fields where record_id = ${d.id}`);
+          await tx.execute(sql`update revbound_mdm.signals s set record_id = ${k.id}, updated_at = now() where record_id = ${d.id}
+            and not exists (select 1 from revbound_mdm.signals t where t.record_id = ${k.id} and t.type = s.type and t.key = s.key)`);
+          await tx.execute(sql`delete from revbound_mdm.signals where record_id = ${d.id}`);
           const t = TABLES[type];
           const cols = type === "person" ? ["name", "email", "linkedin", "title", "company_id"] : ["name", "domain", "linkedin"];
           await tx.execute(sql`update ${t} k set ${sql.raw(cols.map((c) => `${c} = coalesce(k.${c}, d.${c})`).join(", "))}, data = d.data || k.data, updated_at = now()
             from ${t} d where k.id = ${k.id} and d.id = ${d.id}`);
           if (type === "company") {
-            await tx.execute(sql`update gtm_mdm.people set company_id = ${k.id} where company_id = ${d.id}`);
-            await tx.execute(sql`update gtm_mdm.fields set value = ${json(k.id)} where field = 'company' and value = ${json(d.id)}`);
+            await tx.execute(sql`update revbound_mdm.people set company_id = ${k.id} where company_id = ${d.id}`);
+            await tx.execute(sql`update revbound_mdm.fields set value = ${json(k.id)} where field = 'company' and value = ${json(d.id)}`);
           }
           await tx.execute(sql`update ${t} set merged_into = ${k.id} where merged_into = ${d.id}`);
           await tx.execute(sql`update ${t} set merged_into = ${k.id}, merged_at = now(), updated_at = now() where id = ${d.id}`);

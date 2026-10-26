@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { BASE, filePath, firstParty, loadConfig, OPTIONAL } from "./config.js";
 import { findProject, packageRoot, readJson } from "./project.js";
-import type { GtmPlugin } from "./types.js";
+import type { RevboundPlugin } from "./types.js";
 
 /**
  * `revbound docs [topic]`: one doc of the installed version, or the list. Core topics are docs/*.md (`recipes/<name>` prints a
@@ -12,9 +12,9 @@ import type { GtmPlugin } from "./types.js";
 export async function docs(args: string[]): Promise<void> {
   const dir = join(packageRoot(), "docs");
   const core = new Map((existsSync(dir) ? readdirSync(dir) : []).filter((f) => f.endsWith(".md")).map((f) => [f.slice(0, -3), join(dir, f)]));
-  let project: string | undefined, plugins: GtmPlugin[] | undefined;
+  let project: string | undefined, plugins: RevboundPlugin[] | undefined;
   try { project = findProject(); plugins = (await loadConfig(project)).plugins; } catch {}
-  const own = async (names: readonly string[]) => (await Promise.all(names.map((n) => firstParty(packageRoot(), n).catch(() => undefined)))).filter((p): p is GtmPlugin => Boolean(p));
+  const own = async (names: readonly string[]) => (await Promise.all(names.map((n) => firstParty(packageRoot(), n).catch(() => undefined)))).filter((p): p is RevboundPlugin => Boolean(p));
   plugins = [...(plugins ?? (await own(BASE))), ...(await own(OPTIONAL))];
   const topics = new Map(core);
   for (const p of plugins) for (const [t, file] of Object.entries(p.docs ?? {})) {

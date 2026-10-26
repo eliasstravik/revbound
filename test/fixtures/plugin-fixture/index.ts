@@ -8,7 +8,7 @@ export function fixture() {
     needs: ["database"],
     runtime: { from: "./plugins/fixture/runtime", exports: ["greet"] },
     migrations: "./plugins/fixture/migrations",
-    tables: [{ schema: "gtm_fixture", name: "notes", label: "Fixture notes" }],
+    tables: [{ schema: "revbound_fixture", name: "notes", label: "Fixture notes" }],
     routes: [{ path: "fixture/hello", methods: ["GET"], access: "session", handler: "./plugins/fixture/route" }],
     views: [{ path: "fixture", title: "Fixture", nav: { label: "Fixture", order: 60 }, component: "./plugins/fixture/view" }],
     workflowTabs: [{ id: "fixture", title: "Fixture", order: 50, component: "./plugins/fixture/tab" }],

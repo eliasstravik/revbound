@@ -51,7 +51,7 @@ async function failClosed(req: Request): Promise<Response | undefined> {
  * matches no declared route is refused, a route gets its access mode, and every page (static files included) the
  * session rule. Returns a response to stop, or undefined to continue.
  */
-export function gtmProxy(manifest: Manifest) {
+export function revboundProxy(manifest: Manifest) {
   return async function proxy(req: Request): Promise<Response | undefined> {
     const base = basePath(), full = new URL(req.url).pathname, hosted = isHosted();
     const path = base && full.startsWith(base) ? full.slice(base.length) || "/" : full;
@@ -67,7 +67,7 @@ export function gtmProxy(manifest: Manifest) {
       return WORKFLOW_ROUTES_SELF_PROTECTED ? undefined : failClosed(req);
     }
     if (path === "/api" || path.startsWith("/api/")) {
-      const parts = path.startsWith("/api/gtm/") ? decodePath(path.slice("/api/gtm/".length)) : null;
+      const parts = path.startsWith("/api/revbound/") ? decodePath(path.slice("/api/revbound/".length)) : null;
       const method = req.method === "HEAD" ? "GET" : req.method;
       const hit = parts && (find(manifest.routes, parts, (r) => (r.methods as string[]).includes(method)) ?? find(manifest.routes, parts));
       if (!hit) return refuse(`No such endpoint: ${path}`, 404);

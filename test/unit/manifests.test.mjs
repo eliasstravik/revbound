@@ -47,7 +47,7 @@ test("the plugin ships the revbound skill and nothing else a host would load", (
 });
 
 test("npm run version:bump moves every manifest", () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gtm-bump-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "revbound-bump-"));
   try {
     for (const rel of ["package.json", "package-lock.json", "starter/package.json", "README.md", ...manifests, ...marketplaces]) {
       fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });

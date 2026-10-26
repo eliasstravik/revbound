@@ -5,7 +5,7 @@ import type { Admission, Ctx, CurrentRun, Registry, WorkflowsSlotV1 } from "revb
 import { aboutOf, runOf, sdkRun, sdkRuns } from "./sdk.js";
 
 /** Run attributes Revbound puts on every run it starts. */
-export const ATTR = { run: "gtm_run_id", root: "gtm_root_id", trigger: "gtm_trigger", preview: "gtm_preview", approved: "gtm_approved" } as const;
+export const ATTR = { run: "revbound_run_id", root: "revbound_root_id", trigger: "revbound_trigger", preview: "revbound_preview", approved: "revbound_approved" } as const;
 
 export default function provide(ctx: Ctx): WorkflowsSlotV1 {
   const registry = () => ctx.module<Registry>("registry");

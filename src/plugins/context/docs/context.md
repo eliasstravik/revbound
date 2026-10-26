@@ -11,8 +11,9 @@ where things go). `AGENTS.md` is neither; it holds the coding agents' instructio
 ## The basics
 
 At setup `context/company.md` gets only the company's name as its first heading and a short description: what the
-company sells, to whom and why they buy, from what the person said, or a quick look at the company's own site when
-they gave one. The console shows the name from `company` in gtm.config.ts. Then the agent asks what to add next (docs: interaction).
+company sells, to whom and why they buy, from what the person said, or a quick look at the company's own site when they
+gave one. The console shows the name from `company` in revbound.config.ts. Then the agent asks what to add next (docs:
+interaction).
 
 ## Suggested layout
 

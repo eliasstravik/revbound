@@ -18,7 +18,7 @@ const ORPHAN_GUARD = `data:text/javascript,process.once("disconnect",()=>process
 
 type State = { url?: string; port?: Promise<number>; current?: number; child?: ChildProcess; owner?: string; share?: Promise<string>; hooked?: boolean };
 // On globalThis, so a module reload in next dev still finds the one Studio.
-const state: State = ((globalThis as { __gtmStudio?: State }).__gtmStudio ??= {});
+const state: State = ((globalThis as { __revboundStudio?: State }).__revboundStudio ??= {});
 
 /** GET /database (session) → what the button does here: `{ mode: "local" }` on this computer or to a Tailscale login on
  * its name (none for other allowed hosts), or a link to the database's console. */
@@ -124,11 +124,11 @@ const tailnetName = () => tailscale(["status", "--json"])
   .then((out) => String(JSON.parse(out).Self?.DNSName ?? "").replace(/\.$/, "").toLowerCase() || undefined, () => undefined);
 
 type ServeStatus = { TCP?: Record<string, unknown>; Web?: Record<string, { Handlers?: Record<string, { Proxy?: string }> }>; AllowFunnel?: Record<string, boolean> };
-const shareFile = (dir: string) => join(/*turbopackIgnore: true*/ dir, ".gtm", "studio-share.json");
+const shareFile = (dir: string) => join(/*turbopackIgnore: true*/ dir, ".revbound", "studio-share.json");
 
 /**
  * Shares Studio on `host` with `owner` alone: a loopback gate, then Serve on the first HTTPS port no share uses (so
- * nothing already shared is replaced), checked to point there with Funnel off. Recorded in .gtm/ so revbound dev removes it.
+ * nothing already shared is replaced), checked to point there with Funnel off. Recorded in .revbound/ so revbound dev removes it.
  */
 async function share(owner: string, host: string, consolePort: number): Promise<string> {
   const dir = process.cwd();
@@ -141,7 +141,7 @@ async function share(owner: string, host: string, consolePort: number): Promise<
     while (used.has(https)) https++;
     const target = `http://127.0.0.1:${(gate.address() as AddressInfo).port}`, key = `${host}:${https}`;
     await tailscale(["serve", "--bg", `--https=${https}`, target]);
-    mkdirSync(join(/*turbopackIgnore: true*/ dir, ".gtm"), { recursive: true });
+    mkdirSync(join(/*turbopackIgnore: true*/ dir, ".revbound"), { recursive: true });
     writeFileSync(shareFile(dir), JSON.stringify({ host, https, target }));
     const after = await status();
     if (after.Web?.[key]?.Handlers?.["/"]?.Proxy !== target || after.AllowFunnel?.[key]) {

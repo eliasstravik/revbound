@@ -3,6 +3,6 @@ import provide from "revbound/database/provide";
 
 export default function swapped(ctx) {
   const inner = provide(ctx);
-  globalThis.__gtmSwappedDatabase = true;
+  globalThis.__revboundSwappedDatabase = true;
   return { ...inner, swapped: true };
 }

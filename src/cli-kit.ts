@@ -1,6 +1,6 @@
 /** Helpers for plugins' CLI commands, dev hooks and checks (Node, CLI only). */
 export { BASE, CONFIG, filePath, loadConfig, packageDir, PACKAGE, projectJiti } from "./core/config.js";
-export { findProject, isGtmProject, loadEnv, packageRoot, readJson } from "./core/project.js";
+export { findProject, isRevboundProject, loadEnv, packageRoot, readJson } from "./core/project.js";
 export { byNeeds, schemaOf } from "./core/sync.js";
 export { imports, mask } from "./core/mask.js";
 export type { CliCtx, CliRun } from "./core/commands.js";

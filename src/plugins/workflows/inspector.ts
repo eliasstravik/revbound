@@ -1,13 +1,13 @@
 /**
- * The Workflow SDK's own run inspector (`@workflow/web`), served by the local console under /api/gtm/inspector:
- * `/api/gtm/inspector` lists runs, `/api/gtm/inspector/run/<id>` shows one. The route is `local`: loopback only.
+ * The Workflow SDK's own run inspector (`@workflow/web`), served by the local console under /api/revbound/inspector:
+ * `/api/revbound/inspector` lists runs, `/api/revbound/inspector/run/<id>` shows one. The route is `local`: loopback only.
  */
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { basePath } from "revbound/kit";
 
-const BASE = `${basePath()}/api/gtm/inspector`;
+const BASE = `${basePath()}/api/revbound/inspector`;
 
 type Handler = (req: Request) => Promise<Response>;
 let handler: Promise<Handler> | undefined;

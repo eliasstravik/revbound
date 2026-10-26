@@ -1,6 +1,6 @@
 // The project's plugins. Delete a line to remove a default plugin, then run `npx revbound sync`; `npx revbound check` says
 // when another plugin needs it. `npx revbound docs plugins` explains the rest.
-import { defineGtm } from "revbound";
+import { defineRevbound } from "revbound";
 import { database } from "revbound/database";
 import { ledger } from "revbound/ledger";
 import { workflows } from "revbound/workflows";
@@ -9,7 +9,7 @@ import { context } from "revbound/context";
 import { connections } from "revbound/connections";
 import { console } from "revbound/console"; // shadows the global console in this file only
 
-export default defineGtm({
+export default defineRevbound({
   company: "Company",
   plugins: [
     database(),

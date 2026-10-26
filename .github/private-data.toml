@@ -51,5 +51,5 @@ regexes = [
   '''@(?:example\.(?:com|org|net)|[a-z0-9-]+\.(?:test|invalid|example))\b''',
   '''git@github\.com''',
   '''/home/runner/''',
-  '''\b(?:gtm-)?acme[a-z0-9-]*\.vercel\.app''',
+  '''\b(?:[a-z]+-)?acme[a-z0-9-]*\.vercel\.app''',
 ]

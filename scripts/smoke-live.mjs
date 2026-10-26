@@ -5,9 +5,9 @@
  *   node <revbound repo>/scripts/smoke-live.mjs --install     # in the project: adds the smoke workflows and webhook, then commit and deploy
  *   node <revbound repo>/scripts/smoke-live.mjs               # in the project, after the deploy: runs the checks
  *
- * It needs, in the project's .env.local or the shell: GTM_PRODUCTION_URL, GTM_BYPASS_SECRET (the automation bypass),
- * CRON_SECRET (the same value as Production's), and for the webhook GTM_SMOKE_HOOK_BYPASS (the smoke sender's own
- * bypass secret, stored in Production as GTM_HOOK_SMOKE_BYPASS) and GTM_SMOKE_SIGNATURE (Production's
+ * It needs, in the project's .env.local or the shell: REVBOUND_PRODUCTION_URL, REVBOUND_BYPASS_SECRET (the automation bypass),
+ * CRON_SECRET (the same value as Production's), and for the webhook REVBOUND_SMOKE_HOOK_BYPASS (the smoke sender's own
+ * bypass secret, stored in Production as REVBOUND_HOOK_SMOKE_BYPASS) and REVBOUND_SMOKE_SIGNATURE (Production's
  * SMOKE_SIGNATURE). Steps: revbound check --prod; a preview, then --approve on it; one cron tick of a scheduled workflow;
  * the hourly reconcile; ledger rows present; a forced failure reconciled; one signed webhook.
  */
@@ -23,8 +23,8 @@ const ok = (message) => console.log(`smoke: ok: ${message}`);
 
 if (process.argv.includes("--install")) {
   const until = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
-  writeFileSync(join(dir, "workflows", "smoke.ts"), `import { agent } from "#gtm/ai";
-import { currentRun } from "#gtm/workflows";
+  writeFileSync(join(dir, "workflows", "smoke.ts"), `import { agent } from "#revbound/ai";
+import { currentRun } from "#revbound/workflows";
 
 /** Smoke test: one small model call; needs a yes. */
 export async function smoke(input: { word: string }) {
@@ -52,7 +52,7 @@ export async function smokeFail() {
   throw new Error("smoke: a forced failure");
 }
 `);
-  writeFileSync(join(dir, "webhooks", "smoke.ts"), `import { webhook } from "#gtm/workflows";
+  writeFileSync(join(dir, "webhooks", "smoke.ts"), `import { webhook } from "#revbound/workflows";
 
 /** Smoke test: a webhook signed with SMOKE_SIGNATURE that starts smoke-hooked. */
 export const smokeHook = webhook<{ id: string }>({
@@ -69,9 +69,9 @@ export const smokeHook = webhook<{ id: string }>({
     "smoke-fail": smokeFail,
     "smoke-hooked": smokeHooked,
   webhooks/index.ts:   import { smokeHook } from "./smoke";   then   smoke: smokeHook,
-  vercel.json crons:   { "path": "/api/gtm/cron/smoke-cron", "schedule": "0 5 * * *" }
+  vercel.json crons:   { "path": "/api/revbound/cron/smoke-cron", "schedule": "0 5 * * *" }
 
-Then set SMOKE_SIGNATURE and GTM_HOOK_SMOKE_BYPASS in Production, commit, deploy, and run this script without --install.`);
+Then set SMOKE_SIGNATURE and REVBOUND_HOOK_SMOKE_BYPASS in Production, commit, deploy, and run this script without --install.`);
   process.exit(0);
 }
 
@@ -81,14 +81,14 @@ if (existsSync(join(dir, ".env.local"))) {
     if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2];
   }
 }
-const { GTM_PRODUCTION_URL: url, GTM_BYPASS_SECRET: bypass, CRON_SECRET: cron } = process.env;
-if (!url || !bypass || !cron) fail("set GTM_PRODUCTION_URL, GTM_BYPASS_SECRET and CRON_SECRET");
+const { REVBOUND_PRODUCTION_URL: url, REVBOUND_BYPASS_SECRET: bypass, CRON_SECRET: cron } = process.env;
+if (!url || !bypass || !cron) fail("set REVBOUND_PRODUCTION_URL, REVBOUND_BYPASS_SECRET and CRON_SECRET");
 const base = new URL(url.includes("://") ? url : `https://${url}`).origin;
 const call = async (path, init = {}) => {
-  const res = await fetch(`${base}/api/gtm${path}`, { redirect: "manual", ...init, headers: { "content-type": "application/json", ...init.headers } });
+  const res = await fetch(`${base}/api/revbound${path}`, { redirect: "manual", ...init, headers: { "content-type": "application/json", ...init.headers } });
   return { status: res.status, body: await res.json().catch(() => ({})) };
 };
-const automation = { "x-vercel-protection-bypass": bypass, "x-gtm-client": "cli" };
+const automation = { "x-vercel-protection-bypass": bypass, "x-revbound-client": "cli" };
 
 const check = revbound(["check", "--prod"]);
 if (check.status !== 0) fail(`revbound check --prod:\n${check.stdout}${check.stderr}`);
@@ -120,7 +120,7 @@ for (let i = 0; i < 30; i += 1) {
 if (!reconciled) fail("the forced failure was not reconciled within 5 minutes");
 ok(`the hourly reconcile route; ledger rows present; the forced failure reconciled (${reconciled.f.body.run.reason})`);
 
-const hookBypass = process.env.GTM_SMOKE_HOOK_BYPASS, signature = process.env.GTM_SMOKE_SIGNATURE;
+const hookBypass = process.env.REVBOUND_SMOKE_HOOK_BYPASS, signature = process.env.REVBOUND_SMOKE_SIGNATURE;
 if (hookBypass && signature) {
   const hook = await call("/hooks/smoke", { method: "POST", body: JSON.stringify({ id: `smoke-${Date.now()}` }),
     headers: { "x-vercel-protection-bypass": hookBypass, "x-smoke-signature": signature } });
@@ -128,5 +128,5 @@ if (hookBypass && signature) {
   const refused = await call("/hooks/smoke", { method: "POST", body: "{}", headers: { "x-vercel-protection-bypass": bypass } });
   if (refused.status !== 403) fail(`the automation secret on the webhook answered ${refused.status}, not 403`);
   ok(`one signed webhook (run ${hook.body.runId}); the automation secret refused there`);
-} else console.log("smoke: skipped the webhook (set GTM_SMOKE_HOOK_BYPASS and GTM_SMOKE_SIGNATURE)");
+} else console.log("smoke: skipped the webhook (set REVBOUND_SMOKE_HOOK_BYPASS and REVBOUND_SMOKE_SIGNATURE)");
 console.log("smoke: all checks passed.");
