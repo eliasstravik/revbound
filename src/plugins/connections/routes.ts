@@ -72,9 +72,11 @@ export async function release(req: Request): Promise<Response> {
   return releaseState(id).then((r) => reply({ release: r }), (e: Error) => reply({ error: e.message }, e instanceof Refused ? e.status : 500));
 }
 
-/** GET /connections/missing → { count }: the sidebar's badge. */
-export async function missing(_req: Request, ctx: RouteCtx): Promise<Response> {
-  return json({ count: (await rows(ctx, { mode: "off" }, false)).connections.filter((r) => r.state === "missing").length });
+/** GET /connections/missing[?workflow=] → { count }: the sidebar's badge, or one workflow's Connections tab badge. */
+export async function missing(req: Request, ctx: RouteCtx): Promise<Response> {
+  const workflow = new URL(req.url).searchParams.get("workflow");
+  return json({ count: (await rows(ctx, { mode: "off" }, false)).connections
+    .filter((r) => r.state === "missing" && (!workflow || r.usedBy.workflows.includes(workflow))).length });
 }
 
 /** The change a request asks for, checked; the value is kept only for this request. */

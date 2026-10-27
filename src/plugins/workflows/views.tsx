@@ -111,11 +111,20 @@ export function WorkflowView({ params, manifest, tabs }: ViewProps) {
     {state.data && !w && <p role="alert" className="notice">This workflow no longer exists. <Link href="/workflows">Show all workflows</Link></p>}
     {w && <>
       <nav className="tabs" aria-label="Workflow views">
-        {list.map((t) => <Link key={t.id} href={`/workflows/${encodeURIComponent(name)}?view=${t.id}`} aria-current={view === t.id ? "page" : undefined}>{t.title}</Link>)}
+        {list.map((t) => <Link key={t.id} href={`/workflows/${encodeURIComponent(name)}?view=${t.id}`} aria-current={view === t.id ? "page" : undefined}>
+          {t.title}{t.count && <TabCount path={`${t.count}?workflow=${encodeURIComponent(name)}`} />}
+        </Link>)}
       </nav>
       {Tab && <Tab workflow={w} manifest={manifest} />}
     </>}
   </>;
+}
+
+/** A tab's badge: the count its route answers for this workflow, when above zero. */
+function TabCount({ path }: { path: string }) {
+  const n = useApi<{ count: number }>(path, () => 30_000).data?.count ?? 0;
+  if (!n) return null;
+  return <span className="tab-count" title={`${n} need attention`}><span className="sr-only">, </span>{n}<span className="sr-only"> need attention</span></span>;
 }
 
 /** The Diagram tab: what the workflow does, how it starts, and its source file. */

@@ -192,6 +192,7 @@ export async function record(input: { name: string }) {
   refused(await get("/api/revbound/inspector", { headers: { "x-forwarded-host": BOX } }), "the inspector through a forwarded host");
   const missing = (await json("/api/revbound/connections")).connections.find((c) => c.name === "ACME_API_KEY");
   assert.deepEqual([missing.state, missing.usedBy.workflows], ["missing", ["record"]]);
+  assert.equal((await json("/api/revbound/connections/missing?workflow=record")).count, 1, "the record tab's badge");
 });
 
 test("Runs pages: rows that share one start time are each on some page", { timeout: 10 * MIN }, async (t) => {
