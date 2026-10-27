@@ -11,7 +11,7 @@ import type { Manifest } from "./types.js";
 export const WORKFLOW_ROUTES_SELF_PROTECTED = false;
 const PROBE_TTL_MS = 5 * 60_000;
 /** eve's session API and agent info: the routes behind which the console chat runs. */
-const EVE_CONSOLE = /^\/eve\/v1\/(session|info)(\/|$)/;
+const EVE_CONSOLE = /^\/eve\/v1\/(session|info|voice)(\/|$)/;
 const PROBE_HOSTS = 32;
 
 const NOTICE = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Protection required</title>

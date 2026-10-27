@@ -4,10 +4,12 @@
  * eve's callback routes, which check their own tokens, keep working.
  */
 import { ForbiddenError, type AuthFn } from "eve/channels/auth";
+import type { Channel } from "eve/channels";
 import { eveChannel } from "eve/channels/eve";
 import { isHosted } from "revbound/kit";
 import { failClosed } from "revbound/proxy";
 import { consoleCaller } from "../access.js";
+import { voiceRoutes } from "../voice.js";
 
 export const consoleAuth: AuthFn<Request> = async (req) => {
   const caller = consoleCaller(req);
@@ -16,4 +18,8 @@ export const consoleAuth: AuthFn<Request> = async (req) => {
   return { authenticator: "revbound-console", principalType: "user", principalId: caller.principalId, attributes: caller.attributes };
 };
 
-export default eveChannel({ auth: [consoleAuth] });
+const chat = eveChannel({ auth: [consoleAuth] });
+
+// The Chat page's voice rides on the same channel and rule (voice.ts).
+const channel: Channel = { ...chat, routes: [...chat.routes, ...voiceRoutes(consoleAuth)] };
+export default channel;

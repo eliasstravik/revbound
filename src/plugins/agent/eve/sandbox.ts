@@ -26,6 +26,8 @@ export function hidden(path: string): boolean {
   if (/^\.env/.test(name) && name !== ".env.example") return true;
   // Revbound's own package stays readable (its docs and skill).
   if (parts[0] === "node_modules" && (parts.length === 1 || parts[1] === "revbound")) return false;
+  // Files people attach in the chat: eve stages them under .eve/attachments for the agent to read; the rest of .eve stays hidden.
+  if (parts[0] === ".eve" && (parts.length === 1 || parts[1] === "attachments")) return false;
   return parts.some((p) => [".vercel", ".revbound", ".workflow-data", ".eve", ".git", "node_modules", ".next", ".output"].includes(p));
 }
 
@@ -38,7 +40,7 @@ export function seedFiles(root: string): { files: { path: string; content: Uint8
   const walk = (rel: string) => {
     for (const name of readdirSync(join(root, rel))) {
       const path = rel ? `${rel}/${name}` : name;
-      if (hidden(path) || path === "node_modules" || path === "app/.well-known") continue;
+      if (hidden(path) || ["node_modules", "app/.well-known", ".eve"].includes(path)) continue;
       const st = lstatSync(join(root, path), { throwIfNoEntry: false });
       if (st?.isSymbolicLink()) links.push({ path, target: readlinkSync(join(root, path)) });
       else if (st?.isDirectory()) walk(path);

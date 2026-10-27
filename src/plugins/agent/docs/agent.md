@@ -59,6 +59,23 @@ preset only one of the two is built. The agent's workspace is prepared during th
   own `auth.test` team, never the event's.
 - **Teams**: people of the company's own Microsoft tenant (`MICROSOFT_TENANT_ID`; unset refuses everyone).
 
+## The Chat page
+
+- **Files and photos**: add them with **+**, by pasting or by dropping them on the chat, or take a screenshot (desktop).
+  They go to the agent with your message, up to about 3 MB in all per message; it reads photos and PDFs directly and
+  other files from its workspace.
+- **Ask or Edit** (in **+**): in Ask mode the agent only answers that turn; it changes no files and starts no runs.
+- **Talk to type** (the microphone): what you say is written into the box when you tap ✓, for you to check and send.
+- **Voice call** (the wave button, when the box is empty): talk to the agent hands-free. Each time you pause, what you
+  said is sent as your message; the agent's reply, and any yes it needs, is read out. Talking while it speaks cuts it
+  off. A spoken "yes" is never an approval: tap Approve.
+
+Voice goes through AI Gateway: deployed, with the deployment's own OIDC, so it needs no key; on a laptop, after
+`vercel env pull` (or with `AI_GATEWAY_API_KEY`). It uses `openai/gpt-4o-mini-transcribe` to write out speech and
+`openai/tts-1` to read replies, both billed to the team's AI Gateway credits. It answers exactly the people the chat
+does (`/eve/v1/voice`). AI Gateway's live streaming and realtime voice take a Gateway API key, not OIDC, so voice
+waits for each pause instead of writing words out as you speak.
+
 ## The yes
 
 `start_run` follows the ledger's own flow (docs: ledger). Deployed, a preview runs at once, capped by the ledger; on a
@@ -126,3 +143,5 @@ channels can join the same way in a later version.
 | Deployed, a run fails with "Protection Bypass for Automation" | turn it on and expose system environment variables, then redeploy (docs: deploy) |
 | The agent says GitHub is not connected | the one step under Pull requests |
 | A build fails in eve's compile about `.agents/skills` | keep only skill folders there (`npx revbound check`) |
+| Voice says it needs AI Gateway, locally | `vercel env pull` (or set `AI_GATEWAY_API_KEY`), then restart `npm run dev` |
+| Voice says to allow the microphone | allow it for the site in the browser's address bar, then try again |
