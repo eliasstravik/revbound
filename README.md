@@ -100,9 +100,9 @@ Authentication on all deployments. Follow [docs/deploy.md](docs/deploy.md); `npx
 missing.
 
 [![Deploy with
-Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Feliasstravik%2Frevbound%2Ftree%2Fv0.0.7%2Fstarter&project-name=revbound-company&repository-name=revbound-company&stores=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%7D%5D)
+Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Feliasstravik%2Frevbound%2Ftree%2Fv0.0.8%2Fstarter&project-name=revbound-company&repository-name=revbound-company&stores=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%7D%5D)
 
-The button deploys the starter at `v0.0.7`; name the project `revbound-<company>`. The console fails closed ("Turn on
+The button deploys the starter at `v0.0.8`; name the project `revbound-<company>`. The console fails closed ("Turn on
 Vercel Authentication → All Deployments") until production protection is on.
 
 ## Roadmap
