@@ -22,6 +22,7 @@ const { speakable, wav } = await dist("speech");
 
 const HOSTED = { VERCEL_ENV: "production", VERCEL_DEPLOYMENT_ID: "dpl_test" };
 const req = (url, { method = "GET", headers = {} } = {}) => new Request(url, { method, headers: { host: new URL(url).host, ...headers } });
+const jwtClaimsOf = (token) => JSON.parse(Buffer.from(token.split(".")[1], "base64url"));
 const jwt = (claims) => `x.${Buffer.from(JSON.stringify(claims)).toString("base64url")}.y`;
 
 test("console chat, locally: this computer and Tailscale logins on an allowed host; never another host or site", () => {
@@ -32,7 +33,7 @@ test("console chat, locally: this computer and Tailscale logins on an allowed ho
   assert.equal(proxied.ok, true);
   const env = { REVBOUND_ALLOWED_HOSTS: "box.tail1234.ts.net" };
   const tailnet = consoleCaller(req("http://127.0.0.1:41000/eve/v1/session", { method: "POST", headers: { "x-forwarded-host": "box.tail1234.ts.net", origin: "https://box.tail1234.ts.net", "tailscale-user-login": "Ann@example.com" } }), env);
-  assert.deepEqual(tailnet, { ok: true, principalId: "tailnet:ann@example.com", attributes: { via: "tailnet" } });
+  assert.deepEqual(tailnet, { ok: true, principalId: "local", attributes: { via: "tailnet", login: "ann@example.com" } }, "one local person, on the computer or their tailnet");
   const noLogin = consoleCaller(req("http://127.0.0.1:41000/eve/v1/session", { headers: { "x-forwarded-host": "box.tail1234.ts.net" } }), env);
   assert.equal(noLogin.ok, false, "an allowed host without a Tailscale login reads the console but cannot chat");
   const funnel = consoleCaller(req("http://127.0.0.1:41000/eve/v1/session", { headers: { "x-forwarded-host": "box.tail1234.ts.net", "tailscale-user-login": "a@example.com", "tailscale-funnel-request": "1" } }), env);
@@ -44,9 +45,9 @@ test("console chat, locally: this computer and Tailscale logins on an allowed ho
 
 test("console chat, hosted: Vercel's login only, never a bypass credential, never another site", () => {
   const host = "https://revbound-acme.vercel.app/eve/v1/session";
-  const login = jwt({ sub: "sso-protection", user_id: "user_123" });
+  const login = jwt({ userId: "user_123", sub: "sso-protection", ownerId: "team_acme", aud: "revbound-acme.vercel.app", username: "ann" });
   const ok = consoleCaller(req(host, { method: "POST", headers: { cookie: `_vercel_jwt=${login}`, origin: "https://revbound-acme.vercel.app", "sec-fetch-site": "same-origin" } }), HOSTED);
-  assert.deepEqual(ok, { ok: true, principalId: "user_123", attributes: { via: "vercel" } });
+  assert.deepEqual(ok, { ok: true, principalId: "vercel:user_123", attributes: { via: "vercel" } });
   for (const headers of [
     { "x-vercel-protection-bypass": "secret" },
     { cookie: `_vercel_jwt=${jwt({ sub: "protection-bypass-automation", bypass: "x" })}` },
@@ -54,7 +55,17 @@ test("console chat, hosted: Vercel's login only, never a bypass credential, neve
   ]) assert.equal(consoleCaller(req(host, { headers }), HOSTED).ok, false, JSON.stringify(headers));
   assert.equal(consoleCaller(req(`${host}?x-vercel-protection-bypass=secret`), HOSTED).ok, false, "bypass in the query");
   assert.equal(consoleCaller(req(host, { method: "POST", headers: { origin: "https://evil.example", "sec-fetch-site": "cross-site" } }), HOSTED).ok, false);
-  assert.equal(consoleCaller(req(host, { headers: { authorization: "Bearer vercel-oidc-token" } }), HOSTED).principalId, "vercel-login", "an OIDC token adds nothing");
+  assert.equal(consoleCaller(req(host, { headers: { authorization: "Bearer vercel-oidc-token" } }), HOSTED).ok, false, "an OIDC token is no one");
+  // Without one certain person, no one: no user id, an email only, another site's cookie, two login cookies (Vercel
+  // admits a request when any one is valid), or another credential beside the cookie.
+  const other = (claims) => jwt({ ...jwtClaimsOf(login), ...claims });
+  for (const cookie of [`_vercel_jwt=${other({ userId: undefined })}`, `_vercel_jwt=${other({ userId: undefined, email: "ann@example.com" })}`,
+    `_vercel_jwt=${other({ aud: "revbound-acme-other.vercel.app" })}`, `_vercel_jwt=${login}; _vercel_jwt=${other({ userId: "user_456" })}`]) {
+    assert.equal(consoleCaller(req(host, { headers: { cookie } }), HOSTED).ok, false, cookie);
+  }
+  for (const extra of [{ authorization: "Bearer x" }, { "x-vercel-trusted-oidc-idp-token": "x" }]) {
+    assert.equal(consoleCaller(req(host, { headers: { cookie: `_vercel_jwt=${login}`, ...extra } }), HOSTED).ok, false, JSON.stringify(extra));
+  }
 });
 
 test("the yes: deployed previews run at once; real runs, and every run on a laptop, wait; only the requester settles them", async () => {

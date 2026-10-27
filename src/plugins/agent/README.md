@@ -4,6 +4,7 @@ The project's chat agent: one eve agent in the company's own project, reached fr
 apps (eve channels: Slack, Teams). It reads the project, changes workflows (local edits on a laptop, pull requests when
 deployed) and starts runs through the ledger after the asker's own yes (docs: agent).
 
-- Line budget: 2,100 lines of TypeScript (`npm run lines` in the revbound repository), reviewed at every release.
+- Line budget: 2,350 lines of TypeScript (`npm run lines` in the revbound repository), reviewed at every release.
 - Command: `revbound agent [status] | add <channel> | remove <channel>`. Docs topic: `agent`.
+- Keeps each person's console chats in `revbound_agent.chats` (its migrations), owner-checked on every session route.
 - Writes `agent/` (eve's agent folder) through sync's plugin `files`; `agent/skills` links to `.agents/skills`.

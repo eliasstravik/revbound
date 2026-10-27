@@ -19,6 +19,7 @@ function problem(error: Error | undefined): string | undefined {
   const text = error.message ?? String(error);
   if (/40[13]/.test(text) && /Authentication/.test(text)) return "Turn on Vercel Authentication → All Deployments to use the chat.";
   if (/session_(not_active|expired|stranded)/.test(text)) return "This conversation has ended. Start a new chat.";
+  if (/404/.test(text) || /not here/.test(text)) return "This chat is not here. Start a new chat.";
   if (/413/.test(text)) return "Those files are too big to send. Send fewer or smaller ones.";
   if (/fetch|network|50[0234]|Internal Server Error|ECONNREFUSED/i.test(text)) return "The agent is not answering. On your computer, keep `npm run dev` running; deployed, redeploy and try again.";
   return text;
@@ -31,7 +32,8 @@ const PATHS = {
   micOff: "M6 4a2 2 0 0 1 4 0v3.5a2 2 0 0 1-4 0zM3.5 7.5a4.5 4.5 0 0 0 9 0M8 12v2M2.5 2.5l11 11", wave: "M2 7v2M5 5v6M8 2.5v11M11 5v6M14 7v2",
   up: "M8 13V3M4 7l4-4 4 4", x: "M4 4l8 8M12 4l-8 8", check: "M3.5 8.5l3 3 6-7", right: "M6 4l4 4-4 4", down: "M4 6l4 4 4-4",
   file: "M9.5 1.5h-5a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1v-9zM9.5 1.5v3h3",
-  camera: "M2 5.5h2.5l1.5-2h4l1.5 2H14V13H2zM8 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4", end: "M2 9.5c3.5-3 8.5-3 12 0l-1.5 2-2.5-.8V9a6 6 0 0 0-4 0v1.7l-2.5.8z",
+  camera: "M2 5.5h2.5l1.5-2h4l1.5 2H14V13H2zM8 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4", list: "M2.5 4h11M2.5 8h11M2.5 12h7",
+  trash: "M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 9h5.8l.6-9", end: "M2 9.5c3.5-3 8.5-3 12 0l-1.5 2-2.5-.8V9a6 6 0 0 0-4 0v1.7l-2.5.8z",
 };
 const Ic = ({ name }: { name: keyof typeof PATHS | "stop" }) => (
   <svg className="chat-ic" viewBox="0 0 16 16" aria-hidden="true">
@@ -166,7 +168,9 @@ async function screenshot(): Promise<File> {
 type Voice = { kind: "listen"; handle?: Listening; writing?: boolean } | { kind: "call"; handle?: CallHandle; state?: CallState; muted: boolean };
 
 /** One conversation: messages, the asks waiting on this person (approvals, questions) and the box. */
-function Conversation({ sessionId, onSession, onNew }: { sessionId?: string; onSession: (id: string | undefined) => void; onNew: () => void }) {
+function Conversation({ sessionId, onSession, onSettled, title, aside }: {
+  sessionId?: string; onSession: (id: string | undefined) => void; onSettled: () => void; title: ReactNode; aside: ReactNode;
+}) {
   const base = process.env.__NEXT_ROUTER_BASEPATH ?? "";
   const host = typeof location === "undefined" ? base : `${location.origin}${base}`;
   const agent = useEveAgent({
@@ -192,6 +196,9 @@ function Conversation({ sessionId, onSession, onNew }: { sessionId?: string; onS
   useEffect(() => { setAskOnly(read(MODE) === "ask"); setMod(/Mac|iPhone|iPad/.test(navigator.userAgent) ? "⌘" : "Ctrl"); }, []);
   useEffect(() => { if (stick.current) log.current?.scrollTo({ top: log.current.scrollHeight }); }, [agent.events.length, messages.length, asks.length]);
   useEffect(() => () => { const v = voiceRef.current; if (v?.kind === "listen") v.handle?.cancel(); if (v?.kind === "call") v.handle?.end(); }, []);
+  // A finished turn moves this chat to the top of the list.
+  const wasBusy = useRef(busy);
+  useEffect(() => { if (wasBusy.current && !busy) onSettled(); wasBusy.current = busy; }, [busy]);
 
   // ---- sending
   const add = (list: FileList | File[] | null) => {
@@ -348,14 +355,14 @@ function Conversation({ sessionId, onSession, onNew }: { sessionId?: string; onS
 
   return (
     <>
-      <div className="title-row">
-        <h1>Chat</h1>
-        <button type="button" onClick={onNew} disabled={(!messages.length && !sessionId) || Boolean(voice)}>New chat</button>
-      </div>
+      {title}
+      <div className="chat-page">
+      {aside}
       <div className={`chat${drop ? " dropping" : ""}`} onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDrop(true); } }}
         onDragLeave={(e) => { if (e.currentTarget === e.target) setDrop(false); }} onDrop={dropped}>
         <div className="chat-log" ref={log} aria-live="polite" onScroll={(e) => { const el = e.currentTarget; stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60; }}>
           <div className="chat-col">
+            {!messages.length && resuming && <p className="chat-status chat-opening"><span className="chat-shimmer">Opening chat…</span></p>}
             {!messages.length && !resuming && (
               <div className="chat-empty">
                 <p>Ask about the company, its workflows and runs.</p>
@@ -417,18 +424,97 @@ function Conversation({ sessionId, onSession, onNew }: { sessionId?: string; onS
           </div>
         </form>
       </div>
+      </div>
     </>
   );
 }
 
-/** Chat: the console's conversation with the project's agent. The current conversation comes back after a reload. */
+// ---------------------------------------------------------------- the person's own chats
+
+type Chat = { id: string; title: string; updatedAt: string };
+type Chats = { list?: Chat[]; error?: string };
+
+/** When a chat was last used, as the list groups them. */
+function when(iso: string, now = new Date()): string {
+  const day = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((day(now) - day(new Date(iso))) / 86_400_000);
+  return days <= 0 ? "Today" : days === 1 ? "Yesterday" : days < 7 ? "Previous 7 days" : days < 30 ? "Previous 30 days" : "Older";
+}
+
+function History({ chats, current, onOpen, onDelete }: { chats: Chats; current?: string; onOpen: (id: string) => void; onDelete: (chat: Chat) => void }) {
+  const groups = new Map<string, Chat[]>();
+  for (const c of chats.list ?? []) groups.set(when(c.updatedAt), [...(groups.get(when(c.updatedAt)) ?? []), c]);
+  return (
+    <>
+      {chats.error ? <p className="chat-history-note">{chats.error}</p>
+        : !chats.list ? null
+        : !chats.list.length ? <p className="chat-history-note">No chats yet.</p>
+        : [...groups].map(([group, list]) => (
+          <section key={group}>
+            <h2>{group}</h2>
+            <ul role="list">
+              {list.map((c) => (
+                <li key={c.id} className={c.id === current ? "on" : undefined}>
+                  <button type="button" className="chat-history-open" aria-current={c.id === current ? "true" : undefined} onClick={() => onOpen(c.id)}>{c.title || "New chat"}</button>
+                  <button type="button" className="chat-history-delete" aria-label={`Delete ${c.title || "chat"}`} onClick={() => onDelete(c)}><Ic name="trash" /></button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+    </>
+  );
+}
+
+/**
+ * Chat: the console's conversation with the project's agent, beside the person's own chats (newest first) to reopen
+ * and continue. The chat open last comes back after a reload.
+ */
 export default function ChatView() {
+  const base = process.env.__NEXT_ROUTER_BASEPATH ?? "";
   const [state, setState] = useState<{ key: number; session?: string } | null>(null);
-  useEffect(() => setState({ key: 0, session: read(SAVED) }), []);
-  if (!state) return null;
+  const [chats, setChats] = useState<Chats>({});
+  const [sheet, setSheet] = useState(false);
+  const load = async () => {
+    try {
+      const res = await fetch(`${base}/eve/v1/chats`, { cache: "no-store" });
+      const body = await res.json().catch(() => null);
+      if (!res.ok || !Array.isArray(body?.chats)) throw new Error(body?.error ?? "Chats are unavailable right now.");
+      setChats({ list: body.chats });
+      return body.chats as Chat[];
+    } catch (e) {
+      setChats({ error: (e as Error).message });
+      return [];
+    }
+  };
+  // The chat open last, if it is still one of this person's.
+  useEffect(() => { void load().then((list) => { const last = read(SAVED); setState({ key: 0, session: list.some((c) => c.id === last) ? last : undefined }); }); }, []);
+  if (!state) return <><div className="title-row"><h1>Chat</h1></div><div className="chat-page" /></>;
+  const open = (session?: string) => { save(SAVED, session); setSheet(false); setState({ key: state.key + 1, session }); };
+  const remove = async (chat: Chat) => {
+    if (!confirm(`Delete “${chat.title || "New chat"}”? It can’t be brought back.`)) return;
+    const res = await fetch(`${base}/eve/v1/chats/${encodeURIComponent(chat.id)}`, { method: "DELETE" }).catch(() => undefined);
+    if (!res?.ok) return setChats((c) => ({ ...c, error: "That chat could not be deleted. Try again." }));
+    if (chat.id === state.session) open(undefined);
+    void load();
+  };
+  const history = <History chats={chats} current={state.session} onOpen={(id) => open(id)} onDelete={(c) => void remove(c)} />;
   return (
     <Conversation key={state.key} sessionId={state.session}
-      onSession={(id) => save(SAVED, id)}
-      onNew={() => { save(SAVED, undefined); setState({ key: state.key + 1 }); }} />
+      onSession={(id) => { save(SAVED, id); if (id && id !== state.session) { setState((s) => s && { ...s, session: id }); void load(); } }}
+      onSettled={() => void load()}
+      title={
+        <div className="title-row">
+          <h1>Chat</h1>
+          <div className="chat-title-actions">
+            <button type="button" className="chat-history-toggle" aria-expanded={sheet} onClick={() => setSheet(!sheet)}><Ic name="list" />Chats</button>
+            <button type="button" onClick={() => open(undefined)} disabled={!state.session}>New chat</button>
+          </div>
+        </div>
+      }
+      aside={<>
+        <nav className="chat-history" aria-label="Chats">{history}</nav>
+        {sheet && <nav className="chat-history sheet" aria-label="Chats">{history}</nav>}
+      </>} />
   );
 }

@@ -50,10 +50,11 @@ preset only one of the two is built. The agent's workspace is prepared during th
 ## Who can use it
 
 - **Console Chat**: exactly the console's access rule. Deployed, a person past Vercel Authentication, with no bypass
-  credential of any kind, on a deployment where Vercel Authentication is on; each Vercel login is its own person.
-  Locally, the computer running `npm run dev`, or a Tailscale login on one of its `REVBOUND_ALLOWED_HOSTS` (the chat
-  runs on this computer's own AI login, so a private hostname alone is not enough). Writes must come from the console's
-  own page. Nothing else opens `/eve/v1/session`: no Vercel OIDC token, bypass secret or eve login.
+  credential of any kind, on a deployment where Vercel Authentication is on; each Vercel login is its own person, and a
+  request whose Vercel login cannot be told for sure is refused. Locally, the computer running `npm run dev`, or a
+  Tailscale login on one of its `REVBOUND_ALLOWED_HOSTS` (the chat runs on this computer's own AI login, so a private
+  hostname alone is not enough); all of them are the one local person. Writes must come from the console's own page.
+  Nothing else opens `/eve/v1/session`: no Vercel OIDC token, bypass secret or eve login.
 - **Slack**: full members of the company's own workspace (or its Enterprise Grid org) only. Guests, bots, deactivated
   accounts and Slack Connect (shared) channels are refused, every Slack API error refuses, and "the company" is the bot's
   own `auth.test` team, never the event's.
@@ -61,6 +62,12 @@ preset only one of the two is built. The agent's workspace is prepared during th
 
 ## The Chat page
 
+- **Chats**: your own past chats, newest first, to reopen and continue; **New chat** starts another. Each chat belongs
+  to the person who started it: no one else can list, open, continue or answer it, by any route or session id (the
+  server checks the owner on every `/eve/v1/session` request and answers someone else's chat as not found). Deployed,
+  each Vercel login has its own chats; locally there is one list. Slack and Teams threads are not in it and do not open
+  from the console. The list is kept in the project's database (`revbound_agent.chats`), so whoever runs the database
+  or the Vercel team can still read it.
 - **Files and photos**: add them with **+**, by pasting or by dropping them on the chat, or take a screenshot (desktop).
   They go to the agent with your message, up to about 3 MB in all per message; it reads photos and PDFs directly and
   other files from its workspace.
@@ -138,6 +145,8 @@ channels can join the same way in a later version.
 
 | Symptom | Fix |
 | --- | --- |
+| Chat says to sign in to Vercel again, deployed | sign out of Vercel and back in, then reload the console |
+| Chat says chats are unavailable | the database is not reachable: check `DATABASE_URL` (docs: data) and that migrations ran (`npx revbound migrate`) |
 | Chat says the agent is not answering, locally | keep `npm run dev` running; its log lines start with `[agent]` |
 | `claude is not on PATH` | sign in to `claude` or `codex`, or set an API key (`npx revbound connections set ANTHROPIC_API_KEY`) |
 | Deployed, a run fails with "Protection Bypass for Automation" | turn it on and expose system environment variables, then redeploy (docs: deploy) |
