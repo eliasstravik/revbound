@@ -17,9 +17,9 @@ const asObject = (v: unknown) => {
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 
-type Who = { authenticator: string; principalId: string } | null | undefined;
-/** How the ledger's approval note names the person who said yes. */
-export const yesNote = (who: Who) => `Yes in chat from ${who ? who.principalId : "an unknown person"}`;
+type Who = { authenticator: string; principalId: string; attributes?: Readonly<Record<string, unknown>> } | null | undefined;
+/** How the ledger's approval note names the person who said yes (locally, the Tailscale login they used, if any). */
+export const yesNote = (who: Who) => `Yes in chat from ${who ? (typeof who.attributes?.login === "string" ? who.attributes.login : who.principalId) : "an unknown person"}`;
 
 const startInput = z.object({
   workflow: z.string().regex(/^[A-Za-z0-9_-]+$/u).describe("A workflow name from workflows/index.ts."),

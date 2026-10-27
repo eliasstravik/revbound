@@ -1,12 +1,14 @@
 /* Chat: the conversation fills the page under the title; the box stays at the bottom. The console's own look: its
    greys, hairlines, 32px controls, its menu, status dots, and Geist's amber note for a yes. */
-.chat { position: relative; display: flex; flex-direction: column; flex: 1; min-height: 0; border-top: 1px solid var(--border); }
+.chat-page { position: relative; display: flex; flex: 1; min-height: 0; border-top: 1px solid var(--border); }
+.chat { position: relative; display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
 .chat.dropping::after { content: ""; position: absolute; inset: 8px; border: 1.5px dashed var(--muted); border-radius: 12px; background: color-mix(in srgb, var(--surface) 70%, transparent); pointer-events: none; }
 .chat-col { width: 100%; max-width: 760px; margin: 0 auto; padding: 0 24px; display: flex; flex-direction: column; gap: 16px; }
 .chat-log { flex: 1; overflow-y: auto; padding: 24px 0 16px; scrollbar-width: thin; }
 .chat-log > .chat-col { min-height: 100%; }
 .chat-ic { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .chat-empty { margin: auto; max-width: 40ch; text-align: center; color: var(--muted); line-height: 1.6; }
+.chat-opening { margin: auto; }
 .chat-empty p:first-child { color: var(--text); font-weight: 500; }
 
 /* messages */
@@ -120,5 +122,28 @@
   .chat-ib .chat-ic { width: 18px; height: 18px; }
   .chat-wave i:nth-child(n + 25) { display: none; }
 }
-/* On a phone the title and New chat stay on one row. */
-@media (max-width: 640px) { .title-row:has(+ .chat) { flex-direction: row; align-items: center; } }
+/* On a phone the title and its buttons stay on one row. */
+@media (max-width: 640px) { .title-row:has(+ .chat-page) { flex-direction: row; align-items: center; } }
+
+/* the person's own chats: a column beside the conversation on wide screens, a sheet over it otherwise */
+.chat-title-actions { display: flex; gap: 8px; }
+.chat-history-toggle { display: inline-flex; align-items: center; gap: 6px; }
+.chat-history { display: none; flex-direction: column; gap: 16px; padding: 16px 8px; overflow-y: auto; scrollbar-width: thin; background: var(--bg); }
+.chat-history.sheet { display: flex; position: absolute; inset: 0; z-index: 6; padding: 12px; }
+.chat-history h2 { margin: 0 0 4px; padding: 0 8px; font-size: 12px; font-weight: 500; color: var(--muted); }
+.chat-history ul { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; }
+.chat-history li { position: relative; display: flex; align-items: center; border-radius: 6px; }
+.chat-history li:hover, .chat-history li.on { background: var(--hover); }
+.chat-history-open { flex: 1; min-width: 0; min-height: 32px; padding: 0 8px; border: 0; background: none; text-align: left; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-history li:hover .chat-history-open, .chat-history li.on .chat-history-open { color: var(--text); }
+.chat-history-open:hover { background: none; }
+.chat-history-delete { display: grid; place-items: center; width: 28px; min-height: 28px; height: 28px; margin-right: 2px; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--muted); opacity: 0; }
+.chat-history li:hover .chat-history-delete, .chat-history-delete:focus-visible { opacity: 1; }
+.chat-history-delete:hover { color: var(--failed); background: none; }
+.chat-history-note { padding: 0 8px; font-size: 13px; color: var(--muted); }
+@media (pointer: coarse) { .chat-history-delete { opacity: 1; } }
+@media (max-width: 767px) { .chat-history-open { min-height: 44px; font-size: 16px; } .chat-history-delete { width: 40px; height: 40px; } }
+@media (min-width: 1280px) {
+  .chat-history:not(.sheet) { display: flex; flex: none; width: 240px; border-right: 1px solid var(--border); }
+  .chat-history.sheet, .chat-history-toggle { display: none; }
+}

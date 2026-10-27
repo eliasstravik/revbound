@@ -23,13 +23,20 @@ function asBrowserSaw(req: Request): Request {
   return new Request(req.url, { method: req.method, headers });
 }
 
-/** The Vercel login behind a hosted request: the `_vercel_jwt` session cookie's user, which Vercel's edge has checked. */
-export function vercelUser(req: Request): string {
-  for (const claims of vercelJwts(req).map(jwtClaims)) {
-    const id = [claims.user_id, claims.userId, claims.uid, claims.email].find((v) => typeof v === "string" && v);
-    if (id) return String(id);
-  }
-  return "vercel-login";
+/** Credentials Vercel's edge may take instead of the login cookie; with one, the cookie proves no one. */
+const OTHER_CREDENTIALS = ["authorization", "x-vercel-trusted-oidc-idp-token"];
+
+/**
+ * The Vercel login behind a hosted request: the `userId` of its `_vercel_jwt` login cookie (sub "sso-protection", for
+ * this host), which Vercel's edge has checked. Undefined unless that cookie is the request's only credential: the edge
+ * lets a request through when any one of several cookies is valid, so a second, forged one could name someone else.
+ */
+export function vercelUser(req: Request): string | undefined {
+  const jwts = vercelJwts(req);
+  if (jwts.length !== 1 || OTHER_CREDENTIALS.some((h) => req.headers.has(h))) return undefined;
+  const claims = jwtClaims(jwts[0]);
+  if (claims.sub !== "sso-protection" || claims.aud !== hostOf(req.headers.get("host")).replace(/:\d+$/, "")) return undefined;
+  return typeof claims.userId === "string" && claims.userId ? `vercel:${claims.userId}` : undefined;
 }
 
 /** Whether `req` may use the console chat, and as whom. Pure: the fail-closed probe is the caller's (consoleAuth). */
@@ -37,7 +44,9 @@ export function consoleCaller(req: Request, env: Env = process.env): Caller {
   if (isHosted(env)) {
     if (carriesBypass(req)) return { ok: false, status: 403, error: "Requests carrying a protection bypass cannot open the console." };
     if (!sameOrigin(req, hostOf(req.headers.get("host")))) return { ok: false, status: 403, error: "Cross-site requests are refused." };
-    return { ok: true, principalId: vercelUser(req), attributes: { via: "vercel" } };
+    const user = vercelUser(req);
+    if (!user) return { ok: false, status: 403, error: "Sign in to Vercel again to use the chat." };
+    return { ok: true, principalId: user, attributes: { via: "vercel" } };
   }
   const seen = asBrowserSaw(req), verdict = pageAccess(seen, env);
   if (!verdict.ok) return verdict;
@@ -47,5 +56,6 @@ export function consoleCaller(req: Request, env: Env = process.env): Caller {
   }
   const login = tailnetLogin(seen, env);
   if (!login && !loopback(seen)) return { ok: false, status: 403, error: "The chat answers only on the computer running npm run dev, or to a Tailscale login on its name." };
-  return { ok: true, principalId: login ? `tailnet:${login}` : "local", attributes: { via: login ? "tailnet" : "local" } };
+  // Locally there is one person: the computer's owner, at the computer or on their own tailnet.
+  return { ok: true, principalId: "local", attributes: login ? { via: "tailnet", login } : { via: "local" } };
 }

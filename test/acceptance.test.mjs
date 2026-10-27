@@ -764,6 +764,9 @@ test("the console chat: a fresh project's agent answers, edits a workflow here, 
 
   const id = await say("hello");
   assert.deepEqual(replies(await follow(id, turnEnds(1))), ["Hello from the project's agent."]);
+  // The chat is in this person's list, and a session the console did not start opens for no one.
+  assert.deepEqual((await json("/eve/v1/chats")).chats.map((c) => [c.id, c.title]), [[id, "hello"]]);
+  assert.equal((await get("/eve/v1/session/wrun_01NOTACONSOLECHAT000000000/stream?follow=false")).status, 404);
 
   await say("please edit the workflow registry", id);
   assert.match(replies(await follow(id, turnEnds(2))).at(-1), /Edited workflows\/index\.ts/);

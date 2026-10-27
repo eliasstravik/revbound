@@ -63,7 +63,8 @@ export function agent(opts: AgentOptions = {}) {
   return definePlugin({
     name: "agent",
     api: 1,
-    needs: ["workflows", "ledger"],
+    needs: ["workflows", "ledger", "database"],
+    migrations: `${SRC}/migrations`,
     files: agentFiles(channels, opts.model),
     views: channels.includes("console") ? [{ path: "chat", title: "Chat", nav: { label: "Chat", order: 5 }, fill: true, component: `${P}/view` }] : [],
     connections: channels.flatMap((c) => (c === "console" ? [] : CHANNEL_KEYS[c])),
