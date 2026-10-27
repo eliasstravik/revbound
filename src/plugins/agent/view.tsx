@@ -102,7 +102,7 @@ function Steps({ parts, live }: { parts: EveDynamicToolPart[]; live: boolean }) 
   );
 }
 
-function Message({ message, live, spoken }: { message: EveMessage; live: boolean; spoken: boolean }) {
+function Message({ message, live, spoken, photo }: { message: EveMessage; live: boolean; spoken: boolean; photo(name?: string): string | undefined }) {
   const user = message.role === "user", out: ReactNode[] = [];
   let tools: EveDynamicToolPart[] = [];
   const flush = (key: number) => { if (tools.length) out.push(<Steps key={`s${key}`} parts={tools} live={live} />); tools = []; };
@@ -121,7 +121,7 @@ function Message({ message, live, spoken }: { message: EveMessage; live: boolean
   const failedSend = message.metadata?.status === "failed";
   return (
     <div className={`chat-msg ${message.role}${failedSend ? " failed" : ""}`}>
-      {files.length > 0 && <div className="chat-atts">{files.map((f, i) => <Chip key={i} name={f.filename ?? "File"} type={f.mediaType} bytes={f.size} url={f.url} />)}</div>}
+      {files.length > 0 && <div className="chat-atts">{files.map((f, i) => <Chip key={i} name={f.filename ?? "File"} type={f.mediaType} bytes={f.size} url={f.url ?? photo(f.filename)} />)}</div>}
       {spoken && <span className="chat-said"><Ic name="wave" />{user ? "You said" : "Spoken"}</span>}
       {out}
       {failedSend && <p className="chat-status failed">Not sent.</p>}
@@ -198,6 +198,7 @@ function Conversation({ sessionId, onSession, onNew }: { sessionId?: string; onS
     const next = [...(list ?? [])].map((file) => ({ id: crypto.randomUUID(), file, url: isImage(file.type) ? URL.createObjectURL(file) : undefined }));
     if (next.length) setFiles((f) => [...f, ...next]);
   };
+  const photos = useRef(new Map<string, string>());
   const remove = (id: string) => setFiles((f) => f.filter((a) => { if (a.id === id && a.url) URL.revokeObjectURL(a.url); return a.id !== id; }));
   async function send(text: string, attached: Attachment[] = []) {
     const parts = await Promise.all(attached.map(async (a) => {
@@ -207,6 +208,8 @@ function Conversation({ sessionId, onSession, onNew }: { sessionId?: string; onS
     const bytes = parts.reduce((n, p) => n + p.data.length * 0.75, 0);
     if (bytes > MAX_BYTES) throw new Error(`Files can be up to ${size(MAX_BYTES)} in all in one message; these are ${size(bytes)}.`);
     const message = parts.length ? [...(text ? [{ type: "text" as const, text }] : []), ...parts] : text;
+    // The chat gets back no copy of a photo: this page keeps the ones it sends, to show them in your message.
+    for (const p of parts) if (isImage(p.mediaType)) photos.current.set(p.filename, p.data);
     await agent.send(message, { ...(busy && { turnPolicy: "steer" as const }), ...(askOnly && { clientContext: ASK_ONLY }) });
   }
   const submit = (e?: FormEvent) => {
@@ -359,7 +362,8 @@ function Conversation({ sessionId, onSession, onNew }: { sessionId?: string; onS
                 <p>The agent can change a workflow and start a run after your yes.</p>
               </div>
             )}
-            {messages.map((m, i) => <Message key={m.id} message={m} live={busy && i === messages.length - 1} spoken={said.has(m.id) || (m.role === "user" && m.parts.some((p) => p.type === "text" && said.has(p.text.trim())))} />)}
+            {messages.map((m, i) => <Message key={m.id} message={m} live={busy && i === messages.length - 1} spoken={said.has(m.id) || (m.role === "user" && m.parts.some((p) => p.type === "text" && said.has(p.text.trim())))}
+              photo={(name) => (name ? photos.current.get(name) : undefined)} />)}
             {asks.map(({ request }) => (
               <fieldset key={request.requestId} className="chat-ask" disabled={resuming}>
                 <legend>{request.kind === "tool-approval" ? "Needs your yes" : "A question for you"}</legend>
