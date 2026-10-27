@@ -17,6 +17,8 @@ const { guard, hidden, locked, projectFs, seedFiles } = await dist("eve/sandbox"
 const { instructions } = await dist("eve/instructions");
 const { fromCompany } = await dist("eve/teams");
 const { skillProblems } = await dist("checks");
+const { MAX_AUDIO, voiceProblem, voiceRoutes } = await dist("voice");
+const { speakable, wav } = await dist("speech");
 
 const HOSTED = { VERCEL_ENV: "production", VERCEL_DEPLOYMENT_ID: "dpl_test" };
 const req = (url, { method = "GET", headers = {} } = {}) => new Request(url, { method, headers: { host: new URL(url).host, ...headers } });
@@ -145,7 +147,7 @@ test("the claude model: eve's tools as a structured reply, results paired by id,
 
 test("the sandbox hides keys and local state, and keeps Revbound's own docs readable", async () => {
   for (const p of ["/.env.local", "/.env", "/.env.production.local", "/.vercel/project.json", "/.revbound/db.lock", "/.eve/traces/x", "/node_modules/pg/index.js", "/.git/config"]) assert.equal(hidden(p), true, p);
-  for (const p of ["/.env.example", "/AGENTS.md", "/context/company.md", "/node_modules", "/node_modules/revbound/docs/plugins.md"]) assert.equal(hidden(p), false, p);
+  for (const p of ["/.env.example", "/AGENTS.md", "/context/company.md", "/node_modules", "/node_modules/revbound/docs/plugins.md", "/.eve", "/.eve/attachments/a/photo.png"]) assert.equal(hidden(p), false, p);
   // Paths as the shell's mount passes them: the project folder's own.
   const files = { "/.env.local": "KEY=1", "/AGENTS.md": "# Acme", "/.revbound/db.lock": "{}" };
   const fake = {
@@ -206,7 +208,7 @@ test("the laptop shell follows no link already in the project, so none leads pas
 
 test("the deployed sandbox's seed: no keys or build output, links kept as links", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "revbound-seed-"));
-  for (const [f, body] of [["AGENTS.md", "# Acme"], [".env.local", "KEY=1"], [".agents/skills/x/SKILL.md", "---\ndescription: x\n---"], [".next/a.js", ""], ["node_modules/pg/index.js", ""]]) {
+  for (const [f, body] of [["AGENTS.md", "# Acme"], [".env.local", "KEY=1"], [".agents/skills/x/SKILL.md", "---\ndescription: x\n---"], [".next/a.js", ""], ["node_modules/pg/index.js", ""], [".eve/attachments/a/photo.png", "x"]]) {
     fs.mkdirSync(path.join(dir, path.dirname(f)), { recursive: true });
     fs.writeFileSync(path.join(dir, f), body);
   }
@@ -286,4 +288,35 @@ test("the agent's check: .agents/skills holds only skill folders with a descript
   assert.ok(problems.some((m) => m.includes("README.md is not a skill folder")));
   assert.ok(problems.some((m) => m.includes("empty has no SKILL.md")));
   assert.ok(problems.some((m) => m.includes("bare/SKILL.md has no description")));
+});
+
+test("voice: AI Gateway when deployed or keyed, else the fix; only for whoever may use the chat", async () => {
+  assert.equal(voiceProblem(HOSTED), undefined);
+  assert.equal(voiceProblem({ AI_GATEWAY_API_KEY: "k" }), undefined);
+  assert.equal(voiceProblem({ VERCEL_OIDC_TOKEN: "t" }), undefined);
+  assert.match(voiceProblem({}), /vercel env pull/);
+  const route = (routes, method, path) => routes.find((r) => r.method === method && r.path === path).handler;
+  const allow = async () => ({ principalId: "local" }), deny = async () => { throw new Error("Cross-site requests are refused."); };
+  const post = (body) => new Request("http://127.0.0.1:3000/eve/v1/voice/transcribe", { method: "POST", body });
+  assert.deepEqual([...new Set(voiceRoutes(allow, {}).map((r) => r.path))], ["/eve/v1/voice", "/eve/v1/voice/transcribe", "/eve/v1/voice/speech"]);
+  const refused = await route(voiceRoutes(deny, { AI_GATEWAY_API_KEY: "k" }), "POST", "/eve/v1/voice/transcribe")(post("x"), {});
+  assert.deepEqual([refused.status, (await refused.json()).error], [403, "Cross-site requests are refused."]);
+  const unset = await route(voiceRoutes(allow, {}), "GET", "/eve/v1/voice")(new Request("http://127.0.0.1:3000/eve/v1/voice"), {});
+  assert.equal(unset.status, 503);
+  assert.deepEqual(await (await route(voiceRoutes(allow, { AI_GATEWAY_API_KEY: "k" }), "GET", "/eve/v1/voice")(new Request("http://127.0.0.1:3000/eve/v1/voice"), {})).json(), { ok: true });
+  const keyed = voiceRoutes(allow, { AI_GATEWAY_API_KEY: "k" });
+  assert.equal((await route(keyed, "POST", "/eve/v1/voice/transcribe")(post(new Uint8Array()), {})).status, 400);
+  assert.equal((await route(keyed, "POST", "/eve/v1/voice/transcribe")(post(new Uint8Array(MAX_AUDIO + 1)), {})).status, 413);
+  const speech = new Request("http://127.0.0.1:3000/eve/v1/voice/speech", { method: "POST", body: JSON.stringify({ text: " " }) });
+  assert.equal((await route(keyed, "POST", "/eve/v1/voice/speech")(speech, {})).status, 400);
+});
+
+test("voice: a call's recording is a 16-bit mono WAV; replies are read out without markup, code or link targets", async () => {
+  const file = new Uint8Array(await wav([new Float32Array([0, 1]), new Float32Array([-1])], 48_000).arrayBuffer());
+  const view = new DataView(file.buffer);
+  assert.equal(new TextDecoder().decode(file.slice(0, 4)) + new TextDecoder().decode(file.slice(8, 12)), "RIFFWAVE");
+  assert.deepEqual([view.getUint16(22, true), view.getUint32(24, true), view.getUint16(34, true), view.getUint32(40, true)], [1, 48_000, 16, 6]);
+  assert.deepEqual([view.getInt16(44, true), view.getInt16(46, true), view.getInt16(48, true)], [0, 32767, -32767]);
+  assert.equal(speakable("## Done\n\nSaved **3** rows to `example_companies`. See [Runs](https://example.com/runs).\n\n```sh\nnpm run dev\n```"),
+    "Done\nSaved 3 rows to example companies. See Runs.");
 });
