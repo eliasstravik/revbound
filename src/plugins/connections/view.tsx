@@ -149,6 +149,8 @@ function ConnectionDialog({ kind, c, local, csrf, existing, close, done }: Open 
   const [label, setLabel] = useState(c ? labelOf(c) : ""), [name, setName] = useState(c?.name ?? ""), [value, setValue] = useState("");
   useEffect(() => {
     if (!dialog.current?.open) dialog.current?.showModal();
+    // A listed key has its name filled in, so typing starts at the value.
+    if (c && kind !== "delete") input.current?.focus();
     // A typed value never outlives the form: cleared on pagehide (before the back/forward cache keeps the page) and on close.
     const clear = () => { setValue(""); if (input.current) input.current.value = ""; };
     addEventListener("pagehide", clear);
@@ -165,7 +167,7 @@ function ConnectionDialog({ kind, c, local, csrf, existing, close, done }: Open 
       if (!value && !renames) wrong.value = "Paste the key.";
     }
     setErrors(wrong);
-    if (Object.keys(wrong).length) return void dialog.current?.querySelector<HTMLElement>("[aria-invalid=true]")?.focus();
+    if (Object.keys(wrong).length) return void requestAnimationFrame(() => dialog.current?.querySelector<HTMLElement>("[aria-invalid=true]")?.focus());
     setBusy(true);
     const body = kind === "delete" ? { action: "delete", name: key } : value ? { action: "save", name: key, value, label: label.trim() } : { action: "rename", name: key, label: label.trim() };
     await post(body, csrf).then((r) => { setValue(""); done({ name: key, label: label.trim() || keyName(key) }, r); }, (err: Error) => { setErrors({ form: err.message }); setBusy(false); });

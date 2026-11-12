@@ -111,13 +111,13 @@ const textOf = (m?: EveMessage) => m?.parts.flatMap((p) => (p.type === "text" ? 
 
 /**
  * What the agent is doing while it works: its current step, the seconds so far after five, and, once nothing has
- * arrived for 45 seconds, that it is slow, with Stop. After two quiet minutes it gives up (`onGiveUp`).
+ * arrived for 45 seconds, that it is slow, with Stop. After two quiet minutes with no step running it gives up (`onGiveUp`).
  */
 function Working({ label, activity, onStop, onGiveUp }: { label?: string; activity: number; onStop: () => void; onGiveUp: () => void }) {
   const start = useRef(Date.now()), last = useRef(Date.now()), [now, setNow] = useState(Date.now());
   useEffect(() => { last.current = Date.now(); }, [activity]);
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
-  const elapsed = Math.floor((now - start.current) / 1000), idle = (now - last.current) / 1000, stuck = idle >= 120;
+  const elapsed = Math.floor((now - start.current) / 1000), idle = (now - last.current) / 1000, stuck = idle >= 120 && !label;
   useEffect(() => { if (stuck) onGiveUp(); }, [stuck]);
   return (
     <p className="chat-status">

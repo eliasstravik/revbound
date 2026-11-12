@@ -45,7 +45,7 @@
 .connection-fields input[aria-invalid="true"] { border-color: var(--failed); }
 .connection-dialog form > .error { margin-top: 12px; }
 /* The row just saved, for a moment. */
-.connection-row[data-flash] { animation: connection-flash 1.6s ease-out; }
+.connection-row[data-flash] { animation: connection-flash 3s ease-out; }
 @keyframes connection-flash { from { background: color-mix(in srgb, var(--ok) 14%, var(--bg)); } to { background: transparent; } }
 .connection-submit { display: inline-flex; align-items: center; gap: 8px; }
 .spinner { width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin 0.9s linear infinite; }
