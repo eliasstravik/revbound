@@ -37,6 +37,8 @@ works inside: no file names, where things are stored, what is never shown, or wh
 - By hand: `npm ci && npm run build && npm pack`, then in an empty folder outside the repo
   `REVBOUND_PACKAGE_SPEC=file:<tarball> node <repo>/dist/core/cli.js init --company Acme --example` and
   `REVBOUND_PORT=<port> npx revbound dev` there.
+- Dev loop: with `revbound dev` running in a test project, `scripts/try.sh <project dir>` rebuilds, repacks and
+  reinstalls the package there and the open pages reload. Run only one acceptance suite at a time (they share a port).
 
 ## Releases
 
