@@ -146,6 +146,29 @@ export const workflows = {
   lacks(errors, /ledger\/reconcile/);
 });
 
+test("registry groups: a short name spelled one way; a step is a whole number on a grouped workflow", async () => {
+  const dir = project({ "workflows/index.ts": `
+async function a() { "use workflow"; return 1; }
+export const workflows = {
+  find: { run: a, group: "Outbound", step: 1 },
+  score: { run: a, group: "Outbound", step: 2 },
+  report: { run: a, group: "Reporting" },
+  other: { run: a, group: "outbound" },
+  blank: { run: a, group: " " },
+  long: { run: a, group: "${"x".repeat(41)}" },
+  half: { run: a, group: "Reporting", step: 1.5 },
+  alone: { run: a, step: 1 },
+};
+`, "vercel.json": JSON.stringify({ crons: [] }) });
+  const { errors } = await check(dir);
+  has(errors, /other: its group "outbound" is spelled "Outbound" on another workflow/);
+  has(errors, /blank: group must be a short name/);
+  has(errors, /long: group must be a short name/);
+  has(errors, /half: step must be a whole number from 1/);
+  has(errors, /alone: step must be a whole number from 1, on a workflow with a group/);
+  for (const ok of ["find", "score", "report"]) lacks(errors, new RegExp(`index\\.ts: ${ok}\\b`));
+});
+
 test("company code: no start from workflow/api, no AI SDK, plugins only through #revbound; type imports and ejected folders allowed", async () => {
   const dir = project({
     "workflows/a.ts": `import { start } from "workflow/api";\nimport { db } from "revbound/database";\nimport type { Api } from "revbound/ai/runtime";\nimport { agent } from "#revbound/ai";\nexport const x = [start, db, agent];\n`,

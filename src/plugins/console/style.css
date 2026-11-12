@@ -133,6 +133,7 @@ dialog::backdrop { background: #0006; }
 .ov-rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); }
 .ov-rows li { display: flex; align-items: center; gap: 4px 16px; min-height: 44px; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .ov-name { flex: 0 1 auto; min-width: 0; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-group { flex: 0 2 auto; min-width: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ov-reason { flex: 1 1 0; min-width: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ov-rows .status, .ov-rows meter { margin-left: auto; }
 .ov-reason + .status { margin-left: 0; }
@@ -143,6 +144,7 @@ dialog::backdrop { background: #0006; }
 .link { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
 @container (max-width: 520px) {
   .ov-rows li { flex-wrap: wrap; }
+  .ov-group { flex-basis: 100%; order: 4; }
   .ov-reason { flex-basis: 100%; order: 5; white-space: normal; }
   .ov-rows meter { order: 5; width: 100%; }
 }

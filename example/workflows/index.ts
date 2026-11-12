@@ -1,5 +1,5 @@
-// The workflow registry: { <name>: workflowFn } or { <name>: { run, description, tables, connections, diagram, approval,
-// budget, schedule } }. The console, `revbound run` and crons find workflows only here (`npx revbound docs workflows`).
+// The workflow registry: { <name>: workflowFn } or { <name>: { run, description, group, step, tables, connections,
+// diagram, approval, budget, schedule } }. The console, `revbound run` and crons find workflows only here (`npx revbound docs workflows`).
 import type { Registry } from "revbound";
 import { exampleImport } from "./example-import";
 

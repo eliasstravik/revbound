@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import type { Manifest } from "revbound";
-import { apiUrl, DataTable, duration, EmptyState, isActive, Link, PageHeader, Search, Status, StatusBadge, time, Toolbar, usd, useApi, useQuery, vercelUrl, When,
+import { apiUrl, byGroup, DataTable, duration, EmptyState, isActive, Link, PageHeader, Search, Status, StatusBadge, time, Toolbar, usd, useApi, useQuery, vercelUrl, When,
   type Column, type TabProps, type ViewProps } from "revbound/ui";
 import { refusal, splitReason } from "./words.js";
 import "./runs.css";
@@ -125,15 +125,15 @@ function RunPanel({ id, links, runHref, close }: { id: string; links: Links; run
 export function RunsView({ workflow, manifest }: { workflow?: string; manifest: Manifest }) {
   const { params: p, href, go } = useQuery(), links = useLinks(manifest);
   const query = new URLSearchParams();
-  for (const k of ["workflow", "q", "status", "period", "before"]) {
-    const v = k === "workflow" ? (workflow ?? p.get(k)) : workflow && k === "q" ? null : p.get(k);
+  for (const k of ["workflow", "group", "q", "status", "period", "before"]) {
+    const v = k === "workflow" ? (workflow ?? p.get(k)) : workflow && (k === "q" || k === "group") ? null : p.get(k);
     if (v) query.set(k, v);
   }
   const state = useApi<Runs>(`ledger/runs?${query}`, (d) => (d.data.some((r) => isActive(r.status)) ? 3000 : 15_000));
-  const names = useApi<{ workflows: { name: string }[] }>(workflow ? null : "workflows").data?.workflows ?? [];
+  const names = useApi<{ workflows: { name: string; group?: string; step?: number }[] }>(workflow ? null : "workflows").data?.workflows ?? [];
   const d = state.data, filter = (k: string, v: string) => go({ [k]: v || undefined, before: undefined });
   const all = d && traceLink(d), open = p.get("run"), runHref = (id: string) => href({ run: id });
-  const filters = ["status", "period", ...(workflow ? [] : ["workflow"])], on = filters.filter((k) => p.get(k)).length;
+  const filters = ["status", "period", ...(workflow ? [] : ["workflow", "group"])], on = filters.filter((k) => p.get(k)).length;
   const narrowed = on > 0 || query.has("q") || query.has("before");
   const rows = d ? [...d.data].sort((a, b) => Number(isActive(b.status)) - Number(isActive(a.status))) : [];
   const columns: Column<Run>[] = [
@@ -152,9 +152,15 @@ export function RunsView({ workflow, manifest }: { workflow?: string; manifest: 
       <Toolbar state={state} active={on}
         search={!workflow && <Search label="Search runs" value={p.get("q") ?? ""} onChange={(q) => go({ q: q || undefined, before: undefined }, true)} />}
         filters={<>
-          {!workflow && <select name="workflow" aria-label="Filter runs by workflow" value={p.get("workflow") ?? ""} onChange={(e) => filter("workflow", e.target.value)}>
+          {!workflow && <select name="workflow" aria-label="Filter runs by workflow" value={p.get("workflow") ?? (p.get("group") ? `group:${p.get("group")}` : "")}
+            onChange={({ target: { value: v } }) => go({ workflow: v.startsWith("group:") ? undefined : v || undefined, group: v.startsWith("group:") ? v.slice(6) : undefined, before: undefined })}>
             <option value="">All workflows</option>
-            {names.map((w) => <option key={w.name} value={w.name}>{w.name}</option>)}
+            {byGroup(names).map((s) => {
+              const options = s.items.map((w) => <option key={w.name} value={w.name}>{w.name}</option>);
+              return names.some((w) => w.group) ? <optgroup key={s.group ?? ""} label={s.group ?? "Other"}>
+                {s.group && <option value={`group:${s.group}`}>All in {s.group}</option>}{options}
+              </optgroup> : options;
+            })}
           </select>}
           <select name="status" aria-label="Filter runs by status" value={p.get("status") ?? ""} onChange={(e) => filter("status", e.target.value)}>
             <option value="">All statuses</option>

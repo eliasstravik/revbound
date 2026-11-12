@@ -5,7 +5,7 @@ import type { About, Manifest, RegistryInfo } from "../core/types.js";
 
 export { api, apiUrl, clock, duration, Link, OFFLINE, retryAll, vercelUrl, Search, Status, time, useApi, useQuery } from "./load.js";
 export { Count, DataTable, EmptyState, PageHeader, Refresh, refreshCounts, StatusBadge, Toolbar, When, type Column } from "./parts.js";
-export { ago, cronWords, isActive, keyName, needsLook, statusOf, usd } from "./words.js";
+export { ago, byGroup, cronWords, isActive, keyName, needsLook, statusOf, usd } from "./words.js";
 export { glyphs, Icon, Menu, place } from "./menu.js";
 export { EnvironmentBadge, onReleaseSettled, releaseStarted, type Release } from "./environment.js";
 export { Markdown } from "./markdown.js";

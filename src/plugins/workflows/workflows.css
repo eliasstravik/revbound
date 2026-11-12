@@ -10,6 +10,27 @@
 .wf-row:hover .wf-link { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
 .wf-description { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wf-side { flex-shrink: 0; font-size: 13px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* A group: its name over its workflows. Numbered steps hang on one line down the left, so the order reads at a glance. */
+.wf-group h2 { display: flex; align-items: center; gap: 8px; padding: 28px 12px 10px; border-bottom: 1px solid var(--border); font-size: 14px; }
+.wf-group:first-child h2 { padding-top: 20px; }
+.wf-count { font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; }
+.wf-rows[data-steps] .wf-row { --step-y: 50%; padding-left: 48px; }
+.wf-step { position: absolute; left: 12px; top: var(--step-y); z-index: 1; display: grid; place-items: center; width: 22px; height: 22px; margin-top: -11px; border: 1px solid var(--line); border-radius: 50%; background: var(--bg); font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.wf-step:empty { display: none; }
+.wf-row[data-step]::before { content: ""; position: absolute; left: 23px; top: 0; bottom: 0; width: 1px; background: var(--line); }
+.wf-row[data-step]:first-child::before { top: var(--step-y); }
+.wf-row[data-step]:not(:has(+ [data-step]))::before { bottom: calc(100% - var(--step-y)); }
+/* The same group on a workflow's page: its workflows in a row, this one marked, an arrow between steps. */
+.wf-chain { display: flex; align-items: baseline; gap: 8px 16px; min-width: 0; font-size: 13px; }
+.wf-chain p { flex: none; font-weight: 600; }
+.wf-chain ol { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; margin: 0; padding: 0; list-style: none; }
+.wf-chain li { display: flex; align-items: center; gap: 6px; }
+.wf-chain[data-steps] li + li::before { content: "→"; color: var(--muted); }
+.wf-chain a { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 10px; border: 1px solid var(--border); border-radius: 9999px; color: var(--muted); white-space: nowrap; }
+.wf-chain a:hover { color: var(--text); background: var(--hover); text-decoration: none; }
+.wf-chain a[aria-current] { color: var(--text); background: var(--hover); border-color: var(--line); }
+.wf-chain-step { font-variant-numeric: tabular-nums; }
+.wf-chain .status { gap: 0; }
 /* A workflow's page: its header (what it does, last run, schedule, approval, budget) above the tabs, on every tab. */
 .wf-header { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; padding: 0 24px 16px; }
 .wf-about { max-width: 80ch; color: var(--muted); text-wrap: pretty; }
@@ -51,6 +72,14 @@
 
 @media (max-width: 640px) {
   .wf-row { flex-direction: column; align-items: stretch; padding: 14px 0; }
+  .wf-group h2 { padding-inline: 0; font-size: 15px; }
+  .wf-rows[data-steps] .wf-row { --step-y: 25px; padding-left: 34px; }
+  .wf-step { left: 0; }
+  .wf-row[data-step]::before { left: 11px; }
+  /* The group's workflows in one line that scrolls sideways, edge to edge. */
+  .wf-chain { flex-direction: column; align-items: stretch; padding-top: 8px; }
+  .wf-chain ol { flex-wrap: nowrap; margin-inline: -12px; padding-inline: 12px; overflow-x: auto; scrollbar-width: none; }
+  .wf-chain a { min-height: 36px; padding: 0 12px; font-size: 14px; }
   .wf-link { font-size: 15px; }
   .wf-description { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
   .wf-side { display: flex; flex-wrap: wrap; gap: 2px 16px; text-align: left; white-space: normal; }

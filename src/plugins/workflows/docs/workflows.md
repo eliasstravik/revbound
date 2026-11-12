@@ -15,6 +15,8 @@ export const workflows = {
   "qualify-companies": {
     run: qualifyCompanies,
     description: "Scores each company against our ICPs and keeps the verdict.",
+    group: "Inbound scoring",                      // the workflows it belongs with, under one heading in the console
+    step: 2,                                       // its place when the group's workflows run one after another
     tables: ["qualified_companies"],
     connections: ["FIRECRAWL_API_KEY"],
     diagram: {
@@ -31,13 +33,23 @@ export const workflows = {
 } satisfies Registry;
 ```
 
-- `description`, `tables`, `connections` and `diagram` are what the console shows; none changes how it runs.
+- `description`, `group`, `step`, `tables`, `connections` and `diagram` are what the console shows; none changes how it
+  runs.
   `diagram` holds the business steps (`kind`: `input`, `action`, `decision` or `output`; a decision's edges carry
   labels). Write it for the GTM team, not as code, and update it in the same change as the workflow.
+- `group` puts workflows that belong together under one heading: a pipeline's stages, a parent and the children it
+  fans out to, the jobs of one campaign. Set it whenever you build two or more workflows for one purpose, and reuse
+  the name of an existing group that fits. Name it for the GTM team ("Inbound scoring", "Renewal outreach"), at most
+  40 characters, spelled the same on every workflow in it. One group per workflow; without one it is listed under
+  Other.
+- `step` (with a `group`) numbers the workflows that run one after another: 1 for the first, 2 for the one that
+  uses its results, and so on. The console lists them in that order and shows the chain on each one's page. Leave it
+  out when the group's workflows run in no fixed order.
 - `approval`, `budget` and `schedule` are what the ledger enforces (docs: ledger). Mark every workflow that spends
   money or acts on people as `approval: { required: true }`.
 
-The console's workflow page has a tab per plugin: Diagram, Runs (from the ledger: status, cost, approval), Data
+The console's Workflows list shows each group under its name, the Runs view filters by workflow or by whole group,
+and a workflow's page links to the rest of its group. The page has a tab per plugin: Diagram, Runs (from the ledger: status, cost, approval), Data
 (the `tables`) and Connections (the `connections`, set or missing here).
 
 ## Results and runs
