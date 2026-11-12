@@ -70,5 +70,5 @@ test("refusal: the ledger's refusals in a person's words, with the next step in 
 });
 
 test("the Overview's starter check matches the text a new project's context/company.md starts with", () => {
-  assert.match(readFileSync(new URL("../../starter/context/company.md", import.meta.url), "utf8"), /^# Company\s+Replace the heading with the company's name/);
+  assert.match(readFileSync(new URL("../../starter/context/company.md", import.meta.url), "utf8"), /^# .+\s+Replace the heading with the company's name/);
 });

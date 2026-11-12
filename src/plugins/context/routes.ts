@@ -27,7 +27,7 @@ async function contextPaths() {
   return { context, skills };
 }
 
-/** GET /context → { groups: [{ name: "Context" | "Skills", files: [{ path, title, description? }] }] } (missing files left out). */
+/** GET /context → { groups: [{ name: "Context" | "Skills", files: [{ path, title, description? }] }] } (missing files left out), starter: whether context/company.md is still the starter text. */
 export async function list(): Promise<Response> {
   const { context, skills } = await contextPaths();
   const entry = async (p: string) => {
@@ -35,7 +35,7 @@ export async function list(): Promise<Response> {
     return markdown == null ? [] : [{ path: p, title: heading(markdown) ?? path.basename(p, ".md") }];
   };
   // `starter`: context/company.md is still the text a new project starts with, so the Overview asks for the real one.
-  const starter = /^# Company\s+Replace the heading with the company's name/.test((await read("context/company.md")) ?? "");
+  const starter = /^# .+\s+Replace the heading with the company's name/.test((await read("context/company.md")) ?? "");
   return json({ groups: [{ name: "Context", files: (await Promise.all(context.map(entry))).flat() }, { name: "Skills", files: skills }], starter });
 }
 
