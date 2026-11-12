@@ -106,8 +106,32 @@ dialog::backdrop { background: #0006; }
 .dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
 /* Page parts: a title row on the 24px edge, then a toolbar, a table or a list. */
-.title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-shrink: 0; min-height: 64px; padding: 20px 24px 8px; }
+.title-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; flex-shrink: 0; min-height: 64px; padding: 20px 24px 8px; }
 .title-row > p { color: var(--muted); }
+.actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+/* The first stop for the keyboard: straight to the page, past the menu. */
+.skip-link { position: fixed; top: 8px; left: 8px; z-index: 200; padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); transform: translateY(-200%); }
+.skip-link:focus-visible { transform: none; }
+.main:focus { outline: none; }
+/* A lost connection, said once, over the page so nothing moves. */
+.offline { position: fixed; left: 50%; bottom: 16px; z-index: 150; display: flex; align-items: center; gap: 12px; width: max-content; max-width: calc(100vw - 24px); margin: 0; padding: 8px 8px 8px 14px; translate: -50% 0;
+  border-radius: 10px; background: var(--bg); color: var(--failed); box-shadow: 0 0 0 1px var(--border), 0 12px 32px #0003; }
+.offline button { color: var(--text); flex-shrink: 0; }
+/* Nothing to show: one line and at most one action. */
+.empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 24px; color: var(--muted); }
+.page > .empty { padding-inline: 0; }
+.main > .empty { margin: auto; align-items: center; }
+/* Small facts as words: "Needs approval", "2 keys missing". */
+.badge { display: inline-flex; align-items: center; min-height: 20px; padding: 0 8px; border-radius: 10px; font-size: 12px; font-weight: 500; white-space: nowrap; color: var(--muted); background: var(--hover); }
+.badge[data-tone="failed"] { color: var(--failed); background: color-mix(in srgb, var(--failed) 10%, var(--bg)); }
+.badge[data-tone="amber"] { color: var(--amber); background: color-mix(in srgb, var(--amber) 10%, var(--bg)); }
+.chip-count { margin-left: 8px; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Label and value pairs. */
+.facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px 24px; margin: 0; }
+.facts dt { font-size: 13px; color: var(--muted); }
+.facts dd { margin: 2px 0 0; overflow-wrap: anywhere; }
+.facts dd:empty::after { content: "—"; color: var(--muted); }
+.facts .wide { grid-column: 1 / -1; }
 .breadcrumbs { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .breadcrumbs > a { color: var(--muted); white-space: nowrap; flex-shrink: 0; }
 .breadcrumbs h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -116,6 +140,11 @@ dialog::backdrop { background: #0006; }
 .toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; flex-shrink: 0; padding: 12px 24px; border-bottom: 1px solid var(--border); }
 .toolbar .end { margin-left: auto; }
 .toolbar-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.toolbar input[type="search"] { width: 260px; }
+.toolbar-filter { display: none; }
+.toolbar-filters { display: contents; }
+/* A filter that is on: the soft grey fill, never the loudest thing on the page. */
+button[aria-pressed="true"], .toolbar-filter[aria-expanded="true"] { background: var(--hover); }
 .icon-button { display: inline-grid; place-items: center; width: 32px; padding: 0; }
 .icon-button svg { width: 16px; height: 16px; fill: currentColor; }
 @media (pointer: coarse) { .icon-button { position: relative; } .icon-button::after { content: ""; position: absolute; inset: -6px; } }
@@ -140,23 +169,63 @@ th { position: sticky; top: 0; z-index: 1; background: var(--surface); font-weig
 th, td { padding: 10px 24px; border-bottom: 1px solid var(--border); }
 td .muted { font-size: 13px; }
 .pagination, .grid-footer { display: flex; gap: 20px; justify-content: flex-end; align-items: center; flex-shrink: 0; min-height: 42px; margin: 0; padding: 10px 24px; border-top: 1px solid var(--border); font-variant-numeric: tabular-nums; }
-.status { display: inline-flex; gap: 7px; align-items: center; text-transform: capitalize; white-space: nowrap; }
-.status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
-.status-completed::before { background: #17a66a; }
-.status-failed::before { background: #e5484d; }
-.status-running::before { background: #398bff; }
-.status-pending::before { background: #c88c14; }
-.run-error { display: block; max-width: 48ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The one table (parts.tsx): rows click through when `clickable`; a `row-note` is a full-width line under its row. */
+.data-table .numeric { text-align: right; }
+.data-table td { vertical-align: top; }
+.data-table td:empty::after { content: "—"; color: var(--muted); }
+.data-table .chevron { width: 1%; padding-left: 0; color: var(--muted); font-size: 16px; line-height: 21px; }
+.data-table .card-meta { display: none; }
+.data-table tr.clickable { cursor: pointer; }
+.data-table tr.clickable:hover, .data-table tr.clickable:hover + .row-note, .data-table tr.clickable:has(+ .row-note:hover) { background: var(--surface); }
+.data-table tr.has-note td { padding-bottom: 4px; border-bottom: 0; }
+.data-table .row-note td { padding-top: 0; }
+.data-table td a[aria-current] { font-weight: 600; }
+.clip { display: block; max-width: 28ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A run's status, the same everywhere (parts.tsx): a dot and its word. */
+.status { display: inline-flex; gap: 7px; align-items: center; white-space: nowrap; }
+.status::before { content: ""; flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.status[data-tone="ok"]::before { background: light-dark(#17a66a, #3fb979); }
+.status[data-tone="failed"]::before { background: var(--failed); }
+.status[data-tone="running"]::before { background: var(--running); animation: badge-pulse 1.4s ease-in-out infinite; }
+.status[data-tone="amber"]::before { background: var(--amber); }
+.wide-only { }
 
 @media (max-width: 640px) {
-  .title-row { flex-direction: column; align-items: stretch; padding: 16px 12px 4px; }
+  .title-row { padding: 16px 12px 4px; }
   .subtitle { padding-inline: 12px; }
   .page { padding-inline: 12px; }
+  .empty { padding-inline: 12px; }
+  /* Search takes the row; the filters open under it from one Filter button. */
   .toolbar { gap: 8px; padding: 10px 12px; }
-  .toolbar input[type="search"] { flex: 1; min-width: 0; }
+  .toolbar input[type="search"] { flex: 1 1 0; width: auto; min-width: 0; }
+  .toolbar-filter { display: inline-flex; align-items: center; }
+  .toolbar-filters { display: none; order: 9; flex-basis: 100%; flex-wrap: wrap; gap: 8px; }
+  .toolbar-filters[data-open] { display: flex; }
+  .toolbar-filters > select { flex: 1 1 140px; min-width: 0; }
+  .wide-only { display: none; }
   input, select { font-size: 16px; }
   th, td { padding: 10px 12px; }
   .pagination, .grid-footer, .grid-message { padding-inline: 12px; }
+  /* Each row a card: the first cell, `top` cells beside it, the rest on one line under it. */
+  .data-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .data-table, .data-table tbody { display: block; }
+  .data-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 12px; border-bottom: 1px solid var(--border); }
+  .data-table td { display: none; padding: 0; border: 0; }
+  .data-table td:first-child, .data-table td.top, .data-table .row-note td { display: block; }
+  .data-table td.top { text-align: right; }
+  .data-table td:first-child > a { font-weight: 500; font-size: 15px; }
+  .data-table .card-meta { display: block; margin-top: 2px; color: var(--muted); font-size: 13px; }
+  .data-table .card-meta span:empty { display: none; }
+  .data-table .card-meta span:not(:empty) ~ span:not(:empty)::before { content: " · "; }
+  .data-table tr.has-note { padding-bottom: 4px; border-bottom: 0; }
+  .data-table tr.row-note { display: block; padding-top: 0; }
+  .clip { max-width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { .status[data-tone="running"]::before { animation: none; } }
+/* Touch: tabs and icon buttons get a 44px hit area. */
+@media (pointer: coarse) {
+  .tabs a { min-width: 44px; justify-content: center; }
+  .icon-button::after { inset: -6px; }
 }
 
 /* Local, Preview or Production at the top of the sidebar: Geist's amber, grey and green badges; amber while a change goes live. */

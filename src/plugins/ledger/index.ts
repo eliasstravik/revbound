@@ -32,6 +32,8 @@ export function ledger(opts: { budgets?: Budgets } = {}) {
       { path: "ledger/reconcile", methods: ["GET"], access: "cron", handler: `${P}/routes#reconcile` },
       { path: "ledger/tick", methods: ["POST"], access: "local", handler: `${P}/routes#tick` },
       { path: "ledger/runs", methods: ["GET"], access: "session", handler: `${P}/routes#runs` },
+      { path: "ledger/runs/:id", methods: ["GET"], access: "session", handler: `${P}/routes#run` },
+      { path: "ledger/summary", methods: ["GET"], access: "session", handler: `${P}/routes#summary` },
     ],
     views: [{ path: "runs", title: "Runs", nav: { label: "Runs", order: 25 }, fill: true, component: `${P}/view` }],
     workflowTabs: [{ id: "runs", title: "Runs", order: 20, component: `${P}/view#RunsTab` }],
