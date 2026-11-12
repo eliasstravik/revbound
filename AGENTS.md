@@ -32,6 +32,12 @@ company data it cannot, so this rule still holds where the check is silent.
 Console text (`src/ui`) only helps the user act: labels, empty states, errors with their fix. Never explain how it
 works inside: no file names, where things are stored, what is never shown, or why it is built that way.
 
+## Trying the Console
+
+- By hand: `npm ci && npm run build && npm pack`, then in an empty folder outside the repo
+  `REVBOUND_PACKAGE_SPEC=file:<tarball> node <repo>/dist/core/cli.js init --company Acme --example` and
+  `REVBOUND_PORT=<port> npx revbound dev` there.
+
 ## Releases
 
 Every release bumps only the patch version by one (0.0.7 -> 0.0.8 -> 0.0.9), never minor or major, unless the human
