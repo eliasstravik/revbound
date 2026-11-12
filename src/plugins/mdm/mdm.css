@@ -1,17 +1,17 @@
-/* People, Companies and Signals: one line per cell in the lists; a record's page in sections with its facts on top. */
-.mdm td { white-space: nowrap; }
-.mdm td:last-child, .mdm th:last-child { width: 100%; }
-.mdm-detail { max-width: 0; min-width: 20ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mdm-record h2 { margin: 32px 0 8px; }
-.mdm-table { overflow-x: auto; border-top: 1px solid var(--border); }
-.mdm-record td { white-space: nowrap; }
-.mdm-record td.mdm-value { white-space: normal; min-width: 24ch; }
-.mdm-record th, .mdm-record td { padding-inline: 12px; }
-.mdm-record .notice { padding: 8px 0; }
-.mdm-value { max-width: 60ch; overflow-wrap: break-word; }
-.mdm-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px 24px; margin: 8px 0 0; }
-.mdm-facts dt { font-size: 13px; color: var(--muted); }
-.mdm-facts dd { margin: 2px 0 0; overflow-wrap: anywhere; }
+/* People, Companies and Signals: the Console's table in the lists (cards on a phone); a record's page in sections with its facts on top. */
+.mdm .data-table td { white-space: nowrap; }
+.mdm .data-table td.mdm-value { white-space: normal; min-width: 24ch; }
+.mdm-value { max-width: 60ch; overflow-wrap: anywhere; }
+.card-only { display: none; }
+.card-meta .card-only { display: inline; }
+.link { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.mdm-record h2 { margin: 32px 0 4px; }
+.mdm-record h2 + .muted { margin-bottom: 8px; font-size: 13px; }
+.mdm-record .data-table { border-top: 1px solid var(--border); }
+.mdm-record .data-table th, .mdm-record .data-table td { padding-inline: 12px; }
+.mdm-record .data-table th { position: static; background: none; }
+.mdm-record .empty { padding: 8px 0; }
 @media (max-width: 640px) {
-  .mdm-record th, .mdm-record td { padding-inline: 8px; }
+  .mdm .data-table td { white-space: normal; }
+  .mdm-record .data-table tr { padding-inline: 0; }
 }

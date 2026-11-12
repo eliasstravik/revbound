@@ -13,9 +13,12 @@ export const apiUrl = (path: string) => `${process.env.__NEXT_ROUTER_BASEPATH ??
 export const vercelUrl = (path: string, title: string) =>
   `https://vercel.com/d?to=${encodeURIComponent(`/[team]/[project]${path}`)}&title=${encodeURIComponent(title)}`;
 
+/** What a request that never got an answer says. The frame shows it once for every page (shell.tsx). */
+export const OFFLINE = "Can't reach the Console.";
+
 /** Calls `/api/revbound/<path>`; throws the API's `{ error }` text (or the HTTP status) on failure. */
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(apiUrl(path), { cache: "no-store", ...init });
+  const res = await fetch(apiUrl(path), { cache: "no-store", ...init }).catch((e) => { throw init?.signal?.aborted ? e : new Error(OFFLINE); });
   const body = await res.json().catch(() => null);
   if (!res.ok || body == null) throw new Error(body?.error ?? `${res.status} ${res.statusText}`.trim());
   return body as T;
@@ -34,6 +37,9 @@ if (typeof window !== "undefined") {
   for (const name of ["pointerdown", "keydown", "wheel", "touchstart"]) addEventListener(name, awake, { capture: true, passive: true });
   document.addEventListener("visibilitychange", () => document.hidden || wakers.forEach((fn) => fn()));
 }
+
+/** Reads every shown view again now: the frame's Retry. */
+export const retryAll = () => wakers.forEach((fn) => fn());
 
 type State<T> = { key?: string; data?: T; error?: string; at?: number };
 
@@ -82,6 +88,8 @@ export function useApi<T>(path: string | null, every?: (data: T) => number | und
 
 export const time = (value: string | number) =>
   new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+/** The time of day alone: "10:02". */
+export const clock = (value: string | number) => new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(new Date(value));
 
 /** Run length. Under ten seconds keeps a tenth, so a quick run never reads as 0s. */
 export function duration(ms: number) {
@@ -90,13 +98,14 @@ export function duration(ms: number) {
   return seconds < 60 ? `${seconds}s` : seconds < 3600 ? `${Math.floor(seconds / 60)}m ${seconds % 60}s` : `${Math.floor(seconds / 3600)}h ${Math.floor(seconds / 60) % 60}m`;
 }
 
-/** A view's loading line, or its error with Retry (and, when older data is still shown, how old it is). */
+/** A view's loading line, or its own error with Retry. A lost connection is the frame's to report, once. */
 export function Status({ state }: { state: { loading: boolean; error?: string; data?: unknown; at?: number; reload: () => void } }) {
-  if (state.loading && !state.error) return <p role="status" className="notice">Loading…</p>;
-  if (!state.error) return null;
+  const offline = state.error === OFFLINE;
+  if ((state.loading && !state.error) || (offline && state.data === undefined)) return <p role="status" className="notice">Loading…</p>;
+  if (!state.error || offline) return null;
   return (
     <p role="alert" className="notice error">
-      {state.data !== undefined && state.at ? `Showing data from ${time(state.at)}. ` : ""}
+      {state.data !== undefined && state.at ? `Showing what loaded at ${clock(state.at)}. ` : ""}
       {state.error} <button type="button" onClick={state.reload}>Retry</button>
     </p>
   );

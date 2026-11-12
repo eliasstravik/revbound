@@ -1,61 +1,67 @@
-/* Workflows: one line each, a dot for the last run and the name; colour only for what needs a look. */
-.wf-title { max-width: 1148px; }
-.wf-controls { display: flex; align-items: center; gap: 8px; }
-.wf-controls input[type="search"] { width: 260px; }
-.wf-failing { display: inline-flex; align-items: center; gap: 8px; border-radius: 9999px; padding-inline: 12px; }
-.wf-failing[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
-.wf-failing-count { color: var(--muted); font-variant-numeric: tabular-nums; }
-.wf-failing[aria-pressed="true"] .wf-failing-count { color: inherit; opacity: 0.7; }
-.wf-rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); }
-.wf-row { position: relative; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 8px 0 12px; border-bottom: 1px solid var(--border); }
+/* Workflows: two lines each (name and what it does), its last run in words and its schedule on the right. */
+.wf-rows { list-style: none; margin: 0; padding: 0; }
+.wf-row { position: relative; display: flex; align-items: center; gap: 8px 24px; padding: 12px 8px 12px 12px; border-bottom: 1px solid var(--border); }
 .wf-row:hover { background: var(--surface); }
-.wf-dot { position: relative; z-index: 1; width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: var(--border); cursor: default; }
-.wf-dot::before { content: ""; position: absolute; inset: -6px; border-radius: 50%; }
-.wf-dot-completed { background: light-dark(#17a66a, #3fb979); }
-.wf-dot-failed { background: var(--failed); }
-.wf-dot-running { background: var(--running); }
-.wf-dot-pending { background: var(--amber); }
-.wf-dot-cancelled { background: var(--muted); }
-.wf-dot-never { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line); }
-.wf-dot-running::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--running); animation: wf-pulse 1.6s ease-out infinite; }
-@keyframes wf-pulse { to { transform: scale(2.6); opacity: 0; } }
-.wf-link { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wf-main { flex: 1; min-width: 0; }
+.wf-name { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+.wf-link { font-weight: 500; overflow-wrap: anywhere; }
 .wf-link::after { content: ""; position: absolute; inset: 0; }
 .wf-link:hover { text-decoration: none; }
 .wf-row:hover .wf-link { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
-.wf-meta { margin-left: auto; padding-left: 16px; font-size: 13px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
-/* A workflow's page: the viewer's tabs, its diagram (a canvas that scrolls, boxes that open their explanation). */
+.wf-description { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wf-side { flex-shrink: 0; font-size: 13px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* A workflow's page: its header (what it does, last run, schedule, approval, budget) above the tabs, on every tab. */
+.wf-header { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; padding: 0 24px 16px; }
+.wf-about { max-width: 80ch; color: var(--muted); text-wrap: pretty; }
+.wf-facts { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 20px; list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.wf-facts a:hover { text-decoration: none; }
 .tabs { display: flex; flex-shrink: 0; height: 42px; gap: 24px; padding: 0 24px; border-bottom: 1px solid var(--border); overflow-x: auto; }
 .tabs a { display: flex; align-items: center; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap; }
 .tabs a:hover { color: var(--text); text-decoration: none; }
 .tabs a[aria-current] { color: var(--text); border-bottom-color: var(--text); }
-.tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; margin-left: 6px; padding: 0 5px; border-radius: 9999px; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--failed); background: color-mix(in srgb, var(--failed) 12%, var(--bg)); }
+.tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; margin-left: 6px; padding: 0 5px; border-radius: 9999px; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--failed); background: color-mix(in srgb, var(--failed) 12%, var(--bg)); }
 .main.fill > .connections-view { flex: 1; min-height: 0; overflow: auto; }
-.diagram-summary { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 12px 24px; border-bottom: 1px solid var(--border); }
-.diagram-summary > div { display: flex; flex-direction: column; gap: 4px; }
-.diagram-summary > :not(div) { flex-shrink: 0; }
-.diagram-description { max-width: 80ch; color: var(--muted); text-wrap: pretty; }
-.diagram-trigger { font-size: 13px; color: var(--muted); }
-.diagram-body { position: relative; flex: 1; min-height: 0; }
-.diagram-canvas { height: 100%; overflow: auto; background: radial-gradient(circle, var(--border) 1px, transparent 1px) 0 0 / 24px 24px; }
+/* The diagram: a canvas that fits both ways, zoom controls in its corner, and a step's details in a column beside it. */
+.diagram-body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); flex: 1; min-height: 0; }
+.diagram-body[data-open] { grid-template-columns: minmax(0, 1fr) 360px; }
+.diagram-canvas { min-height: 0; overflow: auto; background: radial-gradient(circle, var(--border) 1px, transparent 1px) 0 0 / 24px 24px; }
 .diagram { position: relative; margin: 0 auto; }
 .diagram svg { position: absolute; inset: 0; fill: none; stroke: var(--muted); }
 .diagram marker path { fill: var(--muted); stroke: none; }
-.business-node { position: absolute; display: flex; flex-direction: column; align-items: flex-start; width: 240px; min-height: 88px; padding: 14px 18px; border-radius: 8px; text-align: left; }
+.business-node { position: absolute; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; width: 240px; height: 56px; min-height: 0; padding: 0 12px; border-radius: 8px; text-align: left; }
 .business-node:hover { background: var(--bg); border-color: var(--muted); }
-.business-node[aria-pressed="true"] { border-color: var(--focus); }
-.kind-decision { border-color: var(--muted); }
-.node-kind { padding-bottom: 4px; font-size: 11px; color: var(--muted); text-transform: capitalize; }
-.graph-label { position: absolute; transform: translate(-50%, -50%); padding: 2px 6px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); font-size: 12px; }
-.node-details { position: absolute; inset: 0 0 0 auto; z-index: 5; width: 360px; max-width: 100%; padding: 24px; overflow: auto; border-left: 1px solid var(--border); background: var(--bg); }
-.node-details p { margin-top: 20px; }
-.node-details dt { margin-top: 20px; color: var(--muted); }
-.node-details dd { margin: 4px 0 0; }
+.business-node[aria-pressed="true"] { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }
+.business-node[data-kind="decision"] { border-style: dashed; border-color: var(--muted); }
+.node-kind { padding: 0 6px; border-radius: 4px; background: var(--hover); font-size: 12px; line-height: 16px; color: var(--muted); text-transform: capitalize; }
+[data-kind="input"] > .node-kind, [data-kind="input"] > button > .node-kind { color: var(--running); background: color-mix(in srgb, var(--running) 10%, var(--bg)); }
+[data-kind="output"] > .node-kind, [data-kind="output"] > button > .node-kind { color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, var(--bg)); }
+[data-kind="decision"] > .node-kind, [data-kind="decision"] > button > .node-kind { color: var(--amber); background: color-mix(in srgb, var(--amber) 10%, var(--bg)); }
+.business-node .node-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.graph-label { position: absolute; transform: translate(-50%, -50%); padding: 0 6px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); font-size: 12px; }
+.diagram-zoom { position: absolute; right: 16px; bottom: 16px; z-index: 4; display: flex; border-radius: 8px; background: var(--bg); box-shadow: 0 0 0 1px var(--border), 0 4px 12px #0002; }
+.diagram-body[data-open] .diagram-zoom { right: 376px; }
+.diagram-zoom button { min-width: 32px; border: 0; background: none; }
+.diagram-zoom button:hover:not(:disabled) { background: var(--hover); }
+.node-details { min-height: 0; padding: 24px; overflow: auto; border-left: 1px solid var(--border); background: var(--bg); }
+.node-details p, .node-about p { margin-top: 16px; }
+.node-details dt, .node-about dt { margin-top: 16px; font-size: 13px; color: var(--muted); }
+.node-details dd, .node-about dd { margin: 2px 0 0; }
+.node-details dl, .node-about dl { margin: 0; }
+.diagram-list { display: none; }
 
-@media (prefers-reduced-motion: reduce) { .wf-dot-running::after { animation: none; } }
 @media (max-width: 640px) {
-  .wf-controls input[type="search"] { width: auto; flex: 1; min-width: 0; }
-  .wf-row { min-height: 48px; padding-block: 12px; }
-  .wf-link { font-size: 15px; white-space: normal; overflow-wrap: anywhere; }
-  .tabs, .diagram-summary { padding-inline: 12px; }
+  .wf-row { flex-direction: column; align-items: stretch; padding: 14px 0; }
+  .wf-link { font-size: 15px; }
+  .wf-description { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .wf-side { display: flex; flex-wrap: wrap; gap: 2px 16px; text-align: left; white-space: normal; }
+  .tabs, .wf-header { padding-inline: 12px; }
+  /* No canvas on a phone: the same steps as a list, each opening in place. */
+  .diagram-canvas, .diagram-zoom, .node-details { display: none; }
+  .diagram-body, .diagram-body[data-open] { display: block; overflow-y: auto; }
+  .diagram-list { display: block; list-style: none; margin: 0; padding: 4px 12px 32px; }
+  .diagram-list li { padding: 4px 0; border-bottom: 1px solid var(--border); }
+  .diagram-list button { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; min-height: 44px; padding: 8px 0; border: 0; background: none; text-align: left; font-size: 16px; }
+  .node-about { padding-bottom: 12px; color: var(--muted); }
+  .node-about p:first-child { margin-top: 0; }
+  .node-branch { padding: 0 0 8px; font-size: 14px; color: var(--muted); }
 }

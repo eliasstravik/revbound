@@ -44,8 +44,9 @@ The console's workflow page has a tab per plugin: Diagram, Runs (from the ledger
 
 - A workflow writes its lasting results to the company's own tables in `public` through `db()` (docs: data).
 - The ledger records every run, child and refused start in Postgres (`revbound_ledger.runs`), with costs and approvals,
-  long after the Workflow SDK's own run store forgets them. A run's steps, inputs and errors are in the SDK's run
-  inspector: **Open in Workflow** locally, **Open in Vercel** hosted.
+  long after the Workflow SDK's own run store forgets them. The console's Runs view opens any run in a panel (its
+  status, reason, approval, cost, result and the runs it started). A run's steps, inputs and errors are in the SDK's
+  run inspector, the panel's **Technical trace** link.
 - Schedules: `vercel.json` crons whose path is `/api/revbound/cron/<name>`. Vercel Cron runs them in production only,
   with `CRON_SECRET`. A cron run gets no input. A schedule of an approval-required workflow also needs its approval
   committed in the registry (docs: ledger). Locally nothing fires on its own; start it with `npx revbound run <name>`.

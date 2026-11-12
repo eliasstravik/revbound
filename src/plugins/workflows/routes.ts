@@ -8,14 +8,24 @@ function refused(a: Extract<Admission, { ok: false }>): Response {
   return json({ error: a.reason, ...(a.runId && { runId: a.runId }) }, 403);
 }
 
-/** GET /workflows (session) → { workflows: [{ name, schedule, lastRun, file, sourceUrl, ...About }], runsKnown }. */
+type Last = { id: string; status: string; startedAt: string; finishedAt: string | null; reason: string | null };
+
+/**
+ * GET /workflows (session) → { workflows: [{ name, cron, lastRun, file, sourceUrl, ...About, ...RegistryInfo }], runsKnown }.
+ * `lastRun` is the ledger's newest real run of each workflow, a refused start included (the Runs view's source and
+ * statuses); with another ledger plugin, the Workflow SDK's newest run.
+ */
 export async function list(_req: Request, ctx: RouteCtx): Promise<Response> {
   const workflows = await ctx.module<Registry>("registry"), crons = schedules();
-  const last = await lastRuns(workflows).catch((error) => { console.error("[revbound] could not list workflow runs", error); return null; });
+  const read = async (): Promise<Map<string, Last>> => {
+    if (ctx.manifest.slots.ledger === "ledger") return (await import("revbound/ledger/routes")).lastRuns(ctx);
+    return new Map([...(await lastRuns(workflows))].map(([n, r]) => [n, { id: r.sdkRunId, status: r.status, startedAt: r.createdAt, finishedAt: r.completedAt, reason: null }]));
+  };
+  const last = await read().catch((error) => { console.error("[revbound] could not list workflow runs", error); return null; });
   return json({
     workflows: Object.entries(workflows).map(([name, e]) => {
       const r = last?.get(name);
-      return { name, cron: crons.get(name) ?? null, lastRun: r ? { id: r.sdkRunId, status: r.status, createdAt: r.createdAt, completedAt: r.completedAt } : null,
+      return { name, cron: crons.get(name) ?? null, lastRun: r ? { id: r.id, status: r.status, startedAt: r.startedAt, finishedAt: r.finishedAt, reason: r.reason } : null,
         ...source(workflows, name), ...aboutOf(e) };
     }),
     runsKnown: last != null,

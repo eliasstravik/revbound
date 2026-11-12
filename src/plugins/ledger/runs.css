@@ -1,14 +1,25 @@
-/* Runs: one line per cell, so a narrow window scrolls the table sideways instead of wrapping every row. */
-.runs td { white-space: nowrap; }
-.runs th, .runs td { padding-inline: 16px; }
-.runs th:first-child, .runs td:first-child { padding-left: 24px; }
-/* Details takes the width left over, at least 20ch, and a failure's message is cut to fit (the whole text is its tooltip). */
-.runs td:last-child { width: 100%; max-width: 0; min-width: 20ch; }
-.runs .run-error { display: block; max-width: 60ch; overflow: hidden; text-overflow: ellipsis; }
-.status-refused::before, .status-start_failed::before { background: #e5484d; }
-.status-admitted::before { background: #c88c14; }
-.status-cancelled::before, .status-unknown::before { background: var(--muted); }
+/* Runs: five columns that fit a laptop, why a run failed on its own line under it, and one run in full beside the list. */
+.runs-body { display: flex; flex: 1; min-height: 0; }
+.runs-list { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+.runs .data-table td { white-space: nowrap; }
+.runs .data-table .row-note td { white-space: normal; }
+.run-reason { max-width: 88ch; }
+.run-reason > p:first-child { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.run-reason.full > p:first-child { display: block; user-select: text; }
+.run-next { display: flex; flex-wrap: wrap; gap: 2px 12px; margin-top: 2px; font-size: 13px; }
+.run-next a, .run-links a { color: var(--text); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.run-panel { display: flex; flex-direction: column; gap: 20px; flex: none; width: 420px; padding: 20px 24px 32px; overflow-y: auto; border-left: 1px solid var(--border); background: var(--bg); }
+.run-panel h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.run-panel section { display: flex; flex-direction: column; gap: 8px; }
+.run-panel .notice { padding: 0; }
+.run-result { max-height: 320px; margin: 0; padding: 12px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); font: 12px/1.6 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.run-children { list-style: none; margin: 0; padding: 0; }
+.run-children li { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--border); }
+.run-children a { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.run-links { display: flex; flex-wrap: wrap; gap: 8px 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+/* Below the sidebar's width the panel takes the whole screen. */
+@media (max-width: 1023px) { .run-panel { position: fixed; inset: 0; z-index: 20; width: auto; border: 0; } }
 @media (max-width: 640px) {
-  .runs .toolbar input[type="search"] { min-width: 160px; }
-  .runs th, .runs td, .runs th:first-child, .runs td:first-child { padding-inline: 12px; }
+  .runs .data-table td { white-space: normal; }
+  .run-panel { padding: 16px 12px 32px; }
 }

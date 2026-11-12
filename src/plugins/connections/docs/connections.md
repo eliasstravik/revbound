@@ -21,9 +21,11 @@ Vercel project's Production environment.
 
 ## Add, Edit, Delete
 
-- **Add connection** takes a name (the label, such as `Apollo`, or `HubSpot (Sandbox)` to tell two accounts apart), a
+- **Add key** takes a name (the label, such as `Apollo`, or `HubSpot (Sandbox)` to tell two accounts apart), a
   key (letters, digits and `_`, not starting with a digit, such as `APOLLO_API_KEY`) and a value. A missing row has
-  its own Add. A key that is already set is changed with Edit instead.
+  its own Add, with the name already filled in from the key. A key that is already set is changed with Edit instead.
+  A key this page cannot set (one an integration or a vendor's own tool sets) reads "Set up elsewhere" and is not
+  counted as missing.
 - **Edit** (the row's ⋯ menu) changes the label, the value, or both; the key stays. An empty value keeps the old one.
 - **Delete** asks first and names the workflows using the key; they stop working until it is added again.
 - A value typed in the form is cleared when the form closes or the page is left.

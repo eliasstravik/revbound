@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, type ClipboardEvent, type CSSProperties, type DragEvent, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import { openConversationInputs, useEveAgent, type EveDynamicToolPart, type EveMessage, type EveMessagePart } from "eve/react";
-import { Markdown } from "revbound/ui";
+import { Markdown, Menu, needsLook, useApi, type ViewProps } from "revbound/ui";
 import { call, listen, meter, voiceError, voiceReady, type CallHandle, type CallState, type Listening } from "./speech.js";
 import "./chat.css";
 
@@ -13,13 +13,16 @@ const ASK_ONLY = "Ask mode: answer only. Change no files and start no runs in th
 const read = (key: string) => { try { return localStorage.getItem(key) ?? undefined; } catch { return undefined; } };
 const save = (key: string, v: string | undefined) => { try { if (v) localStorage.setItem(key, v); else localStorage.removeItem(key); } catch {} };
 
+/** The chat itself is gone (ended, or no longer this person's): only a new chat goes on. */
+const ended = (error: Error | undefined) => /session_(not_active|expired|stranded)|404|not here/.test(error?.message ?? "");
+
 /** What a failed request means for the person, with its fix. */
 function problem(error: Error | undefined): string | undefined {
   if (!error) return undefined;
   const text = error.message ?? String(error);
   if (/40[13]/.test(text) && /Authentication/.test(text)) return "Turn on Vercel Authentication → All Deployments to use the chat.";
-  if (/session_(not_active|expired|stranded)/.test(text)) return "This conversation has ended. Start a new chat.";
-  if (/404/.test(text) || /not here/.test(text)) return "This chat is not here. Start a new chat.";
+  if (ended(error)) return "This chat has ended.";
+  if (/failed to send/i.test(text)) return "Couldn't send. Try again.";
   if (/413/.test(text)) return "Those files are too big to send. Send fewer or smaller ones.";
   if (/fetch|network|50[0234]|Internal Server Error|ECONNREFUSED/i.test(text)) return "The agent is not answering. On your computer, keep `npm run dev` running; deployed, redeploy and try again.";
   return text;
@@ -89,14 +92,14 @@ const failed = (p: EveDynamicToolPart) => p.state === "output-error" || p.state 
 const running = (p: EveDynamicToolPart) => !p.state.startsWith("output-");
 
 /** A run of tool calls: one line that opens to every step. */
-function Steps({ parts, live }: { parts: EveDynamicToolPart[]; live: boolean }) {
+function Steps({ parts }: { parts: EveDynamicToolPart[] }) {
   const [open, setOpen] = useState(false);
-  const now = live ? parts.findLast(running) : undefined, stopped = parts.filter(failed).length;
+  const stopped = parts.filter(failed).length;
   return (
     <div className="chat-steps">
       <button type="button" className="chat-steps-head" aria-expanded={open} onClick={() => setOpen(!open)}>
         <Ic name={open ? "down" : "right"} />
-        {now ? <span className="chat-shimmer">{label(now)}</span> : <span>{parts.length === 1 ? label(parts[0]) : `${parts.length} steps`}</span>}
+        <span>{parts.length === 1 ? label(parts[0]) : `${parts.length} steps`}</span>
         {stopped > 0 && <span className="chat-failed">· {stopped} stopped</span>}
       </button>
       {open && <ul role="list">{parts.map((p) => <li key={p.toolCallId} className={failed(p) ? "chat-failed" : undefined}>{label(p)}{failed(p) ? " (stopped)" : ""}</li>)}</ul>}
@@ -104,10 +107,41 @@ function Steps({ parts, live }: { parts: EveDynamicToolPart[]; live: boolean }) 
   );
 }
 
-function Message({ message, live, spoken, photo }: { message: EveMessage; live: boolean; spoken: boolean; photo(name?: string): string | undefined }) {
+const textOf = (m?: EveMessage) => m?.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join("\n").trim() ?? "";
+
+/**
+ * What the agent is doing while it works: its current step, the seconds so far after five, and, once nothing has
+ * arrived for 45 seconds, that it is slow, with Stop. After two quiet minutes with no step running it gives up (`onGiveUp`).
+ */
+function Working({ label, activity, onStop, onGiveUp }: { label?: string; activity: number; onStop: () => void; onGiveUp: () => void }) {
+  const start = useRef(Date.now()), last = useRef(Date.now()), [now, setNow] = useState(Date.now());
+  useEffect(() => { last.current = Date.now(); }, [activity]);
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
+  const elapsed = Math.floor((now - start.current) / 1000), idle = (now - last.current) / 1000, stuck = idle >= 120 && !label;
+  useEffect(() => { if (stuck) onGiveUp(); }, [stuck]);
+  return (
+    <p className="chat-status">
+      <span className="chat-shimmer">{idle >= 45 ? "Still working. This is taking longer than usual." : `${label ?? "Working"}…`}</span>
+      {elapsed >= 5 && <span className="chat-elapsed" aria-hidden="true">{elapsed < 60 ? `${elapsed}s` : `${Math.floor(elapsed / 60)}m ${elapsed % 60}s`}</span>}
+      {idle >= 45 && <button type="button" onClick={onStop}>Stop</button>}
+    </p>
+  );
+}
+
+/** Up to four first questions, from what is true now: a failing workflow, one that needs a yes, missing keys. */
+function Suggestions({ manifest, onPick }: { manifest: ViewProps["manifest"]; onPick: (text: string) => void }) {
+  const has = (path: string) => manifest.views.some((v) => v.path === path);
+  const flows = useApi<{ workflows: { name: string; lastRun: { status: string } | null; approval?: { required: boolean } }[] }>(has("workflows") ? "workflows" : null).data?.workflows ?? [];
+  const missing = useApi<{ count: number }>(has("connections") ? "connections/missing" : null).data?.count ?? 0;
+  const failing = flows.find((w) => needsLook(w.lastRun?.status)), gated = flows.find((w) => w.approval?.required);
+  const list = [failing && `Why did ${failing.name} fail?`, gated && `Preview ${gated.name}`, "What ran this week?", missing > 0 && "Which keys are missing?"].filter((t): t is string => Boolean(t));
+  return <div className="chat-suggest">{list.map((t) => <button key={t} type="button" onClick={() => onPick(t)}>{t}</button>)}</div>;
+}
+
+function Message({ message, spoken, photo, onRetry, onEdit }: { message: EveMessage; spoken: boolean; photo(name?: string): string | undefined; onRetry: () => void; onEdit: () => void }) {
   const user = message.role === "user", out: ReactNode[] = [];
   let tools: EveDynamicToolPart[] = [];
-  const flush = (key: number) => { if (tools.length) out.push(<Steps key={`s${key}`} parts={tools} live={live} />); tools = []; };
+  const flush = (key: number) => { if (tools.length) out.push(<Steps key={`s${key}`} parts={tools} />); tools = []; };
   const files = message.parts.filter((p): p is Extract<EveMessagePart, { type: "file" }> => p.type === "file");
   message.parts.forEach((part, i) => {
     if (part.type === "dynamic-tool") { tools.push(part); return; }
@@ -126,7 +160,8 @@ function Message({ message, live, spoken, photo }: { message: EveMessage; live: 
       {files.length > 0 && <div className="chat-atts">{files.map((f, i) => <Chip key={i} name={f.filename ?? "File"} type={f.mediaType} bytes={f.size} url={f.url ?? photo(f.filename)} />)}</div>}
       {spoken && <span className="chat-said"><Ic name="wave" />{user ? "You said" : "Spoken"}</span>}
       {out}
-      {failedSend && <p className="chat-status failed">Not sent.</p>}
+      {failedSend && <p className="chat-status failed">Couldn't send.
+        <button type="button" onClick={onRetry}>Retry</button><button type="button" onClick={onEdit}>Edit</button></p>}
     </div>
   );
 }
@@ -168,8 +203,9 @@ async function screenshot(): Promise<File> {
 type Voice = { kind: "listen"; handle?: Listening; writing?: boolean } | { kind: "call"; handle?: CallHandle; state?: CallState; muted: boolean };
 
 /** One conversation: messages, the asks waiting on this person (approvals, questions) and the box. */
-function Conversation({ sessionId, onSession, onSettled, title, aside }: {
-  sessionId?: string; onSession: (id: string | undefined) => void; onSettled: () => void; title: ReactNode; aside: ReactNode;
+function Conversation({ sessionId, onSession, onSettled, onNewWith, firstDraft, manifest, title, aside }: {
+  sessionId?: string; onSession: (id: string | undefined) => void; onSettled: () => void; onNewWith: (text: string) => void; firstDraft?: string;
+  manifest: ViewProps["manifest"]; title: ReactNode; aside: ReactNode;
 }) {
   const base = process.env.__NEXT_ROUTER_BASEPATH ?? "";
   const host = typeof location === "undefined" ? base : `${location.origin}${base}`;
@@ -178,11 +214,12 @@ function Conversation({ sessionId, onSession, onSettled, title, aside }: {
     ...(sessionId && { initialSession: { sessionId, streamIndex: 0 }, resume: true }),
     onSessionChange: (s) => onSession(s?.sessionId),
   });
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(firstDraft ?? "");
   const [files, setFiles] = useState<Attachment[]>([]);
-  const [askOnly, setAskOnly] = useState(false);
-  const [menu, setMenu] = useState(false);
+  const [askOnly, setAskOnly] = useState(true);
   const [notice, setNotice] = useState<string>();
+  /** Failed messages sent again or taken back into the box, and the message a turn that went quiet gave up on. */
+  const [hidden, setHidden] = useState<Set<string>>(() => new Set()), [stalled, setStalled] = useState<string>();
   const [voice, setVoice] = useState<Voice>();
   const [said, setSaid] = useState<Set<string>>(() => new Set());
   const [drop, setDrop] = useState(false);
@@ -193,7 +230,7 @@ function Conversation({ sessionId, onSession, onSettled, title, aside }: {
   const busy = agent.status === "submitted" || agent.status === "streaming", resuming = agent.status === "resuming";
   const asks = openConversationInputs(agent.data), messages = agent.data.messages;
   const clock = useClock(Boolean(voice));
-  useEffect(() => { setAskOnly(read(MODE) === "ask"); setMod(/Mac|iPhone|iPad/.test(navigator.userAgent) ? "⌘" : "Ctrl"); }, []);
+  useEffect(() => { setAskOnly(read(MODE) !== "edit"); setMod(/Mac|iPhone|iPad/.test(navigator.userAgent) ? "⌘" : "Ctrl"); if (firstDraft) box.current?.focus(); }, []);
   useEffect(() => { if (stick.current) log.current?.scrollTo({ top: log.current.scrollHeight }); }, [agent.events.length, messages.length, asks.length]);
   useEffect(() => () => { const v = voiceRef.current; if (v?.kind === "listen") v.handle?.cancel(); if (v?.kind === "call") v.handle?.end(); }, []);
   // A finished turn moves this chat to the top of the list.
@@ -224,11 +261,17 @@ function Conversation({ sessionId, onSession, onSettled, title, aside }: {
     const text = draft.trim();
     if ((!text && !files.length) || resuming) return;
     const attached = files;
-    setDraft(""); setFiles([]); setNotice(undefined); stick.current = true;
+    setDraft(""); setFiles([]); setNotice(undefined); setStalled(undefined); stick.current = true;
     send(text, attached).then(() => attached.forEach((a) => a.url && URL.revokeObjectURL(a.url)), (err: Error) => {
       setDraft(text); setFiles(attached); setNotice(problem(err));
     });
   };
+
+  /** Sends words as they are (a suggestion, a retry); a failure puts them in the box. */
+  const say = (text: string) => { setNotice(undefined); setStalled(undefined); stick.current = true; send(text).catch((err: Error) => { setDraft(text); setNotice(problem(err)); }); };
+  const hide = (id: string) => setHidden((h) => new Set(h).add(id));
+  const lastSaid = textOf(messages.findLast((m) => m.role === "user"));
+  const stop = () => void agent.cancel().catch(() => undefined);
 
   // ---- the yes, from the keyboard
   const approval = asks.find(({ request }) => request.kind === "tool-approval")?.request;
@@ -247,7 +290,7 @@ function Conversation({ sessionId, onSession, onSettled, title, aside }: {
 
   // ---- talk to type
   async function startListening() {
-    setMenu(false); setNotice(undefined); setVoice({ kind: "listen" });
+    setNotice(undefined); setVoice({ kind: "listen" });
     try {
       const no = await voiceReady(host);
       if (no) throw new Error(no);
@@ -306,24 +349,24 @@ function Conversation({ sessionId, onSession, onSettled, title, aside }: {
     if (busy) return;
     const last = messages.slice(spokenFrom.current).findLast((m) => m.role === "assistant");
     if (!last || spoken.current.has(last.id)) return;
-    const text = last.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join("\n").trim();
+    const text = textOf(last);
     spoken.current.add(last.id);
     if (text) { voice.handle.say(text); setSaid((s) => new Set(s).add(last.id)); }
   }, [voice, busy, messages, approval]);
 
   const keys = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.nativeEvent.isComposing) submit(e as unknown as FormEvent);
-    else if (e.key === "Escape" && busy && !draft) { e.preventDefault(); void agent.cancel().catch(() => undefined); }
+    else if (e.key === "Escape" && busy && !draft) { e.preventDefault(); stop(); }
   };
   const paste = (e: ClipboardEvent) => { if (e.clipboardData.files.length) { e.preventDefault(); add(e.clipboardData.files); } };
   const dropped = (e: DragEvent) => { e.preventDefault(); setDrop(false); add(e.dataTransfer.files); };
-  const grab = async () => { setMenu(false); try { add([await screenshot()]); } catch (e) { if ((e as Error).name !== "NotAllowedError") setNotice(voiceError(e)); } };
+  const grab = async () => { try { add([await screenshot()]); } catch (e) { if ((e as Error).name !== "NotAllowedError") setNotice(voiceError(e)); } };
   const error = notice ?? problem(agent.error);
   const canShoot = typeof navigator !== "undefined" && "getDisplayMedia" in (navigator.mediaDevices ?? {}) && !/Android|iPhone|iPad/.test(navigator.userAgent);
   const speaking = voice?.kind === "call" && voice.state === "speaking";
   const callState = voice?.kind === "call" ? (speaking ? "Speaking" : !voice.handle ? "Starting" : voice.muted ? "Muted" : voice.state === "sending" ? "Sending" : busy ? "Working" : "Listening") : "";
 
-  let row: ReactNode;
+  let row: ReactNode, tools: ReactNode;
   if (voice?.kind === "listen") {
     row = (<>
       <button type="button" className="chat-ib" aria-label="Cancel" onClick={stopVoice}><Ic name="x" /></button>
@@ -341,17 +384,33 @@ function Conversation({ sessionId, onSession, onSettled, title, aside }: {
       <button type="button" className="chat-ib end" aria-label="End call" onClick={stopVoice}><Ic name="end" /></button>
     </>);
   } else {
-    const ready = draft.trim() || files.length;
-    row = (<>
-      <button type="button" className={`chat-ib${menu ? " on" : ""}`} aria-label="Add" aria-expanded={menu} onClick={() => setMenu(!menu)}><Ic name="plus" /></button>
+    const ready = Boolean(draft.trim() || files.length);
+    row = (
       <textarea ref={box} name="message" rows={1} value={draft} placeholder="Message the agent" aria-label="Message" disabled={resuming}
         onChange={(e) => setDraft(e.target.value)} onKeyDown={keys} onPaste={paste} />
-      <button type="button" className="chat-ib" aria-label="Talk to type" onClick={() => void startListening()}><Ic name="mic" /></button>
-      {ready ? <button type="submit" className="chat-ib primary" aria-label="Send" disabled={resuming}><Ic name="up" /></button>
-        : busy ? <button type="button" className="chat-ib primary" aria-label="Stop" onClick={() => void agent.cancel().catch(() => undefined)}><Ic name="stop" /></button>
-        : <button type="button" className="chat-ib primary" aria-label="Voice call" disabled={resuming} onClick={() => void startCall()}><Ic name="wave" /></button>}
-    </>);
+    );
+    tools = (
+      <div className="chat-tools">
+        <Menu label="Add" className="chat-ib" trigger={<Ic name="plus" />}>
+          <button type="button" role="menuitem" onClick={() => picker.current?.click()}><Ic name="file" />File or photo</button>
+          {canShoot && <button type="button" role="menuitem" onClick={() => void grab()}><Ic name="camera" />Screenshot</button>}
+        </Menu>
+        <div className="chat-mode" role="radiogroup" aria-label="What the agent may do">
+          {(["Ask", "Edit"] as const).map((m) => (
+            <button key={m} type="button" role="radio" aria-checked={(m === "Ask") === askOnly} title={m === "Ask" ? "Answers only, changes nothing" : "May change workflows; runs still need your yes"}
+              onClick={() => { setAskOnly(m === "Ask"); save(MODE, m === "Ask" ? "ask" : "edit"); }}>{m}</button>
+          ))}
+        </div>
+        <span className="chat-tools-end">
+          <button type="button" className="chat-ib" aria-label="Talk to type" title="Talk to type" onClick={() => void startListening()}><Ic name="mic" /></button>
+          <button type="button" className="chat-ib" aria-label="Voice call" title="Voice call" disabled={resuming} onClick={() => void startCall()}><Ic name="wave" /></button>
+          {busy && !ready ? <button type="button" className="chat-ib primary" aria-label="Stop" onClick={stop}><Ic name="stop" /></button>
+            : <button type="submit" className="chat-ib primary" aria-label="Send" disabled={resuming || !ready}><Ic name="up" /></button>}
+        </span>
+      </div>
+    );
   }
+  const shown = messages.filter((m) => !hidden.has(m.id)), live = messages.at(-1)?.parts.findLast((p): p is EveDynamicToolPart => p.type === "dynamic-tool" && running(p));
 
   return (
     <>
@@ -362,15 +421,16 @@ function Conversation({ sessionId, onSession, onSettled, title, aside }: {
         onDragLeave={(e) => { if (e.currentTarget === e.target) setDrop(false); }} onDrop={dropped}>
         <div className="chat-log" ref={log} aria-live="polite" onScroll={(e) => { const el = e.currentTarget; stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60; }}>
           <div className="chat-col">
-            {!messages.length && resuming && <p className="chat-status chat-opening"><span className="chat-shimmer">Opening chat…</span></p>}
-            {!messages.length && !resuming && (
+            {!shown.length && resuming && <p className="chat-status chat-opening"><span className="chat-shimmer">Opening chat…</span></p>}
+            {!shown.length && !resuming && (
               <div className="chat-empty">
                 <p>Ask about the company, its workflows and runs.</p>
-                <p>The agent can change a workflow and start a run after your yes.</p>
+                <Suggestions manifest={manifest} onPick={say} />
               </div>
             )}
-            {messages.map((m, i) => <Message key={m.id} message={m} live={busy && i === messages.length - 1} spoken={said.has(m.id) || (m.role === "user" && m.parts.some((p) => p.type === "text" && said.has(p.text.trim())))}
-              photo={(name) => (name ? photos.current.get(name) : undefined)} />)}
+            {shown.map((m) => <Message key={m.id} message={m} spoken={said.has(m.id) || (m.role === "user" && m.parts.some((p) => p.type === "text" && said.has(p.text.trim())))}
+              photo={(name) => (name ? photos.current.get(name) : undefined)}
+              onRetry={() => { hide(m.id); say(textOf(m)); }} onEdit={() => { hide(m.id); setDraft(textOf(m)); box.current?.focus(); }} />)}
             {asks.map(({ request }) => (
               <fieldset key={request.requestId} className="chat-ask" disabled={resuming}>
                 <legend>{request.kind === "tool-approval" ? "Needs your yes" : "A question for you"}</legend>
@@ -397,29 +457,22 @@ function Conversation({ sessionId, onSession, onSettled, title, aside }: {
                 )}
               </fieldset>
             ))}
-            {busy && !asks.length && !messages.at(-1)?.parts.some((p) => p.type === "dynamic-tool" && running(p)) && <p className="chat-status"><span className="chat-shimmer">Working…</span></p>}
+            {busy && !asks.length && <Working key={messages.filter((m) => m.role === "user").length} label={live && label(live)} activity={agent.events.length} onStop={stop}
+              onGiveUp={() => { stop(); setStalled(lastSaid); }} />}
           </div>
         </div>
         <form className="chat-foot" onSubmit={submit}>
           <div className="chat-col">
-            {error && <p className="chat-notice" role="alert">{error}</p>}
+            {error && <p className="chat-notice" role="alert">{error}
+              {ended(agent.error) && lastSaid && <button type="button" onClick={() => onNewWith(lastSaid)}>Start a new chat with this message</button>}</p>}
+            {stalled !== undefined && !busy && <p className="chat-notice" role="alert">No answer for two minutes, so it was stopped.
+              {stalled && <button type="button" onClick={() => say(stalled)}>Retry</button>}</p>}
             <div className="chat-box">
-              {menu && !voice && (
-                <div className="chat-menu" role="menu">
-                  <button type="button" role="menuitem" onClick={() => { setMenu(false); picker.current?.click(); }}><Ic name="file" />File or photo</button>
-                  {canShoot && <button type="button" role="menuitem" onClick={() => void grab()}><Ic name="camera" />Screenshot</button>}
-                  <hr />
-                  <div className="chat-mode" role="radiogroup" aria-label="Mode">
-                    {(["Ask", "Edit"] as const).map((m) => (
-                      <button key={m} type="button" role="radio" aria-checked={(m === "Ask") === askOnly} onClick={() => { setAskOnly(m === "Ask"); save(MODE, m === "Ask" ? "ask" : undefined); }}>{m}</button>
-                    ))}
-                  </div>
-                  <p className="chat-menu-hint">{askOnly ? "Answers only, changes nothing." : "May change workflows. Runs still need your yes."}</p>
-                </div>
-              )}
               {files.length > 0 && !voice && <div className="chat-atts">{files.map((a) => <Chip key={a.id} name={a.file.name} type={a.file.type} bytes={a.file.size} url={a.url} onRemove={() => remove(a.id)} />)}</div>}
               <div className="chat-row">{row}</div>
+              {tools}
             </div>
+            {!voice && !askOnly && <p className="chat-mode-note">Edit is on: the agent may change workflows. Runs still need your yes.</p>}
             <input ref={picker} type="file" multiple hidden onChange={(e) => { add(e.target.files); e.target.value = ""; }} />
           </div>
         </form>
@@ -470,9 +523,9 @@ function History({ chats, current, onOpen, onDelete }: { chats: Chats; current?:
  * Chat: the console's conversation with the project's agent, beside the person's own chats (newest first) to reopen
  * and continue. The chat open last comes back after a reload.
  */
-export default function ChatView() {
+export default function ChatView({ manifest }: ViewProps) {
   const base = process.env.__NEXT_ROUTER_BASEPATH ?? "";
-  const [state, setState] = useState<{ key: number; session?: string } | null>(null);
+  const [state, setState] = useState<{ key: number; session?: string; draft?: string } | null>(null);
   const [chats, setChats] = useState<Chats>({});
   const [sheet, setSheet] = useState(false);
   const load = async () => {
@@ -487,10 +540,15 @@ export default function ChatView() {
       return [];
     }
   };
-  // The chat open last, if it is still one of this person's.
-  useEffect(() => { void load().then((list) => { const last = read(SAVED); setState({ key: 0, session: list.some((c) => c.id === last) ? last : undefined }); }); }, []);
+  // The chat open last, if it is still one of this person's; a link with `?draft=` opens a new chat with those words in the box, unsent.
+  const linked = useRef<string>(undefined);
+  useEffect(() => {
+    const url = new URL(location.href), draft = (linked.current ??= url.searchParams.get("draft")?.trim());
+    if (url.searchParams.has("draft")) { url.searchParams.delete("draft"); window.history.replaceState(window.history.state, "", url); }
+    void load().then((list) => { const last = read(SAVED); setState({ key: 0, draft, session: !draft && list.some((c) => c.id === last) ? last : undefined }); });
+  }, []);
   if (!state) return <><div className="title-row"><h1>Chat</h1></div><div className="chat-page" /></>;
-  const open = (session?: string) => { save(SAVED, session); setSheet(false); setState({ key: state.key + 1, session }); };
+  const open = (session?: string, draft?: string) => { save(SAVED, session); setSheet(false); setState({ key: state.key + 1, session, draft }); };
   const remove = async (chat: Chat) => {
     if (!confirm(`Delete “${chat.title || "New chat"}”? It can’t be brought back.`)) return;
     const res = await fetch(`${base}/eve/v1/chats/${encodeURIComponent(chat.id)}`, { method: "DELETE" }).catch(() => undefined);
@@ -500,7 +558,7 @@ export default function ChatView() {
   };
   const history = <History chats={chats} current={state.session} onOpen={(id) => open(id)} onDelete={(c) => void remove(c)} />;
   return (
-    <Conversation key={state.key} sessionId={state.session}
+    <Conversation key={state.key} sessionId={state.session} firstDraft={state.draft} manifest={manifest} onNewWith={(text) => open(undefined, text)}
       onSession={(id) => { save(SAVED, id); if (id && id !== state.session) { setState((s) => s && { ...s, session: id }); void load(); } }}
       onSettled={() => void load()}
       title={
@@ -508,7 +566,7 @@ export default function ChatView() {
           <h1>Chat</h1>
           <div className="chat-title-actions">
             <button type="button" className="chat-history-toggle" aria-expanded={sheet} onClick={() => setSheet(!sheet)}><Ic name="list" />Chats</button>
-            <button type="button" onClick={() => open(undefined)} disabled={!state.session}>New chat</button>
+            <button type="button" onClick={() => open(undefined)} disabled={!state.session} title={state.session ? undefined : "This is a new chat"}>New chat</button>
           </div>
         </div>
       }

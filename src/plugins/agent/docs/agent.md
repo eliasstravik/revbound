@@ -71,7 +71,7 @@ preset only one of the two is built. The agent's workspace is prepared during th
 - **Files and photos**: add them with **+**, by pasting or by dropping them on the chat, or take a screenshot (desktop).
   They go to the agent with your message, up to about 3 MB in all per message; it reads photos and PDFs directly and
   other files from its workspace.
-- **Ask or Edit** (in **+**): in Ask mode the agent only answers that turn; it changes no files and starts no runs.
+- **Ask or Edit** (the switch under the message box; a new browser starts on Ask): in Ask mode the agent only answers that turn; it changes no files and starts no runs.
 - **Talk to type** (the microphone): what you say is written into the box when you tap ✓, for you to check and send.
 - **Voice call** (the wave button, when the box is empty): talk to the agent hands-free. Each time you pause, what you
   said is sent as your message; the agent's reply, and any yes it needs, is read out. Talking while it speaks cuts it
