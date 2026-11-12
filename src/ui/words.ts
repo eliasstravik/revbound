@@ -62,3 +62,14 @@ export function keyName(key: string): string {
   const words = key.replace(/_(API_KEY|ACCESS_TOKEN|BOT_TOKEN|AUTH_TOKEN|SIGNING_SECRET|CLIENT_SECRET|TOKEN|SECRET|KEY)$/i, "").split(/_+/).filter(Boolean);
   return words.map((w) => NAMES[w.toLowerCase()] ?? w[0].toUpperCase() + w.slice(1).toLowerCase()).join(" ") || key;
 }
+
+/** Workflows by their `group`: groups in the order first written, those without one last (`group: null`). Inside a
+ * group numbered steps come first, in order, then the rest as written; `steps` says the group has any. */
+export function byGroup<T extends { group?: string; step?: number }>(list: T[]): { group: string | null; steps: boolean; items: T[] }[] {
+  const groups = new Map<string | null, T[]>();
+  for (const w of list) groups.set(w.group ?? null, [...(groups.get(w.group ?? null) ?? []), w]);
+  const loose = groups.get(null);
+  groups.delete(null);
+  const out = [...groups].map(([group, items]) => ({ group, steps: items.some((w) => w.step != null), items: items.sort((a, b) => (a.step ?? 1e9) - (b.step ?? 1e9)) }));
+  return loose ? [...out, { group: null, steps: false, items: loose }] : out;
+}
