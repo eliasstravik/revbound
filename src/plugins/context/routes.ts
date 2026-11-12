@@ -34,7 +34,9 @@ export async function list(): Promise<Response> {
     const markdown = await read(p);
     return markdown == null ? [] : [{ path: p, title: heading(markdown) ?? path.basename(p, ".md") }];
   };
-  return json({ groups: [{ name: "Context", files: (await Promise.all(context.map(entry))).flat() }, { name: "Skills", files: skills }] });
+  // `starter`: context/company.md is still the text a new project starts with, so the Overview asks for the real one.
+  const starter = /^# Company\s+Replace the heading with the company's name/.test((await read("context/company.md")) ?? "");
+  return json({ groups: [{ name: "Context", files: (await Promise.all(context.map(entry))).flat() }, { name: "Skills", files: skills }], starter });
 }
 
 /** GET /context/file?path= → { path, markdown, githubUrl }; only paths the listing returns (no traversal). */

@@ -82,7 +82,7 @@ input[type="checkbox"] { min-height: auto; width: 16px; height: 16px; padding: 0
 .nav a[aria-current] { background: var(--hover); color: var(--text); }
 .nav .sub a { padding-left: 24px; }
 /* How many keys are not set here, as on the viewer's Connections tab. */
-.nav-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; margin-left: auto; padding: 0 5px; border-radius: 9999px; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--failed); background: color-mix(in srgb, var(--failed) 12%, var(--bg)); }
+.nav-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; margin-left: auto; padding: 0 5px; border-radius: 9999px; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--failed); background: color-mix(in srgb, var(--failed) 12%, var(--bg)); }
 .topbar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 0 16px 0 8px; border-bottom: 1px solid var(--border); background: var(--bg); }
 .topbar .brand, .drawer .brand { flex-direction: row; align-items: center; gap: 10px; min-height: 0; padding: 0; flex: 1; }
 .topbar .company, .drawer .company { font-size: 16px; }
@@ -126,6 +126,26 @@ dialog::backdrop { background: #0006; }
 .badge[data-tone="failed"] { color: var(--failed); background: color-mix(in srgb, var(--failed) 10%, var(--bg)); }
 .badge[data-tone="amber"] { color: var(--amber); background: color-mix(in srgb, var(--amber) 10%, var(--bg)); }
 .chip-count { margin-left: 8px; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Overview: four plain lists; every row leads somewhere. */
+.overview { display: flex; flex-direction: column; gap: 32px; container-type: inline-size; }
+.overview section { display: flex; flex-direction: column; gap: 8px; }
+.overview .banner { margin: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.ov-rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); }
+.ov-rows li { display: flex; align-items: center; gap: 4px 16px; min-height: 44px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.ov-name { flex: 0 1 auto; min-width: 0; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-reason { flex: 1 1 0; min-width: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-rows .status, .ov-rows meter { margin-left: auto; }
+.ov-reason + .status { margin-left: 0; }
+.ov-when { flex: none; min-width: 64px; font-size: 13px; text-align: right; white-space: nowrap; }
+.ov-rows meter { flex: none; width: 160px; height: 6px; }
+.ov-rows meter + .numeric { flex: none; min-width: 140px; text-align: right; }
+.ov-rows li > .numeric:only-of-type { margin-left: auto; }
+.link { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+@container (max-width: 520px) {
+  .ov-rows li { flex-wrap: wrap; }
+  .ov-reason { flex-basis: 100%; order: 5; white-space: normal; }
+  .ov-rows meter { order: 5; width: 100%; }
+}
 /* Label and value pairs. */
 .facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px 24px; margin: 0; }
 .facts dt { font-size: 13px; color: var(--muted); }
@@ -188,7 +208,7 @@ td .muted { font-size: 13px; }
 .status[data-tone="failed"]::before { background: var(--failed); }
 .status[data-tone="running"]::before { background: var(--running); animation: badge-pulse 1.4s ease-in-out infinite; }
 .status[data-tone="amber"]::before { background: var(--amber); }
-.wide-only { }
+
 
 @media (max-width: 640px) {
   .title-row { padding: 16px 12px 4px; }
@@ -220,12 +240,13 @@ td .muted { font-size: 13px; }
   .data-table tr.has-note { padding-bottom: 4px; border-bottom: 0; }
   .data-table tr.row-note { display: block; padding-top: 0; }
   .clip { max-width: 100%; }
+  .data-table .card-meta .clip { display: inline; white-space: normal; }
 }
 @media (prefers-reduced-motion: reduce) { .status[data-tone="running"]::before { animation: none; } }
-/* Touch: tabs and icon buttons get a 44px hit area. */
+/* Touch: tabs get a 44px hit area (icon buttons have theirs above). */
 @media (pointer: coarse) {
+  .tabs { height: 44px; }
   .tabs a { min-width: 44px; justify-content: center; }
-  .icon-button::after { inset: -6px; }
 }
 
 /* Local, Preview or Production at the top of the sidebar: Geist's amber, grey and green badges; amber while a change goes live. */

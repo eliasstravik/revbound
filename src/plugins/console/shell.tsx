@@ -88,7 +88,8 @@ export function Shell({ manifest, children }: { manifest: Manifest; children: Re
         </div>
       </dialog>
       <main id="main" tabIndex={-1} className={view?.fill ? "main fill" : "main"}>
-        {/* A path no view answers: the Console's own 404 instead of the framework's. */}
+        {/* A path no view answers: the Console's own 404 over the framework's, which still renders (hidden) so the answer stays a 404. */}
+        {!view && <div hidden>{children}</div>}
         {view ? children : <EmptyState action={<span className="actions">
           {has("workflows") && <Link className="button" href="/workflows">Workflows</Link>}{has("runs") && <Link className="button" href="/runs">Runs</Link>}
         </span>}>Nothing here.</EmptyState>}

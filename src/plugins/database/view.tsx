@@ -1,7 +1,7 @@
 "use client";
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { ColumnChooser } from "./column-chooser.js";
-import { api, apiUrl, glyphs, Icon, Menu, Search, Status, time, useApi, useQuery } from "revbound/ui";
+import { api, apiUrl, EmptyState, glyphs, Icon, Menu, PageHeader, place, Refresh, Search, Status, time, useApi, useQuery } from "revbound/ui";
 import "./data.css";
 
 type Page = { table: string; fields: { name: string; type: string }[]; columns: string[]; pinned: string | null; rows: unknown[][]; offset: number; total: number };
@@ -35,6 +35,8 @@ function CellValue({ value }: { value: unknown }): ReactNode {
       <Structured value={value} />
     </details>
   );
+  // A timestamp reads like every other date in the Console; the stored value is its tooltip (and what exports carry).
+  if (typeof value === "string" && /^\d{4}-\d\d-\d\dT\d\d:\d\d(:\d\d(\.\d+)?)?(Z|[+-]\d\d:?\d\d)$/.test(value)) return <time dateTime={value} title={value}>{time(value)}</time>;
   const url = webUrl(value);
   if (url) return <a className="cell-link" href={url} target="_blank" rel="noopener noreferrer" tabIndex={-1} aria-label={`${text(value)} (opens in a new tab)`}>{text(value)}</a>;
   return value == null ? <span className="muted">NULL</span> : text(value);
@@ -147,6 +149,12 @@ export function DataView({ tables: only }: { tables?: string[] }) {
   const bare = useApi<Page>(list.state.error && !page && table ? `data/${encodeURIComponent(table)}?limit=1` : null).data, head = page ?? bare;
   const [selected, setSelected] = useState<[number, number] | null>(null), [widths, setWidths] = useState<Record<string, number>>({});
   const [message, setMessage] = useState(""), [exporting, setExporting] = useState(false), [detail, setDetail] = useState<unknown>("");
+  const filterButton = useRef<HTMLButtonElement>(null), filterPanel = useRef<HTMLDivElement>(null);
+  const placeFilter = () => filterButton.current && filterPanel.current && place(filterButton.current, filterPanel.current, 280);
+  const field = params.get("field"), operator = (params.get("operator") ?? "eq") as keyof typeof OPERATORS;
+  const narrowed = params.has("q") || (field != null && (params.has("value") || operator === "missing"));
+  // The company's own tables first, then the Console's.
+  const own = names.filter((n) => !n.startsWith("revbound_")), system = names.filter((n) => n.startsWith("revbound_"));
   const origin = useRef<HTMLElement | null>(null), focusAfterDraw = useRef<[number, number] | null>(null), drag = useRef<{ x: number; w: number } | null>(null);
   useEffect(() => setSelected(null), [view]);
   const cols = page?.columns ?? [], pinned = page?.pinned ? cols.indexOf(page.pinned) : -1;
@@ -227,32 +235,38 @@ export function DataView({ tables: only }: { tables?: string[] }) {
   const cell = selected && list.rows.has(selected[0]) ? selected : null, span = cols.length + 1, sort = params.get("sort"), desc = params.get("order") === "desc";
   return (
     <>
-      {!only && <div className="title-row"><h1>Data</h1></div>}
+      {!only && <PageHeader title="Data" />}
       <section className="pane data-pane" aria-label="Data">
         <Status state={!tables.data ? tables : { ...list.state, data: page, loading: !page && list.state.loading }} />
         {/* A new project has no tables yet but still gets the database button. */}
-        {tables.data && !names.length && database && <div className="toolbar">{openDatabaseAs("end")}</div>}
-        {tables.data && !names.length && <p className="notice">{only ? "No configured data for this workflow." : "No tables yet. Workflow results show up here."}</p>}
+        {tables.data && !names.length && database && !only && <div className="toolbar">{openDatabaseAs("end")}</div>}
+        {tables.data && !names.length && <EmptyState>{only ? "This workflow doesn't save to a table yet." : "No tables yet. Workflow results show up here."}</EmptyState>}
         {head && (
           <>
             <div className="toolbar data-toolbar">
               <select name="data-table" aria-label="Data table" value={table}
                 onChange={(e) => update({ table: e.target.value, ...Object.fromEntries(FILTERS.map((k) => [k, undefined])) })}>
-                {names.map((n) => <option key={n} value={n}>{n}</option>)}
+                {system.length && own.length ? <>
+                  <optgroup label="Your tables">{own.map((n) => <option key={n} value={n}>{n}</option>)}</optgroup>
+                  <optgroup label="System">{system.map((n) => <option key={n} value={n}>{n}</option>)}</optgroup>
+                </> : names.map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
               <Search label="Search data" value={params.get("q") ?? ""} onChange={(q) => update({ q: q || undefined })} />
-              <select name="filter-field" aria-label="Filter field" value={params.get("field") ?? ""}
-                onChange={(e) => update({ field: e.target.value || undefined, value: undefined })}>
-                <option value="">Filter</option>
-                {head.fields.map((f) => <option key={f.name} value={f.name}>{label(f.name)}</option>)}
-              </select>
-              {params.has("field") && <select name="filter-operator" aria-label="Filter operator" value={params.get("operator") ?? "eq"}
-                onChange={(e) => update({ operator: e.target.value })}>{Object.entries(OPERATORS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>}
-              {params.has("field") && params.get("operator") !== "missing" &&
-                <Search label="Filter value" value={params.get("value") ?? ""} onChange={(v) => update({ value: v || undefined })} />}
+              <button ref={filterButton} type="button" popoverTarget="data-filter" aria-haspopup="dialog">Filter</button>
+              <div id="data-filter" ref={filterPanel} popover="auto" className="menu filter-popover" role="dialog" aria-label="Filter" onBeforeToggle={(e) => e.newState === "open" && placeFilter()} onToggle={placeFilter}>
+                <select name="filter-field" aria-label="Filter field" value={field ?? ""} onChange={(e) => update({ field: e.target.value || undefined, value: undefined })}>
+                  <option value="">Choose a field</option>
+                  {head.fields.map((f) => <option key={f.name} value={f.name}>{label(f.name)}</option>)}
+                </select>
+                <select name="filter-operator" aria-label="Filter operator" disabled={!field} value={operator}
+                  onChange={(e) => update({ operator: e.target.value })}>{Object.entries(OPERATORS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+                {field && operator !== "missing" && <Search label="Filter value" value={params.get("value") ?? ""} onChange={(v) => update({ value: v || undefined })} />}
+              </div>
+              {field && <span className="chip">{label(field)} {OPERATORS[operator]?.toLowerCase()} {params.get("value")}
+                <button type="button" aria-label="Remove filter" onClick={() => update({ field: undefined, operator: undefined, value: undefined })}>×</button></span>}
               {/* Exports and the database fold into More when the row runs out of room (data.css). */}
               <div className="toolbar-actions">
-                <button type="button" className="icon-button" aria-label="Refresh" title="Refresh" onClick={list.state.reload}><Icon d={glyphs.refresh} /></button>
+                <Refresh state={list.state} />
                 <ColumnChooser key={table} fields={head.fields.map((f) => f.name)} visible={head.columns} onChange={(c) => update({ columns: c?.join(",") })} />
                 <Menu label="Export" className="menu-trigger roomy" trigger="Export">{exports}</Menu>
                 {openDatabaseAs("roomy")}
@@ -309,10 +323,10 @@ export function DataView({ tables: only }: { tables?: string[] }) {
                   {list.after > 0 && <tr className="spacer" aria-hidden="true"><td colSpan={span} style={{ height: list.after }} /></tr>}
                 </tbody>
               </table>
-              {list.fresh && !list.total && <p className="notice">{params.has("q") || params.has("field") ? "No matching records." : "This table is empty."}</p>}
+              {list.fresh && !list.total && <EmptyState>{narrowed ? "No matching records." : "This table is empty."}</EmptyState>}
             </div>
             <div className="grid-footer">
-              <span className="muted">{!list.fresh ? "Loading…" : `${list.total.toLocaleString()} ${params.has("q") || params.has("field") ? "matching " : ""}${list.total === 1 ? "record" : "records"}`}</span>
+              <span className="muted">{!list.fresh ? "Loading…" : `${list.total.toLocaleString()} ${narrowed ? "matching " : ""}${list.total === 1 ? "record" : "records"}`}</span>
               <p className="grid-message" role="status">{message}</p>
               {cell && <div className="grid-cell-actions">
                 <button type="button" onClick={() => copy(value(cell))}>Copy cell</button>

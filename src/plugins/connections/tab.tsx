@@ -3,6 +3,6 @@ import type { TabProps } from "revbound/ui";
 import { ConnectionsView } from "./view.js";
 
 /** A workflow's Connections tab: the keys its registry entry lists. */
-export default function ConnectionsTab({ workflow }: TabProps) {
-  return <ConnectionsView only={workflow.connections ?? null} />;
+export default function ConnectionsTab({ workflow, manifest }: TabProps) {
+  return <ConnectionsView only={workflow.connections ?? null} chat={manifest.views.some((v) => v.path === "chat")} />;
 }

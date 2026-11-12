@@ -25,7 +25,7 @@ async function access(req: Request): Promise<{ save: Save; session?: Session }> 
 
 /**
  * Names .env.example lists, plugins or workflows declare, and those set in .env.local (locally) or in Production (hosted,
- * read with the token), each with its state here and the changes allowed. Missing ones first.
+ * read with the token), each with its state here and the changes allowed. By name, in one fixed order.
  */
 async function rows(ctx: RouteCtx, save: Save, production = true) {
   const hosted = isHosted(), dotenv = hosted ? undefined : await import("revbound/kit/dotenv");
@@ -53,7 +53,7 @@ async function rows(ctx: RouteCtx, save: Save, production = true) {
     const workflows = Object.entries(registry).filter(([, w]) => w.connections?.includes(c.name)).map(([n]) => n);
     return { name: c.name, label: row?.comment || c.label, state, actions, usedBy: { workflows, plugins: c.plugins },
       ...(reserved && { reserved: true }), ...(!hosted && shell.includes(c.name) && { shell: true }) };
-  }).sort((a, b) => Number(b.state === "missing") - Number(a.state === "missing"));
+  }).sort((a, b) => a.name.localeCompare(b.name)); // One fixed order: a row stays where it is when its state changes.
   return { connections, listError, usageComplete: Object.values(registry).every((w) => Array.isArray(w.connections)) };
 }
 
@@ -72,11 +72,14 @@ export async function release(req: Request): Promise<Response> {
   return releaseState(id).then((r) => reply({ release: r }), (e: Error) => reply({ error: e.message }, e instanceof Refused ? e.status : 500));
 }
 
-/** GET /connections/missing[?workflow=] → { count }: the sidebar's badge, or one workflow's Connections tab badge. */
+/**
+ * GET /connections/missing[?workflow=] → { count }: the sidebar's badge, or one workflow's Connections tab badge. It
+ * counts only keys the Connections page can add, not those an integration or a vendor's own tool sets.
+ */
 export async function missing(req: Request, ctx: RouteCtx): Promise<Response> {
   const workflow = new URL(req.url).searchParams.get("workflow");
   return json({ count: (await rows(ctx, { mode: "off" }, false)).connections
-    .filter((r) => r.state === "missing" && (!workflow || r.usedBy.workflows.includes(workflow))).length });
+    .filter((r) => r.state === "missing" && !r.reserved && (!workflow || r.usedBy.workflows.includes(workflow))).length });
 }
 
 /** The change a request asks for, checked; the value is kept only for this request. */

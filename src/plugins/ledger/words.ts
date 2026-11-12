@@ -21,7 +21,7 @@ export function refusal(reason: string, workflow: string): { message: string; ne
       next: { label: "Ask in Chat", draft: `Raise the monthly budget for ${workflow}` } };
     return { message: reason };
   }
-  const ended = reason.match(/This schedule's approval (?:ended on (\S+)|is missing)/);
+  const ended = reason.match(/This schedule's approval (?:ended on (\S+?):? |is missing)/);
   if (ended) return { message: ended[1] ? `Not started: the yes for its schedule ended on ${ended[1]}. Ask in Chat to renew it.` : "Not started: its schedule has no yes yet. Ask in Chat to approve it.",
     next: { label: "Renew in Chat", draft: `Renew the schedule approval for ${workflow}` } };
   if (/No completed preview/.test(reason)) return { message: "Not started: it needs a fresh preview before your yes. Ask in Chat for a preview.", next: preview };

@@ -39,7 +39,14 @@
 /* A new value reads like its key; the sentence placeholder for keeping one stays in the body font. */
 .connection-fields input:is([name="key"], .secret) { font-family: var(--mono); }
 .connection-fields input:read-only, .connection-fields input:disabled { color: var(--muted); background: var(--surface); }
-.connection-dialog .error { margin-top: 12px; }
+.field-error { font-size: 13px; }
+.field-label { margin-top: 8px; }
+.connection-key { color: var(--muted); overflow-wrap: anywhere; }
+.connection-fields input[aria-invalid="true"] { border-color: var(--failed); }
+.connection-dialog form > .error { margin-top: 12px; }
+/* The row just saved, for a moment. */
+.connection-row[data-flash] { animation: connection-flash 1.6s ease-out; }
+@keyframes connection-flash { from { background: color-mix(in srgb, var(--ok) 14%, var(--bg)); } to { background: transparent; } }
 .connection-submit { display: inline-flex; align-items: center; gap: 8px; }
 .spinner { width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
