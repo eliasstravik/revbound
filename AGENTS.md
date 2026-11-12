@@ -39,6 +39,8 @@ works inside: no file names, where things are stored, what is never shown, or wh
   `REVBOUND_PORT=<port> npx revbound dev` there.
 - Dev loop: with `revbound dev` running in a test project, `scripts/try.sh <project dir>` rebuilds, repacks and
   reinstalls the package there and the open pages reload. Run only one acceptance suite at a time (they share a port).
+- A new workflow file in a test project needs `revbound dev` restarted before `revbound run` finds it. One acceptance test:
+  `node --test --test-name-pattern`, including the init and `revbound dev` tests (the others build on them).
 
 ## Releases
 
