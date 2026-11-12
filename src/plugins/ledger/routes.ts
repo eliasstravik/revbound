@@ -29,6 +29,10 @@ const toRun = (r: Record<string, any>) => ({
   costUsd: r.cost_usd, calls: r.calls, unmetered: r.unmetered,
 });
 const where = () => ({ local: !isHosted(), environment: environment() });
+type Row = Record<string, any>;
+type Run = ReturnType<typeof toRun>;
+/** A query's rows. Typed here, since a project's own copy of this plugin sees the database slot untyped. */
+const read = async (ctx: RouteCtx, q: ReturnType<typeof sql>): Promise<Row[]> => (await ctx.get("database").db().execute(q)).rows as Row[];
 
 /**
  * GET /ledger/runs?workflow=&status=&period=&q=&before= → { data, hasMore, next, local, environment }: 50 ledger runs a page, newest
@@ -48,9 +52,9 @@ export async function runs(req: Request, ctx: RouteCtx): Promise<Response> {
     if (Number.isNaN(Date.parse(at)) || (id !== undefined && !ID.test(id))) throw new HttpError(400, "before must be a time, or a page's next");
     cond.push(id ? sql`(r.started_at, r.id) < (${at}::timestamptz, ${id}::uuid)` : sql`r.started_at < ${at}::timestamptz`);
   }
-  const { rows } = await ctx.get("database").db().execute(sql`select ${COLUMNS} ${FROM} where ${sql.join(cond, sql` and `)} order by r.started_at desc, r.id desc limit 51`);
+  const rows = await read(ctx, sql`select ${COLUMNS} ${FROM} where ${sql.join(cond, sql` and `)} order by r.started_at desc, r.id desc limit 51`);
   after(() => ctx.get("ledger").reconcile().catch((e: Error) => console.error("[revbound] reconcile failed", e)));
-  const last = rows.length > 50 ? (rows[49] as Record<string, any>) : undefined;
+  const last = rows.length > 50 ? rows[49] : undefined;
   return json({ data: rows.slice(0, 50).map(toRun), hasMore: !!last, next: last ? `${last.at}~${last.id}` : null, ...where() });
 }
 
@@ -78,18 +82,17 @@ export async function run(_req: Request, ctx: RouteCtx): Promise<Response> {
  * project's budget, and per workflow with the budget its registry entry sets.
  */
 export async function summary(_req: Request, ctx: RouteCtx): Promise<Response> {
-  const db = ctx.get("database").db(), top = sql`r.parent_run_id is null and not r.preview`;
-  const list = async (q: ReturnType<typeof sql>) => (await db.execute(q)).rows.map(toRun);
+  const list = async (q: ReturnType<typeof sql>): Promise<Run[]> => (await read(ctx, q)).map(toRun);
   const [latest, running, recent, spent, registry, limits] = await Promise.all([
-    list(sql`select distinct on (r.workflow) ${COLUMNS} ${FROM} where ${top} order by r.workflow, r.started_at desc, r.id desc`),
+    lastRuns(ctx).then((m) => [...m.values()]),
     list(sql`select ${COLUMNS} ${FROM} where r.status in ('admitted', 'running') order by r.started_at desc limit 20`),
     list(sql`select ${COLUMNS} ${FROM} where r.parent_run_id is null order by r.started_at desc, r.id desc limit 5`),
-    db.execute(sql`select workflow, coalesce(sum(coalesce(cost_usd, reserved_usd)), 0)::float8 as usd from revbound_ledger.actions
+    read(ctx, sql`select workflow, coalesce(sum(coalesce(cost_usd, reserved_usd)), 0)::float8 as usd from revbound_ledger.actions
       where created_at >= date_trunc('month', now() at time zone 'UTC') at time zone 'UTC' group by workflow`),
     ctx.has("workflows") ? ctx.get("workflows").registry().catch(() => ({})) : {},
     ctx.get("ledger").limitsFor("").catch(() => null),
   ]);
-  const usd = new Map(spent.rows.map((r: Record<string, any>) => [r.workflow as string, Number(r.usd)]));
+  const usd = new Map<string, number>(spent.map((r) => [String(r.workflow), Number(r.usd)]));
   const budgets = registry as Record<string, { budget?: { perMonthUsd?: number } }>;
   const names = [...new Set([...usd.keys(), ...Object.keys(budgets).filter((n) => budgets[n].budget?.perMonthUsd != null)])].sort();
   return json({
@@ -101,8 +104,8 @@ export async function summary(_req: Request, ctx: RouteCtx): Promise<Response> {
 }
 
 /** Each workflow's newest real run (no preview, no child), refused starts included: what the Workflows list shows. */
-export async function lastRuns(ctx: RouteCtx): Promise<Map<string, ReturnType<typeof toRun>>> {
-  const { rows } = await ctx.get("database").db().execute(sql`select distinct on (r.workflow) ${COLUMNS} ${FROM}
+export async function lastRuns(ctx: RouteCtx): Promise<Map<string, Run>> {
+  const rows = await read(ctx, sql`select distinct on (r.workflow) ${COLUMNS} ${FROM}
     where r.parent_run_id is null and not r.preview order by r.workflow, r.started_at desc, r.id desc`);
-  return new Map(rows.map((r) => [(r as Record<string, any>).workflow as string, toRun(r as Record<string, any>)]));
+  return new Map<string, Run>(rows.map((r) => [String(r.workflow), toRun(r)]));
 }
