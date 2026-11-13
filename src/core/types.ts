@@ -214,9 +214,9 @@ type WorkflowFn = (...args: any[]) => Promise<unknown>;
 /** One box of a workflow's diagram: a business step in plain words, not code. */
 export type DiagramNode = { id: string; label: string; kind?: "input" | "action" | "decision" | "output"; explanation?: string; details?: Record<string, string | undefined> };
 export type Diagram = { nodes: DiagramNode[]; edges: { source: string; target: string; label?: string }[] };
-/** What the console shows about a workflow. It never changes how the workflow runs. `group` names the workflows that
- * belong together; `step` is this one's place when they run one after another. */
-export type About = { description?: string; group?: string; step?: number; tables?: string[]; connections?: string[]; diagram?: Diagram };
+/** What the console shows about a workflow. It never changes how the workflow runs. `folder` is the folder the
+ * Workflows list keeps it in. */
+export type About = { description?: string; folder?: string; tables?: string[]; connections?: string[]; diagram?: Diagram };
 export type Approval = { required: true; previewItems?: number; previewCalls?: number; previewMaxUsd?: number; previewWithinHours?: number };
 export type RegistryInfo = { approval?: Approval; budget?: { perRunUsd?: number; perMonthUsd?: number }; schedule?: { approvedUntil: string; note: string } };
 export type RegistryEntry = WorkflowFn | ({ run: WorkflowFn } & About & RegistryInfo);

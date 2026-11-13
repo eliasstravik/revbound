@@ -38,8 +38,8 @@ export function workflows(opts: { registry?: string; webhooks?: string } = {}) {
     cli: [{ name: "run", describe: "start a run and print its status, return value and cost (--preview, --approve --max-usd)", run: `${P}/cli` }],
     trace: ["./vercel.json"],
     agents: `- \`workflows/\`: Workflow SDK workflows, each registered by name in \`workflows/index.ts\` with what the console shows and its
-  \`approval\`, \`budget\` and \`schedule\` (docs: workflows). Workflows built for one purpose share a \`group\`, with a \`step\` each
-  when they run one after another, so the console shows them together. Lasting results go in the company's own tables. Start child runs with
+  \`approval\`, \`budget\` and \`schedule\` (docs: workflows). Workflows built for one purpose share a \`folder\`,
+  so the console keeps them together. Lasting results go in the company's own tables. Start child runs with
   \`fanOut()\` from \`#revbound/workflows\`, never \`start()\`. Ready-made workflows to copy when a person asks: \`npx revbound docs recipes\`.
 - \`webhooks/index.ts\`: inbound webhooks built with \`webhook()\` from \`#revbound/workflows\` (docs: webhooks).
 - Risky or costly runs: \`npx revbound run <workflow> --input … --preview\` first, show its sample and cost in this chat, ask Yes/No

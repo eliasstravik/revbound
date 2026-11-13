@@ -35,17 +35,17 @@ type Run = ReturnType<typeof toRun>;
 const read = async (ctx: RouteCtx, q: ReturnType<typeof sql>): Promise<Row[]> => (await ctx.get("database").db().execute(q)).rows as Row[];
 
 /**
- * GET /ledger/runs?workflow=&group=&status=&period=&q=&before= → { data, hasMore, next, local, environment }: 50 ledger runs a page, newest
+ * GET /ledger/runs?workflow=&folder=&status=&period=&q=&before= → { data, hasMore, next, local, environment }: 50 ledger runs a page, newest
  * first, with their cost and approval; `next` is the next page's `before` (the last row's exact start time and id). `status=not_started`
- * is every start that was refused or failed; `group` is every workflow of that group in the registry. Each read runs a reconcile pass after the response (throttled to one a minute).
+ * is every start that was refused or failed; `folder` is every workflow in that folder of the registry. Each read runs a reconcile pass after the response (throttled to one a minute).
  */
 export async function runs(req: Request, ctx: RouteCtx): Promise<Response> {
   const p = new URL(req.url).searchParams, cond = [sql`true`];
   const workflow = p.get("workflow"), status = p.get("status"), period = PERIODS[p.get("period") ?? ""], q = p.get("q")?.trim(), before = p.get("before");
   if (status && !STATUSES.includes(status)) throw new HttpError(400, "Unknown status");
   if (workflow) cond.push(sql`r.workflow = ${workflow}`);
-  if (p.get("group")) {
-    const all = ctx.has("workflows") ? await ctx.get("workflows").registry() : {}, names = Object.keys(all).filter((n) => all[n].group === p.get("group"));
+  if (p.get("folder")) {
+    const all = ctx.has("workflows") ? await ctx.get("workflows").registry() : {}, names = Object.keys(all).filter((n) => all[n].folder === p.get("folder"));
     cond.push(names.length ? sql`r.workflow in (${sql.join(names.map((n) => sql`${n}`), sql`, `)})` : sql`false`);
   }
   if (status) cond.push(status === "not_started" ? sql`r.status in ('refused', 'start_failed')` : sql`r.status = ${status}`);
@@ -81,9 +81,9 @@ export async function run(_req: Request, ctx: RouteCtx): Promise<Response> {
 }
 
 /**
- * GET /ledger/summary → { attention, running, recent, spend, groups, local }: what the Overview shows. `attention` is each workflow
+ * GET /ledger/summary → { attention, running, recent, spend, local }: what the Overview shows. `attention` is each workflow
  * whose newest real run (no preview, no child) failed or did not start; `spend` is this month's (UTC) total against the
- * project's budget, and per workflow with the budget its registry entry sets; `groups` is each grouped workflow's group.
+ * project's budget, and per workflow with the budget its registry entry sets.
  */
 export async function summary(_req: Request, ctx: RouteCtx): Promise<Response> {
   const list = async (q: ReturnType<typeof sql>): Promise<Run[]> => (await read(ctx, q)).map(toRun);
@@ -97,13 +97,12 @@ export async function summary(_req: Request, ctx: RouteCtx): Promise<Response> {
     ctx.get("ledger").limitsFor("").catch(() => null),
   ]);
   const usd = new Map<string, number>(spent.map((r) => [String(r.workflow), Number(r.usd)]));
-  const budgets = registry as Record<string, { group?: string; budget?: { perMonthUsd?: number } }>;
+  const budgets = registry as Record<string, { budget?: { perMonthUsd?: number } }>;
   const names = [...new Set([...usd.keys(), ...Object.keys(budgets).filter((n) => budgets[n].budget?.perMonthUsd != null)])].sort();
   return json({
     attention: latest.filter((r) => (r.status === "failed" || r.status === "start_failed") && (!ctx.has("workflows") || r.workflow in budgets)), running, recent,
     spend: { usd: [...usd.values()].reduce((a, b) => a + b, 0), budgetUsd: limits?.projectMonthUsd ?? null,
       workflows: names.map((n) => ({ workflow: n, usd: usd.get(n) ?? 0, budgetUsd: budgets[n]?.budget?.perMonthUsd ?? null })) },
-    groups: Object.fromEntries(Object.entries(budgets).flatMap(([n, w]) => (w.group ? [[n, w.group]] : []))),
     local: !isHosted(),
   });
 }

@@ -15,8 +15,7 @@ export const workflows = {
   "qualify-companies": {
     run: qualifyCompanies,
     description: "Scores each company against our ICPs and keeps the verdict.",
-    group: "Inbound scoring",                      // the workflows it belongs with, under one heading in the console
-    step: 2,                                       // its place when the group's workflows run one after another
+    folder: "Inbound scoring",                     // the folder the console's Workflows list keeps it in
     tables: ["qualified_companies"],
     connections: ["FIRECRAWL_API_KEY"],
     diagram: {
@@ -33,23 +32,21 @@ export const workflows = {
 } satisfies Registry;
 ```
 
-- `description`, `group`, `step`, `tables`, `connections` and `diagram` are what the console shows; none changes how it
+- `description`, `folder`, `tables`, `connections` and `diagram` are what the console shows; none changes how it
   runs.
   `diagram` holds the business steps (`kind`: `input`, `action`, `decision` or `output`; a decision's edges carry
   labels). Write it for the GTM team, not as code, and update it in the same change as the workflow.
-- `group` puts workflows that belong together under one heading: a pipeline's stages, a parent and the children it
-  fans out to, the jobs of one campaign. Set it whenever you build two or more workflows for one purpose, and reuse
-  the name of an existing group that fits. Name it for the GTM team ("Inbound scoring", "Renewal outreach"), at most
-  40 characters, spelled the same on every workflow in it. One group per workflow; without one it is listed under
-  Other.
-- `step` (with a `group`) numbers the workflows that run one after another: 1 for the first, 2 for the one that
-  uses its results, and so on. The console lists them in that order and shows the chain on each one's page. Leave it
-  out when the group's workflows run in no fixed order.
+- `folder` keeps workflows that belong together in one folder of the Workflows list, like files: a pipeline's
+  stages, a parent and the children it fans out to, the jobs of one campaign. Set it whenever you build two or more
+  workflows for one purpose, and reuse an existing folder that fits. Name it for the GTM team ("Inbound scoring",
+  "Renewal outreach"): at most 40 characters, no `/` (folders hold workflows, not other folders), spelled the same
+  on every workflow in it. One folder per workflow; without one it sits beside the folders. A folder says nothing
+  about order: each workflow stands alone.
 - `approval`, `budget` and `schedule` are what the ledger enforces (docs: ledger). Mark every workflow that spends
   money or acts on people as `approval: { required: true }`.
 
-The console's Workflows list shows each group under its name, the Runs view filters by workflow or by whole group,
-and a workflow's page links to the rest of its group. The page has a tab per plugin: Diagram, Runs (from the ledger: status, cost, approval), Data
+The console's Workflows list shows each folder as a row that opens and closes, the Runs view filters by workflow or
+by whole folder, and a workflow's page names its folder on the way back to the list. The page has a tab per plugin: Diagram, Runs (from the ledger: status, cost, approval), Data
 (the `tables`) and Connections (the `connections`, set or missing here).
 
 ## Results and runs

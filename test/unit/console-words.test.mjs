@@ -3,7 +3,7 @@ process.env.TZ = "UTC";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { ago, byGroup, cronWords, isActive, keyName, needsLook, statusOf } from "../../dist/ui/words.js";
+import { ago, byFolder, cronWords, isActive, keyName, needsLook, statusOf } from "../../dist/ui/words.js";
 import { refusal, splitReason } from "../../dist/plugins/ledger/words.js";
 
 test("ago: just now, minutes, hours, days", () => {
@@ -73,11 +73,11 @@ test("the Overview's starter check matches the text a new project's context/comp
   assert.match(readFileSync(new URL("../../starter/context/company.md", import.meta.url), "utf8"), /^# .+\s+Replace the heading with the company's name/);
 });
 
-test("byGroup: groups in the order written, steps first in order, workflows without a group last", () => {
-  const w = (name, group, step) => ({ name, ...(group && { group }), ...(step && { step }) });
-  const list = [w("loose"), w("draft", "Outbound", 3), w("report", "Reporting"), w("find", "Outbound", 1), w("notes", "Outbound"), w("score", "Outbound", 2), w("sync", "Reporting")];
-  assert.deepEqual(byGroup(list).map((g) => [g.group, g.steps, g.items.map((x) => x.name).join(" ")]),
-    [["Outbound", true, "find score draft notes"], ["Reporting", false, "report sync"], [null, false, "loose"]]);
-  assert.deepEqual(byGroup([w("b"), w("a")]).map((g) => [g.group, g.items.map((x) => x.name).join(" ")]), [[null, "b a"]], "no groups: one list as written");
-  assert.deepEqual(byGroup([]), []);
+test("byFolder: folders by name with their workflows as written, and the workflows in none", () => {
+  const w = (name, folder) => ({ name, ...(folder && { folder }) });
+  const names = ({ folders, loose }) => [folders.map((f) => [f.name, f.items.map((x) => x.name).join(" ")]), loose.map((x) => x.name).join(" ")];
+  const list = [w("loose"), w("report", "Reporting"), w("find", "Outbound"), w("score", "Outbound"), w("sync", "Reporting"), w("digest")];
+  assert.deepEqual(names(byFolder(list)), [[["Outbound", "find score"], ["Reporting", "report sync"]], "loose digest"]);
+  assert.deepEqual(names(byFolder([w("b"), w("a")])), [[], "b a"], "no folders: one list as written");
+  assert.deepEqual(byFolder([]), { folders: [], loose: [] });
 });

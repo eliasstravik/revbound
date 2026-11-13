@@ -176,7 +176,7 @@ export async function record(input: { name: string }) {
   return { inserted: await insertRecord(input.name) };
 }
 `);
-  register(`import { record } from "./record";`, { record: `{ run: record, description: "Writes one row.", group: "Records", step: 1, tables: ["records"], connections: ["ACME_API_KEY"] }` });
+  register(`import { record } from "./record";`, { record: `{ run: record, description: "Writes one row.", folder: "Records", tables: ["records"], connections: ["ACME_API_KEY"] }` });
   assertOk(await npm(["run", "db:generate"]), "npm run db:generate");
   assertOk(await revbound(["migrate"]), "revbound migrate");
   const r = await revboundRun(["record", "--input", JSON.stringify({ name: "=HYPERLINK(1)" })]);
@@ -187,10 +187,9 @@ export async function record(input: { name: string }) {
   const row = runs.find((x) => x.id === r.out.runId);
   assert.ok(row && row.trigger === "cli" && row.status === "completed" && row.sdkRunId, JSON.stringify(runs));
   const listed = (await json("/api/revbound/workflows")).workflows.find((w) => w.name === "record");
-  assert.deepEqual([listed.group, listed.step], ["Records", 1], "the workflow's group and step");
-  assert.deepEqual((await json("/api/revbound/ledger/runs?group=Records")).data.map((x) => x.id), [r.out.runId], "runs of a group");
-  assert.deepEqual((await json("/api/revbound/ledger/runs?group=Nothing")).data, [], "runs of a group nobody is in");
-  assert.deepEqual((await json("/api/revbound/ledger/summary")).groups, { record: "Records" });
+  assert.equal(listed.folder, "Records", "the workflow's folder");
+  assert.deepEqual((await json("/api/revbound/ledger/runs?folder=Records")).data.map((x) => x.id), [r.out.runId], "runs of a folder");
+  assert.deepEqual((await json("/api/revbound/ledger/runs?folder=Nothing")).data, [], "runs of a folder nobody is in");
   assert.deepEqual((await json("/api/revbound/data/records")).rows.map((x) => x[1]), ["=HYPERLINK(1)"]);
   assert.match((await get("/api/revbound/data/records/csv?columns=name")).text, /^name\n'=HYPERLINK\(1\)\n/);
   assert.equal((await get("/api/revbound/inspector")).status, 200, "the run inspector, loopback");

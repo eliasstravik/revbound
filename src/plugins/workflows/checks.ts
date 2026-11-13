@@ -6,7 +6,7 @@ import { type CheckCtx, projectJiti } from "revbound/cli";
 import { isBranded } from "revbound/kit";
 import { cronSchedules } from "revbound/kit/scan";
 
-const KEYS = new Set(["run", "description", "group", "step", "tables", "connections", "diagram", "approval", "budget", "schedule"]);
+const KEYS = new Set(["run", "description", "folder", "tables", "connections", "diagram", "approval", "budget", "schedule"]);
 const DAY = 86_400_000;
 const positive = (v: unknown) => v === undefined || (typeof v === "number" && Number.isFinite(v) && v > 0);
 
@@ -27,20 +27,20 @@ export default async function checks(ctx: CheckCtx): Promise<CheckResult[]> {
     err(`workflows/index.ts does not load: ${(error as Error).message}`, `export const workflows = { <name>: workflowFn } (${DOCS})`);
     return out;
   }
-  const groups = new Map<string, string>();
+  const folders = new Map<string, string>();
   for (const [name, e] of Object.entries(registry)) {
     const at = `workflows/index.ts: ${name}`;
     if (!/^[a-z0-9][a-z0-9-]{0,62}$/.test(name)) err(`${at}: the name must be lowercase letters, digits and -.`);
     if (typeof e === "function") continue;
     if (!e || typeof e !== "object" || typeof e.run !== "function") { err(`${at} is neither a workflow function nor { run: workflowFn, … }.`, DOCS); continue; }
-    for (const k of Object.keys(e)) if (!KEYS.has(k)) err(`${at} has an unknown field "${k}".`, `use only ${[...KEYS].join(", ")}`);
-    if (e.group !== undefined) {
-      const key = typeof e.group === "string" ? e.group.toLowerCase() : "", first = groups.get(key) ?? e.group;
-      if (typeof e.group !== "string" || !e.group.trim() || e.group !== e.group.trim() || e.group.length > 40) err(`${at}: group must be a short name of 1 to 40 characters, e.g. "Outbound".`);
-      else if (first !== e.group) err(`${at}: its group "${e.group}" is spelled "${first}" on another workflow.`, "spell a group the same on every workflow in it");
-      else groups.set(key, first);
+    const renamed: Record<string, string[]> = { group: ["`group` is now `folder`.", "rename the field to folder"], step: ["`step` is gone; workflows have no order in the console.", "remove the field"] };
+    for (const k of Object.keys(e)) if (renamed[k]) err(`${at}: ${renamed[k][0]}`, renamed[k][1]); else if (!KEYS.has(k)) err(`${at} has an unknown field "${k}".`, `use only ${[...KEYS].join(", ")}`);
+    if (e.folder !== undefined) {
+      const key = typeof e.folder === "string" ? e.folder.toLowerCase() : "", first = folders.get(key) ?? e.folder;
+      if (typeof e.folder !== "string" || !e.folder.trim() || e.folder !== e.folder.trim() || e.folder.length > 40 || e.folder.includes("/")) err(`${at}: folder must be one short name of 1 to 40 characters without "/", e.g. "Outbound".`);
+      else if (first !== e.folder) err(`${at}: its folder "${e.folder}" is spelled "${first}" on another workflow.`, "spell a folder the same on every workflow in it");
+      else folders.set(key, first);
     }
-    if (e.step !== undefined && (!Number.isInteger(e.step) || e.step < 1 || e.group === undefined)) err(`${at}: step must be a whole number from 1, on a workflow with a group.`);
     if (e.approval !== undefined) {
       const a = e.approval as Record<string, unknown>;
       if (a.required !== true) err(`${at}: approval needs \`required: true\`.`);

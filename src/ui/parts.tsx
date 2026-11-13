@@ -13,11 +13,12 @@ export function StatusBadge({ status, children }: { status: string; children?: R
   return <span className="status" data-tone={tone}>{word}{children}</span>;
 }
 
-/** A page's top: an optional way back, the title, a line under it, and its actions on the right. */
-export function PageHeader({ title, crumb, subtitle, children }: { title: string; crumb?: { href: string; label: string }; subtitle?: ReactNode; children?: ReactNode }) {
+type Crumb = { href: string; label: string };
+/** A page's top: the way back (one crumb, or the path of them), the title, a line under it, and its actions on the right. */
+export function PageHeader({ title, crumb, subtitle, children }: { title: string; crumb?: Crumb | Crumb[]; subtitle?: ReactNode; children?: ReactNode }) {
   return <>
     <header className="title-row">
-      <div className="breadcrumbs">{crumb && <><Link href={crumb.href}>{crumb.label}</Link><span aria-hidden="true">/</span></>}<h1>{title}</h1></div>
+      <div className="breadcrumbs">{[crumb ?? []].flat().map((c) => <Fragment key={c.href}><Link href={c.href}>{c.label}</Link><span aria-hidden="true">/</span></Fragment>)}<h1>{title}</h1></div>
       {children && <div className="actions">{children}</div>}
     </header>
     {subtitle && <p className="subtitle" role="status">{subtitle}</p>}

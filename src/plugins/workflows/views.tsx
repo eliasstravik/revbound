@@ -1,6 +1,6 @@
 "use client";
-import { Fragment, useEffect } from "react";
-import { byGroup, Count, cronWords, EmptyState, glyphs, Icon, isActive, Link, Menu, needsLook, PageHeader, Search, Status, StatusBadge, statusOf, Toolbar, usd, useApi, useQuery, When,
+import { Fragment, useEffect, useState } from "react";
+import { byFolder, Count, cronWords, EmptyState, glyphs, Icon, isActive, Link, Menu, needsLook, PageHeader, Search, Status, StatusBadge, Toolbar, usd, useApi, useQuery, When,
   type TabProps, type ViewProps, type WorkflowInfo } from "revbound/ui";
 import { DiagramView } from "./diagram.js";
 import "./workflows.css";
@@ -24,24 +24,36 @@ function useMissing(on: boolean) {
 const hasView = (manifest: ViewProps["manifest"], path: string) => manifest.views.some((v) => v.path === path);
 const keysMissing = (n: number) => `${n} ${n === 1 ? "key" : "keys"} missing`;
 
-/** Workflows by group (numbered when they run in steps; the rest by what needs a look first): what each does, its last run, schedule and needs. */
+/** The folders a person closed in the Workflows list, kept in this browser. */
+function useClosed() {
+  const KEY = "revbound:workflows-closed", [closed, set] = useState<string[]>([]);
+  useEffect(() => { try { const saved = JSON.parse(localStorage.getItem(KEY) ?? "[]"); if (Array.isArray(saved)) set(saved); } catch { /* Every folder starts open. */ } }, []);
+  const toggle = (name: string) => {
+    const next = closed.includes(name) ? closed.filter((n) => n !== name) : [...closed, name]; set(next);
+    try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* It still closes on this page. */ }
+  };
+  return { closed, toggle };
+}
+
+/** Workflows as files in folders: each folder a row that opens and closes, then the workflows in none; what needs a look comes first. */
 export function WorkflowsView({ manifest }: ViewProps) {
   const state = useApi<Workflows>("workflows", (d) => (d.workflows.some((w) => isActive(w.lastRun?.status)) ? 5000 : 30_000));
-  const { params, go } = useQuery(), missing = useMissing(hasView(manifest, "connections"));
+  const { params, go } = useQuery(), missing = useMissing(hasView(manifest, "connections")), { closed, toggle } = useClosed();
   const search = params.get("q") ?? "", failingOnly = params.get("filter") === "failing";
   const all = state.data?.workflows ?? [], known = state.data?.runsKnown ?? false;
   const words = search.toLowerCase().split(/\s+/).filter(Boolean);
-  const text = (w: Workflow) => [w.name, w.group, w.description, ...(w.tables ?? []), ...(w.connections ?? [])].join(" ").toLowerCase();
+  const text = (w: Workflow) => [w.name, w.folder, w.description, ...(w.tables ?? []), ...(w.connections ?? [])].join(" ").toLowerCase();
   const failing = (w: Workflow) => needsLook(w.lastRun?.status);
   const rank = (w: Workflow) => (failing(w) ? 0 : missing(w.name) ? 1 : isActive(w.lastRun?.status) ? 2 : 3);
-  const sections = byGroup(all).map((s) => ({ ...s, items: s.items.filter((w) => (!failingOnly || failing(w)) && words.every((word) => text(w).includes(word))) }))
-    .filter((s) => s.items.length), grouped = all.some((w) => w.group);
-  const row = (w: Workflow, steps: boolean) => {
+  const shown = (list: Workflow[]) => list.filter((w) => (!failingOnly || failing(w)) && words.every((word) => text(w).includes(word)))
+    .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+  const sorted = byFolder(all), folders = sorted.folders.map((f) => ({ name: f.name, items: shown(f.items) })).filter((f) => f.items.length), loose = shown(sorted.loose);
+  const row = (w: Workflow) => {
     const n = missing(w.name);
-    return <li key={w.name} className="wf-row" data-step={w.step}>{steps && <span className="wf-step" aria-hidden="true">{w.step}</span>}
+    return <li key={w.name} className="wf-row">
       <div className="wf-main">
         <p className="wf-name">
-          <Link className="wf-link" href={`/workflows/${encodeURIComponent(w.name)}${failing(w) ? "?view=runs" : ""}`}>{w.step != null && <span className="sr-only">Step {w.step}: </span>}{w.name}</Link>
+          <Link className="wf-link" href={`/workflows/${encodeURIComponent(w.name)}${failing(w) ? "?view=runs" : ""}`}>{w.name}</Link>
           {n > 0 && <span className="badge" data-tone="failed">{keysMissing(n)}</span>}
           {w.approval?.required && <span className="badge">Needs approval</span>}
         </p>
@@ -76,44 +88,32 @@ export function WorkflowsView({ manifest }: ViewProps) {
       {state.data && !known && all.length > 0 && <p role="status" className="notice">
         Last runs are unavailable. <button type="button" onClick={state.reload}>Retry</button>
       </p>}
-      {state.data && (sections.length ? sections.map((s) => {
-        const bad = s.items.filter(failing).length, title = s.group ?? "Other";
-        const rows = <ul key={title} role="list" className="wf-rows" aria-label={grouped ? title : "Workflows"} data-steps={s.steps || undefined}>
-          {(s.group ? s.items : [...s.items].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name))).map((w) => row(w, s.steps))}
-        </ul>;
-        return grouped ? <section key={title} className="wf-group">
-          <h2>{title}<span className="wf-count">{s.items.length}</span>{bad > 0 && <span className="badge" data-tone="failed">{bad} failing</span>}</h2>{rows}
-        </section> : rows;
-      }) : <EmptyState action={all.length > 0 && <button type="button" onClick={() => go({ q: undefined, filter: undefined }, true)}>Show all workflows</button>}>
+      {state.data && (folders.length + loose.length ? <ul role="list" className="wf-rows" aria-label="Workflows">
+        {folders.map((f) => {
+          // A search or filter opens every folder it finds something in.
+          const open = failingOnly || words.length > 0 || !closed.includes(f.name), bad = f.items.filter(failing).length;
+          return <li key={f.name} className="wf-folder">
+            <button type="button" aria-expanded={open} onClick={() => toggle(f.name)}>
+              <Icon d={glyphs.chevron} /><Icon d={glyphs.folder} /><span className="wf-folder-name">{f.name}</span>
+              <span className="wf-count">{f.items.length}<span className="sr-only"> {f.items.length === 1 ? "workflow" : "workflows"}</span></span>{bad > 0 && <span className="badge" data-tone="failed">{bad} failing</span>}
+            </button>
+            {open && <ul role="list" className="wf-rows" aria-label={f.name}>{f.items.map(row)}</ul>}
+          </li>;
+        })}
+        {loose.map(row)}
+      </ul>       : <EmptyState action={all.length > 0 && <button type="button" onClick={() => go({ q: undefined, filter: undefined }, true)}>Show all workflows</button>}>
         {all.length ? "No matching workflows." : "No workflows yet. Ask your agent to build one."}
       </EmptyState>)}
     </div>
   </>;
 }
 
-/** A workflow's group: its name and its workflows in their order, each with its last run as a dot and this one marked. */
-function GroupNav({ w, all, view }: { w: Workflow; all: Workflow[]; view?: string }) {
-  const g = byGroup(all).find((s) => s.group === w.group);
-  useEffect(() => { document.querySelector(".wf-chain [aria-current]")?.scrollIntoView({ block: "nearest", inline: "center" }); }, [w.name, !g]);
-  if (!w.group || !g) return null;
-  return <nav className="wf-chain" aria-label={w.group} data-steps={g.steps || undefined}>
-    <p>{w.group}</p>
-    <ol role="list">{g.items.map((s) => <li key={s.name}>
-      <Link href={`/workflows/${encodeURIComponent(s.name)}${view ? `?view=${view}` : ""}`} aria-current={s.name === w.name ? "page" : undefined}>
-        {s.step != null && <span className="wf-chain-step"><span className="sr-only">Step </span>{s.step}</span>}{s.name}
-        {s.lastRun && <span className="status" data-tone={statusOf(s.lastRun.status).tone} title={statusOf(s.lastRun.status).word}><span className="sr-only">{statusOf(s.lastRun.status).word}</span></span>}
-      </Link>
-    </li>)}</ol>
-  </nav>;
-}
-
-/** What every tab of a workflow shows on top: its group, what it does, its last run, when it starts, and what each run needs and may spend. */
-function WorkflowHeader({ w, all, view, missing, local }: { w: Workflow; all: Workflow[]; view?: string; missing: number; local: boolean }) {
+/** What every tab of a workflow shows on top: what it does, its last run, when it starts, and what each run needs and may spend. */
+function WorkflowHeader({ w, missing, local }: { w: Workflow; missing: number; local: boolean }) {
   const b = w.budget, budget = [b?.perRunUsd != null && `${usd(b.perRunUsd)} per run`, b?.perMonthUsd != null && `${usd(b.perMonthUsd)} per month`].filter(Boolean).join(" · ");
   const runs = `/workflows/${encodeURIComponent(w.name)}?view=runs`;
   return (
     <div className="wf-header">
-      <GroupNav w={w} all={all} view={view} />
       {w.description && <p className="wf-about">{w.description}</p>}
       <ul role="list" className="wf-facts">
         <li>{w.lastRun ? <Link href={`${runs}&run=${w.lastRun.id}`}><StatusBadge status={w.lastRun.status} /> <span className="muted"><When at={w.lastRun.startedAt} /></span></Link> : <span className="muted">Never run</span>}</li>
@@ -128,7 +128,7 @@ function WorkflowHeader({ w, all, view, missing, local }: { w: Workflow; all: Wo
 
 /**
  * One workflow in its tabs (`?view=`): every plugin's workflow tab in its order (Diagram, Runs, Data, Connections by
- * default; no Diagram tab without a diagram), under a header every tab shares. The path arrives still encoded.
+ * default; no Diagram tab without a diagram), under a header every tab shares; its folder's crumb is the list narrowed to it. The path arrives still encoded.
  */
 export function WorkflowView({ params, manifest, tabs }: ViewProps) {
   let name = params.name;
@@ -141,7 +141,7 @@ export function WorkflowView({ params, manifest, tabs }: ViewProps) {
   const Tab = view ? tabs[view] : undefined, path = `/workflows/${encodeURIComponent(name)}`;
   const copy = () => w?.file && navigator.clipboard.writeText(w.file).catch(() => prompt("Copy the file path", w.file!));
   return <>
-    <PageHeader title={name} crumb={{ href: "/workflows", label: "Workflows" }}>
+    <PageHeader title={name} crumb={[{ href: "/workflows", label: "Workflows" }, ...(w?.folder ? [{ href: `/workflows?q=${encodeURIComponent(w.folder)}`, label: w.folder }] : [])]}>
       {w && hasView(manifest, "chat") && <Link className="button primary" href={`/chat?draft=${encodeURIComponent(`${w.approval?.required ? "Preview" : "Run"} ${name}`)}`}>Run in Chat</Link>}
       {w && (w.sourceUrl || w.file) && <Menu label="More actions" className="icon-button" trigger={<Icon d={glyphs.more} />}>
         {w.sourceUrl ? <a role="menuitem" href={w.sourceUrl} target="_blank" rel="noopener noreferrer">View source ↗</a>
@@ -151,7 +151,7 @@ export function WorkflowView({ params, manifest, tabs }: ViewProps) {
     <Status state={state} />
     {state.data && !w && <EmptyState action={<Link className="button" href="/workflows">All workflows</Link>}>No workflow called {name}.</EmptyState>}
     {w && <>
-      <WorkflowHeader w={w} all={state.data!.workflows} view={query.get("view") ?? undefined} missing={missing(w.name)} local={local} />
+      <WorkflowHeader w={w} missing={missing(w.name)} local={local} />
       <nav className="tabs" aria-label="Workflow views">
         {list.map((t) => <Link key={t.id} href={`${path}?view=${t.id}`} aria-current={view === t.id ? "page" : undefined}>
           {t.title}{t.count && <Count path={`${t.count}?workflow=${encodeURIComponent(name)}`} className="tab-count" />}
