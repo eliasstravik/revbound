@@ -41,6 +41,8 @@ works inside: no file names, where things are stored, what is never shown, or wh
   reinstalls the package there and the open pages reload. Run only one acceptance suite at a time (they share a port).
 - A new workflow file in a test project needs `revbound dev` restarted before `revbound run` finds it. One acceptance test:
   `node --test --test-name-pattern`, including the init and `revbound dev` tests (the others build on them).
+- A workflow function's `"use workflow"` / `"use step"` directive must sit on its own line; on one line with the body, the run fails as not registered.
+  Never `pkill -f "revbound dev"` from a command that contains those words: it kills itself.
 
 ## Releases
 
