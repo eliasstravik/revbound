@@ -146,26 +146,28 @@ export const workflows = {
   lacks(errors, /ledger\/reconcile/);
 });
 
-test("registry groups: a short name spelled one way; a step is a whole number on a grouped workflow", async () => {
+test("registry folders: one short name spelled one way; group and step name their replacement", async () => {
   const dir = project({ "workflows/index.ts": `
 async function a() { "use workflow"; return 1; }
 export const workflows = {
-  find: { run: a, group: "Outbound", step: 1 },
-  score: { run: a, group: "Outbound", step: 2 },
-  report: { run: a, group: "Reporting" },
-  other: { run: a, group: "outbound" },
-  blank: { run: a, group: " " },
-  long: { run: a, group: "${"x".repeat(41)}" },
-  half: { run: a, group: "Reporting", step: 1.5 },
-  alone: { run: a, step: 1 },
+  find: { run: a, folder: "Outbound" },
+  score: { run: a, folder: "Outbound" },
+  report: { run: a, folder: "Reporting" },
+  other: { run: a, folder: "outbound" },
+  blank: { run: a, folder: " " },
+  long: { run: a, folder: "${"x".repeat(41)}" },
+  nested: { run: a, folder: "Outbound/EU" },
+  old: { run: a, group: "Outbound", step: 1 },
 };
 `, "vercel.json": JSON.stringify({ crons: [] }) });
   const { errors } = await check(dir);
-  has(errors, /other: its group "outbound" is spelled "Outbound" on another workflow/);
-  has(errors, /blank: group must be a short name/);
-  has(errors, /long: group must be a short name/);
-  has(errors, /half: step must be a whole number from 1/);
-  has(errors, /alone: step must be a whole number from 1, on a workflow with a group/);
+  has(errors, /other: its folder "outbound" is spelled "Outbound" on another workflow/);
+  has(errors, /blank: folder must be one short name/);
+  has(errors, /long: folder must be one short name/);
+  has(errors, /nested: folder must be one short name/);
+  has(errors, /old: `group` is now `folder`/);
+  has(errors, /old: `step` is gone/);
+  lacks(errors, /old has an unknown field/);
   for (const ok of ["find", "score", "report"]) lacks(errors, new RegExp(`index\\.ts: ${ok}\\b`));
 });
 

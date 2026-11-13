@@ -63,13 +63,9 @@ export function keyName(key: string): string {
   return words.map((w) => NAMES[w.toLowerCase()] ?? w[0].toUpperCase() + w.slice(1).toLowerCase()).join(" ") || key;
 }
 
-/** Workflows by their `group`: groups in the order first written, those without one last (`group: null`). Inside a
- * group numbered steps come first, in order, then the rest as written; `steps` says the group has any. */
-export function byGroup<T extends { group?: string; step?: number }>(list: T[]): { group: string | null; steps: boolean; items: T[] }[] {
-  const groups = new Map<string | null, T[]>();
-  for (const w of list) groups.set(w.group ?? null, [...(groups.get(w.group ?? null) ?? []), w]);
-  const loose = groups.get(null);
-  groups.delete(null);
-  const out = [...groups].map(([group, items]) => ({ group, steps: items.some((w) => w.step != null), items: items.sort((a, b) => (a.step ?? 1e9) - (b.step ?? 1e9)) }));
-  return loose ? [...out, { group: null, steps: false, items: loose }] : out;
+/** Workflows by their `folder`: the folders by name with their workflows as written, and `loose`, those in none. */
+export function byFolder<T extends { folder?: string }>(list: T[]): { folders: { name: string; items: T[] }[]; loose: T[] } {
+  const folders = new Map<string, T[]>(), loose: T[] = [];
+  for (const w of list) if (w.folder) folders.set(w.folder, [...(folders.get(w.folder) ?? []), w]); else loose.push(w);
+  return { folders: [...folders].map(([name, items]) => ({ name, items })).sort((a, b) => a.name.localeCompare(b.name)), loose };
 }

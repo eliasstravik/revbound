@@ -58,8 +58,8 @@ Talk by [the interaction rules](references/interaction.md); reproduce [the dialo
 4. Company code imports plugins only as `#revbound/<plugin>` (`#revbound/database`, `#revbound/ai`,
    `#revbound/workflows`, `#revbound/ledger`). After changing `revbound.config.ts` or a local plugin, run
    `npx revbound sync`; never edit `_revbound/` or the shims.
-5. Give workflows built for one purpose the same `group` in the registry, and a `step` each when they run one after
-   another, so the console shows them together (docs: workflows).
+5. Put workflows built for one purpose in the same `folder` in the registry, so the console keeps them together
+   (docs: workflows).
    Mark every workflow that spends money or acts on people `approval: { required: true }` with a `budget`. Before a real
    run of one: `npx revbound run <workflow> --input … --preview`, show the sample and the cost in this chat, ask Yes/No
    with the native question tool naming the workflow, the input and the cost cap, and only after a Yes run it with

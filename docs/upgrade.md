@@ -1,5 +1,11 @@
 # Upgrade
 
+## From revbound 0.0.11
+
+A registry entry's `group` is now `folder`, and `step` is gone: the console shows workflows as files in folders, each
+workflow on its own, with no order between them. In `workflows/index.ts`, rename every `group` to `folder` and delete
+every `step`. Until then `revbound check` names each entry to change and the project does not type-check.
+
 ## From revbound 0.0.7
 
 New projects get the chat agent as an eighth default plugin (docs: agent). An existing project keeps working without
