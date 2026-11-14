@@ -18,6 +18,7 @@ export async function suite({ url, concurrent }) {
   const { applyPlan } = await dist("plugins/database/migrate.js");
   const provideDb = (await dist("plugins/database/provide.js")).default;
   const provideLedger = (await dist("plugins/ledger/provide.js")).default;
+  const routes = await dist("plugins/ledger/routes.js");
   const { NEEDS_YES } = await dist("plugins/ledger/provide.js");
   const folder = (p) => path.join(REPO, "src", "plugins", p, "migrations");
   await applyPlan({ sets: [{ id: "database", schema: "revbound", folder: folder("database") }, { id: "ledger", schema: "revbound_ledger", folder: folder("ledger") },
@@ -349,6 +350,27 @@ export async function suite({ url, concurrent }) {
     }
     assert.equal(await status(), "completed", "refreshed within two passes");
     await q("update revbound_ledger.runs set status = 'completed' where status = 'running'");
+  });
+
+  test("a fan-out's lanes read as ended once they end, on its run's page and the Overview, before any reconcile", async () => {
+    await q("update revbound_ledger.runs set status = 'completed' where status in ('admitted', 'running')");
+    const parent = wf(), lane = wf();
+    const root = await begin({ workflow: parent, input: {}, trigger: "cli" });
+    const lanes = [];
+    for (let i = 0; i < 12; i += 1) lanes.push(await begin({ workflow: lane, input: i, trigger: "child", parent: { runId: root.runId, childKey: `${root.runId}:${i}` } }));
+    // The parent ends first (fanOut never waits), then every lane ends in the SDK; reconcile has not run.
+    sdk.get(root.sdkRunId).status = "completed";
+    for (const l of lanes) Object.assign(sdk.get(l.sdkRunId), { status: "completed", completedAt: new Date().toISOString() });
+    sdk.get(lanes[3].sdkRunId).status = "failed";
+    await q("update revbound_ledger.meta set value = now()::text where key = 'reconcile_at'");
+    const ctx = (params = {}) => ({ manifest, params, has: () => true, get: (s) => (s === "ledger" ? ledger : s === "database" ? database : workflows) });
+    assert.deepEqual((await (await routes.summary(new Request("http://x/"), ctx())).json()).running, [], "the Overview shows nothing still running");
+    await q("update revbound_ledger.runs set status = 'running', finished_at = null where parent_run_id = $1", [root.runId]);
+    const page = await (await routes.run(new Request("http://x/"), ctx({ id: root.runId }))).json();
+    assert.equal(page.run.status, "completed");
+    assert.deepEqual(page.children.map((c) => c.status).sort(), [...Array(11).fill("completed"), "failed"], "every lane as the SDK has it");
+    const one = await (await routes.run(new Request("http://x/"), ctx({ id: lanes[0].runId }))).json();
+    assert.equal(one.parent.status, "completed", "a lane's page shows the run that started it");
   });
 
   test("the views: run_costs per run and per tree, spend_by_workflow_month", async () => {

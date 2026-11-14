@@ -148,8 +148,8 @@
   "dependencies": {
     "@ai-sdk/anthropic": "4.0.82",
     "@ai-sdk/openai": "4.0.96",
-    "@electric-sql/pglite": "~0.5.10",
-    "@electric-sql/pglite-socket": "0.2.13",
+    "@electric-sql/pglite": "~0.5.16",
+    "@electric-sql/pglite-socket": "0.2.19",
     "@fontsource-variable/geist": "5.3.0",
     "@fontsource-variable/geist-mono": "5.3.0",
     "@next/env": "^16.4.2",

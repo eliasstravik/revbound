@@ -148,6 +148,14 @@ async function serve(dir: string, dev: boolean): Promise<LocalDatabase> {
  * message until Sync, and for as long as it is inside a transaction.
  */
 function queueFor(db: PGlite) {
+  const message = (type: string, body = new Uint8Array(0)) => {
+    const m = new Uint8Array(5 + body.length);
+    m[0] = type.charCodeAt(0);
+    new DataView(m.buffer).setInt32(1, 4 + body.length);
+    m.set(body, 5);
+    return m;
+  };
+  const SYNC = message("S"), ROLLBACK = message("Q", new TextEncoder().encode("ROLLBACK\0"));
   const EXTENDED = new Set([..."PBDECHFdcf"].map((c) => c.charCodeAt(0)));
   type Item = { handlerId: number; message: Uint8Array; onData: (data: Uint8Array) => void; resolve: (n: number) => void; reject: (e: unknown) => void };
   let items: Item[] = [];
@@ -180,9 +188,14 @@ function queueFor(db: PGlite) {
     clearQueueForHandler(id: number) {
       items = items.filter((q) => q.handlerId !== id || (q.reject(new Error("Handler disconnected")), false));
     },
+    /** A connection that closes while it owns the database: roll back what it began and end its exchange, so the next one starts clean. */
     async clearTransactionIfNeeded(id: number) {
       if (owner !== id) return;
-      if (db.isInTransaction()) await db.exec("ROLLBACK");
+      await db.runExclusive(async () => {
+        await db.execProtocolRaw(ROLLBACK); // ignored while an extended exchange is failed; Sync below aborts that one
+        await db.execProtocolRaw(SYNC);
+        if (db.isInTransaction()) await db.execProtocolRaw(ROLLBACK);
+      });
       owner = null;
       void run();
     },

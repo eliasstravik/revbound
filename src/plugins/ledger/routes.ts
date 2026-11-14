@@ -34,10 +34,32 @@ type Run = ReturnType<typeof toRun>;
 /** A query's rows. Typed here, since a project's own copy of this plugin sees the database slot untyped. */
 const read = async (ctx: RouteCtx, q: ReturnType<typeof sql>): Promise<Row[]> => (await ctx.get("database").db().execute(q)).rows as Row[];
 
+const open = (r: { status: string }) => r.status === "admitted" || r.status === "running";
+/** Run id → when this process last asked the SDK about it: each read asks about the longest-unasked open runs first. */
+const asked = new Map<string, number>();
+/**
+ * Asks the SDK about the open runs among `runs` (at most 50, 8 at a time), so what a page shows never waits for
+ * reconcile: a fan-out's runs end long after the run that started them. True when any of them ended.
+ */
+async function freshen(ctx: RouteCtx, runs: { id: string; status: string }[]): Promise<boolean> {
+  const ledger = ctx.get("ledger"), queue = runs.filter(open).sort((a, b) => (asked.get(a.id) ?? 0) - (asked.get(b.id) ?? 0)).slice(0, 50);
+  let ended = false;
+  await Promise.all(Array.from({ length: Math.min(8, queue.length) }, async () => {
+    for (let r = queue.shift(); r; r = queue.shift()) {
+      asked.set(r.id, Date.now());
+      const now = await ledger.refreshRun(r.id).catch(() => undefined);
+      if (now === undefined || (now && open(now))) continue;
+      asked.delete(r.id);
+      ended = true;
+    }
+  }));
+  return ended;
+}
+
 /**
  * GET /ledger/runs?workflow=&folder=&status=&period=&q=&before= → { data, hasMore, next, local, environment }: 50 ledger runs a page, newest
  * first, with their cost and approval; `next` is the next page's `before` (the last row's exact start time and id). `status=not_started`
- * is every start that was refused or failed; `folder` is every workflow in that folder of the registry. Each read runs a reconcile pass after the response (throttled to one a minute).
+ * is every start that was refused or failed; `folder` is every workflow in that folder of the registry. Each read first asks the SDK about the open runs it shows, and runs a reconcile pass after the response (throttled to one a minute).
  */
 export async function runs(req: Request, ctx: RouteCtx): Promise<Response> {
   const p = new URL(req.url).searchParams, cond = [sql`true`];
@@ -56,21 +78,24 @@ export async function runs(req: Request, ctx: RouteCtx): Promise<Response> {
     if (Number.isNaN(Date.parse(at)) || (id !== undefined && !ID.test(id))) throw new HttpError(400, "before must be a time, or a page's next");
     cond.push(id ? sql`(r.started_at, r.id) < (${at}::timestamptz, ${id}::uuid)` : sql`r.started_at < ${at}::timestamptz`);
   }
-  const rows = await read(ctx, sql`select ${COLUMNS} ${FROM} where ${sql.join(cond, sql` and `)} order by r.started_at desc, r.id desc limit 51`);
+  const page = sql`select ${COLUMNS} ${FROM} where ${sql.join(cond, sql` and `)} order by r.started_at desc, r.id desc limit 51`;
+  let rows = await read(ctx, page);
+  if (await freshen(ctx, rows.slice(0, 50).map((r) => ({ id: String(r.id), status: String(r.status) })))) rows = await read(ctx, page);
   after(() => ctx.get("ledger").reconcile().catch((e: Error) => console.error("[revbound] reconcile failed", e)));
   const last = rows.length > 50 ? rows[49] : undefined;
   return json({ data: rows.slice(0, 50).map(toRun), hasMore: !!last, next: last ? `${last.at}~${last.id}` : null, ...where() });
 }
 
 /**
- * GET /ledger/runs/<id> → { run, parent, children, result, local, environment }: one run with its status fresh, the run that
- * started it, the runs it started, and what it returned once completed (a declared key's value reads [redacted]).
+ * GET /ledger/runs/<id> → { run, parent, children, result, local, environment }: one run, the run that started it and
+ * the runs it started (open ones' statuses fresh, at most 50 a read), and what it returned once completed (a declared key's value reads [redacted]).
  */
 export async function run(_req: Request, ctx: RouteCtx): Promise<Response> {
   const ledger = ctx.get("ledger"), id = ctx.params.id;
   const row = ID.test(id) ? await ledger.refreshRun(id) : null;
   if (!row) throw new HttpError(404, "No such run");
-  const tree = row.parentRunId || row.rootRunId === row.id ? await ledger.getTree(row.rootRunId) : [];
+  let tree = row.parentRunId || row.rootRunId === row.id ? await ledger.getTree(row.rootRunId) : [];
+  if (await freshen(ctx, tree.filter((r) => r.id === row.parentRunId || r.parentRunId === row.id))) tree = await ledger.getTree(row.rootRunId);
   const sdk = row.sdkRunId && row.status === "completed" && ctx.has("workflows") ? await ctx.get("workflows").getRun(row.sdkRunId, { values: true }).catch(() => null) : null;
   let result = sdk?.returnValue === undefined || sdk.returnValue === null ? null : JSON.stringify(sdk.returnValue, null, 2);
   for (const c of ctx.manifest.connections) {
@@ -83,10 +108,12 @@ export async function run(_req: Request, ctx: RouteCtx): Promise<Response> {
 /**
  * GET /ledger/summary → { attention, running, recent, spend, local }: what the Overview shows. `attention` is each workflow
  * whose newest real run (no preview, no child) failed or did not start; `spend` is this month's (UTC) total against the
- * project's budget, and per workflow with the budget its registry entry sets.
+ * project's budget, and per workflow with the budget its registry entry sets. The 20 newest open runs are asked about first.
  */
 export async function summary(_req: Request, ctx: RouteCtx): Promise<Response> {
   const list = async (q: ReturnType<typeof sql>): Promise<Run[]> => (await read(ctx, q)).map(toRun);
+  await freshen(ctx, (await read(ctx, sql`select id, status from revbound_ledger.runs where status in ('admitted', 'running') order by started_at desc limit 20`))
+    .map((r) => ({ id: String(r.id), status: String(r.status) })));
   const [latest, running, recent, spent, registry, limits] = await Promise.all([
     lastRuns(ctx).then((m) => [...m.values()]),
     list(sql`select ${COLUMNS} ${FROM} where r.status in ('admitted', 'running') order by r.started_at desc limit 20`),
