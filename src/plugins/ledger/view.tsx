@@ -72,7 +72,9 @@ function Reason({ run, links, full }: { run: Run; links: Links; full?: boolean }
 
 /** One run in full, beside the list (over it on a small screen): `?run=<id>`, so its address opens the same panel. */
 function RunPanel({ id, links, runHref, close }: { id: string; links: Links; runHref: (id: string) => string; close: () => void }) {
-  const state = useApi<Detail>(`ledger/runs/${encodeURIComponent(id)}`, (d) => (isActive(d.run.status) ? 3000 : undefined)), d = state.data, run = d?.run;
+  // Polls while the run, the run that started it or a run it started goes: a fan-out's runs end after it does.
+  const going = (d: Detail) => [d.run, d.parent, ...d.children].some((r) => r && isActive(r.status));
+  const state = useApi<Detail>(`ledger/runs/${encodeURIComponent(id)}`, (d) => (going(d) ? 3000 : undefined)), d = state.data, run = d?.run;
   const button = useRef<HTMLButtonElement>(null), [copied, setCopied] = useState(false);
   useEffect(() => {
     button.current?.focus();
